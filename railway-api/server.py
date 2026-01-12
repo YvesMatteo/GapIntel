@@ -587,11 +587,41 @@ async def root():
         "version": "2.0.0"
     }
 
+# Worker Heartbeat (to detect frozen threads)
+last_worker_heartbeat = time.time()
+
+def worker():
+    """Background worker to process reports from the queue."""
+    global last_worker_heartbeat
+    print("👷 Worker started, waiting for jobs...")
+    
+    while True:
+        try:
+            # Update heartbeat
+            last_worker_heartbeat = time.time()
+            
+            # blocked waiting for job
+            job = job_queue.dequeue()
+            if job:
+                process_job(job)
+            else:
+                time.sleep(1) 
+                
+        except Exception as e:
+            print(f"⚠️ Worker error: {e}")
+            time.sleep(5)
 
 @app.get("/health")
-async def health():
-    """Health check for Railway."""
-    return {"status": "ok"}
+def health_check():
+    """Health check endpoint for Railway."""
+    # Check if worker is alive (heartbeat within last 10 minutes)
+    time_since_heartbeat = time.time() - last_worker_heartbeat
+    
+    if time_since_heartbeat > 600:
+        print(f"❌ Worker stuck! Last heartbeat {int(time_since_heartbeat)}s ago.")
+        raise HTTPException(status_code=500, detail="Worker thread stuck")
+        
+    return {"status": "ok", "worker_heartbeat_age": int(time_since_heartbeat)}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
