@@ -1,0 +1,685 @@
+{
+  "pipeline_stats": {
+    "raw_comments": 3000,
+    "high_signal_comments": 59,
+    "pain_points_found": 5,
+    "true_gaps": 3,
+    "under_explained": 1,
+    "saturated": 1
+  },
+  "verified_gaps": [
+    {
+      "topic_keyword": "greens",
+      "user_struggle": "Wants to know how Togi gets enough vegetables in his diet",
+      "total_engagement": 570,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "No mention found",
+      "trend_score": 40,
+      "trend_trajectory": "STABLE",
+      "engagement_score": 95
+    },
+    {
+      "topic_keyword": "part 3",
+      "user_struggle": "Users are asking where part 3 of a series has gone and if it was removed.",
+      "total_engagement": 61,
+      "gap_status": "SATURATED",
+      "verification_evidence": "The creator has uploaded 'ROAD TO $10,000,000 PART THREE'",
+      "engagement_score": 83
+    },
+    {
+      "topic_keyword": "gambling",
+      "user_struggle": "Wondering if the video is a sign to gamble.",
+      "total_engagement": 5,
+      "gap_status": "UNDER_EXPLAINED",
+      "verification_evidence": "Several videos involve gambling (e.g., BETTING MY BUSINESS ON BLACK, THE GOGGINS OF GAMBLING, MY BIGGEST WIN EVER). Whether these videos are endorsements or warnings isn't clarified.",
+      "trend_score": 22,
+      "trend_trajectory": "STABLE",
+      "engagement_score": 71
+    },
+    {
+      "topic_keyword": "cards",
+      "user_struggle": "Confused about what happens when Togi messes up the cards.",
+      "total_engagement": 3,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "No mention found",
+      "trend_score": 60,
+      "trend_trajectory": "STABLE",
+      "engagement_score": 59
+    },
+    {
+      "topic_keyword": "track name",
+      "user_struggle": "Wants to know the track name during 20:36",
+      "total_engagement": 3,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "No mention found",
+      "trend_score": 31,
+      "trend_trajectory": "STABLE",
+      "engagement_score": 47
+    }
+  ],
+  "opportunities": [
+    {
+      "topic_keyword": "greens",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Wants to know how Togi gets enough vegetables in his diet",
+      "total_engagement": 570,
+      "verification_evidence": "No mention found",
+      "viral_titles": [
+        "Togi's SECRET to Peak Performance: The Veggie Hack You NEED to Know!",
+        "Togi Eats WHAT?! Revealing My Surprising Diet (Full of Greens!)",
+        "Veggie-Phobe to Green Machine: How Togi Fuels His Hustle"
+      ],
+      "why_this_gap": "High engagement shows significant interest in Togi's diet and health habits. No existing content addresses how he incorporates vegetables, leaving a clear gap to fill.",
+      "influence_scores": {
+        "comment_influence": 80,
+        "competitor_influence": 20,
+        "trend_influence": 40,
+        "gap_severity_influence": 100,
+        "overall_score": 60
+      }
+    },
+    {
+      "topic_keyword": "cards",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Confused about what happens when Togi messes up the cards.",
+      "total_engagement": 3,
+      "verification_evidence": "No mention found",
+      "viral_titles": [
+        "Togi's Card Mishaps: The Hilarious Truth Behind the Fumbles!",
+        "When Togi's Luck Runs Out: The Consequences of Card Game Chaos",
+        "Togi's BIGGEST Card Game FAILS... And What Happens Next!"
+      ],
+      "why_this_gap": "While low engagement, the specificity of the question (consequences of mistakes) suggests a desire for clarity and adds potential for humor-driven content.",
+      "influence_scores": {
+        "comment_influence": 10,
+        "competitor_influence": 10,
+        "trend_influence": 60,
+        "gap_severity_influence": 100,
+        "overall_score": 45
+      }
+    },
+    {
+      "topic_keyword": "track name",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Wants to know the track name during 20:36",
+      "total_engagement": 3,
+      "verification_evidence": "No mention found",
+      "viral_titles": [
+        "The Song You've Been Searching For: Track ID at 20:36 REVEALED!",
+        "Unlock the Vibe: Togi's Secret Soundtrack (Song at 20:36!)",
+        "Heard This Song in a Togi Video? Find the Track at [TIMESTAMP] Here!"
+      ],
+      "why_this_gap": "Direct question with easy resolution. Good opportunity to give back to viewer questions.",
+      "influence_scores": {
+        "comment_influence": 10,
+        "competitor_influence": 5,
+        "trend_influence": 31,
+        "gap_severity_influence": 100,
+        "overall_score": 37
+      }
+    },
+    {
+      "topic_keyword": "gambling",
+      "gap_status": "UNDER_EXPLAINED",
+      "user_struggle": "Wondering if the video is a sign to gamble.",
+      "total_engagement": 5,
+      "verification_evidence": "Several videos involve gambling (e.g., BETTING MY BUSINESS ON BLACK, THE GOGGINS OF GAMBLING, MY BIGGEST WIN EVER). Whether these videos are endorsements or warnings isn't clarified.",
+      "viral_titles": [
+        "The TRUTH About Gambling: Togi's Honest Take (Don't Make These Mistakes!)",
+        "Is Togi Promoting Gambling? EXPOSING the Risks and Realities",
+        "Before You Gamble: Togi's Gambling Lessons (So You Don't Lose Everything!)"
+      ],
+      "why_this_gap": "Gambling is risky, needs to be handled with care. Could create a highly educational piece of content to prevent viewers from harming themselves.",
+      "influence_scores": {
+        "comment_influence": 10,
+        "competitor_influence": 60,
+        "trend_influence": 22,
+        "gap_severity_influence": 60,
+        "overall_score": 38
+      }
+    }
+  ],
+  "top_opportunity": {
+    "topic_keyword": "greens",
+    "best_title": "Togi's SECRET to Peak Performance: The Veggie Hack You NEED to Know!",
+    "engagement_potential": 5000,
+    "reason": "High comment engagement, high gap severity and a stable Google Trend. The user struggle is easily solved with good information."
+  },
+  "competitors_analyzed": [],
+  "videos_analyzed": [
+    {
+      "title": "ROAD TO $10,000,000 PART ONE",
+      "url": "https://youtube.com/watch?v=u2WOIpYPqLU",
+      "video_id": "u2WOIpYPqLU",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1389170,
+      "like_count": 46618,
+      "thumbnail_url": "https://i.ytimg.com/vi/u2WOIpYPqLU/maxresdefault.jpg"
+    },
+    {
+      "title": "WHY NOT YOU????",
+      "url": "https://youtube.com/watch?v=HsT_uVz2q38",
+      "video_id": "HsT_uVz2q38",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1226845,
+      "like_count": 64848,
+      "thumbnail_url": "https://i.ytimg.com/vi/HsT_uVz2q38/maxresdefault.jpg"
+    },
+    {
+      "title": "ROAD TO $10,000,000 PART TWO",
+      "url": "https://youtube.com/watch?v=Jk0Pm8v_-cQ",
+      "video_id": "Jk0Pm8v_-cQ",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1047318,
+      "like_count": 26869,
+      "thumbnail_url": "https://i.ytimg.com/vi/Jk0Pm8v_-cQ/maxresdefault.jpg"
+    },
+    {
+      "title": "ROAD TO $10,000,000 PART THREE",
+      "url": "https://youtube.com/watch?v=dDh5NbYKMy8",
+      "video_id": "dDh5NbYKMy8",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 535906,
+      "like_count": 20012,
+      "thumbnail_url": "https://i.ytimg.com/vi/dDh5NbYKMy8/maxresdefault.jpg"
+    },
+    {
+      "title": "ROAD TO $10,000,000 IS COMPLETE!!!",
+      "url": "https://youtube.com/watch?v=zEkFceI9A-Y",
+      "video_id": "zEkFceI9A-Y",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1835319,
+      "like_count": 55911,
+      "thumbnail_url": "https://i.ytimg.com/vi/zEkFceI9A-Y/maxresdefault.jpg"
+    },
+    {
+      "title": "BUSINESS MASTERCLASS BY TOGI",
+      "url": "https://youtube.com/watch?v=WWjM5q_FutU",
+      "video_id": "WWjM5q_FutU",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1795387,
+      "like_count": 55538,
+      "thumbnail_url": "https://i.ytimg.com/vi/WWjM5q_FutU/maxresdefault.jpg"
+    },
+    {
+      "title": "I lost everything.",
+      "url": "https://youtube.com/watch?v=42XS2BdtbSw",
+      "video_id": "42XS2BdtbSw",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 2767236,
+      "like_count": 75841,
+      "thumbnail_url": "https://i.ytimg.com/vi/42XS2BdtbSw/maxresdefault.jpg"
+    },
+    {
+      "title": "MY BIGGEST WIN EVER",
+      "url": "https://youtube.com/watch?v=4fQvSAt11Jw",
+      "video_id": "4fQvSAt11Jw",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1777041,
+      "like_count": 56399,
+      "thumbnail_url": "https://i.ytimg.com/vi/4fQvSAt11Jw/maxresdefault.jpg"
+    },
+    {
+      "title": "MOGGING LARRY WHEELS",
+      "url": "https://youtube.com/watch?v=VbExziHwq1g",
+      "video_id": "VbExziHwq1g",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 546894,
+      "like_count": 26404,
+      "thumbnail_url": "https://i.ytimg.com/vi/VbExziHwq1g/maxresdefault.jpg"
+    },
+    {
+      "title": "FROM BROKE TO MILLIONAIRE IN 30 DAYS",
+      "url": "https://youtube.com/watch?v=on3--XgW4OE",
+      "video_id": "on3--XgW4OE",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1361115,
+      "like_count": 49799,
+      "thumbnail_url": "https://i.ytimg.com/vi/on3--XgW4OE/maxresdefault.jpg"
+    },
+    {
+      "title": "I GOT EVICTED",
+      "url": "https://youtube.com/watch?v=fbLGQjtfuRo",
+      "video_id": "fbLGQjtfuRo",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1192722,
+      "like_count": 39644,
+      "thumbnail_url": "https://i.ytimg.com/vi/fbLGQjtfuRo/maxresdefault.jpg"
+    },
+    {
+      "title": "BETTING MY BUSINESS ON BLACK",
+      "url": "https://youtube.com/watch?v=KQbFH0fR4e8",
+      "video_id": "KQbFH0fR4e8",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 1681339,
+      "like_count": 53731,
+      "thumbnail_url": "https://i.ytimg.com/vi/KQbFH0fR4e8/maxresdefault.jpg"
+    },
+    {
+      "title": "TOGI VS PLINKO BALLS",
+      "url": "https://youtube.com/watch?v=xFKmL6BsoYA",
+      "video_id": "xFKmL6BsoYA",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 2294820,
+      "like_count": 61606,
+      "thumbnail_url": "https://i.ytimg.com/vi/xFKmL6BsoYA/maxresdefault.jpg"
+    },
+    {
+      "title": "NEW CRIB ALERT",
+      "url": "https://youtube.com/watch?v=5d4IwHsfh4k",
+      "video_id": "5d4IwHsfh4k",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 461766,
+      "like_count": 29767,
+      "thumbnail_url": "https://i.ytimg.com/vi/5d4IwHsfh4k/maxresdefault.jpg"
+    },
+    {
+      "title": "THE GOGGINS OF GAMBLING",
+      "url": "https://youtube.com/watch?v=8-X68eqQJtw",
+      "video_id": "8-X68eqQJtw",
+      "comments_count": 200,
+      "transcript_length": 0,
+      "view_count": 588217,
+      "like_count": 29940,
+      "thumbnail_url": "https://i.ytimg.com/vi/8-X68eqQJtw/maxresdefault.jpg"
+    }
+  ],
+  "premium": {
+    "tier": "pro",
+    "ctr_prediction": {
+      "channel_avg_predicted_ctr": 4.44,
+      "video_predictions": [
+        {
+          "video_title": "ROAD TO $10,000,000 PART ONE",
+          "predicted_ctr": 4.3,
+          "confidence": 0.6,
+          "positive_factors": [
+            {
+              "factor": "Numbers in title",
+              "impact": 0.3
+            }
+          ],
+          "negative_factors": [],
+          "suggestions": [
+            "Add a large, prominent face to increase engagement",
+            "Add 2-4 words of text overlay",
+            "Consider adding red/yellow accent colors"
+          ]
+        },
+        {
+          "video_title": "WHY NOT YOU????",
+          "predicted_ctr": 5.0,
+          "confidence": 0.6,
+          "positive_factors": [
+            {
+              "factor": "High contrast",
+              "impact": 0.4
+            },
+            {
+              "factor": "Power words in title",
+              "impact": 0.6
+            }
+          ],
+          "negative_factors": [],
+          "suggestions": [
+            "Add a large, prominent face to increase engagement",
+            "Add 2-4 words of text overlay",
+            "Consider adding red/yellow accent colors"
+          ]
+        },
+        {
+          "video_title": "ROAD TO $10,000,000 PART TWO",
+          "predicted_ctr": 4.3,
+          "confidence": 0.6,
+          "positive_factors": [
+            {
+              "factor": "Numbers in title",
+              "impact": 0.3
+            }
+          ],
+          "negative_factors": [],
+          "suggestions": [
+            "Add a large, prominent face to increase engagement",
+            "Add 2-4 words of text overlay",
+            "Consider adding red/yellow accent colors"
+          ]
+        },
+        {
+          "video_title": "ROAD TO $10,000,000 PART THREE",
+          "predicted_ctr": 4.3,
+          "confidence": 0.6,
+          "positive_factors": [
+            {
+              "factor": "Numbers in title",
+              "impact": 0.3
+            }
+          ],
+          "negative_factors": [],
+          "suggestions": [
+            "Add a large, prominent face to increase engagement",
+            "Add 2-4 words of text overlay",
+            "Consider adding red/yellow accent colors"
+          ]
+        },
+        {
+          "video_title": "ROAD TO $10,000,000 IS COMPLETE!!!",
+          "predicted_ctr": 4.3,
+          "confidence": 0.6,
+          "positive_factors": [
+            {
+              "factor": "Numbers in title",
+              "impact": 0.3
+            }
+          ],
+          "negative_factors": [],
+          "suggestions": [
+            "Add a large, prominent face to increase engagement",
+            "Add 2-4 words of text overlay",
+            "Consider adding red/yellow accent colors"
+          ]
+        }
+      ],
+      "top_improvement": "Add a large, prominent face to increase engagement"
+    },
+    "thumbnail_analysis": {
+      "mode": "advanced",
+      "videos_analyzed": [
+        {
+          "video_title": "ROAD TO $10,000,000 PART ONE",
+          "predicted_ctr": 6.5,
+          "potential_improvement": "+15%",
+          "score_breakdown": {
+            "face_impact": 90,
+            "text_readability": 80,
+            "color_contrast": 80,
+            "overall": 78
+          },
+          "issues": [
+            {
+              "issue": "The face does not make eye contact. Eye contact typically improves CTR.",
+              "severity": "medium",
+              "fix": "Have the subject look directly at the camera."
+            },
+            {
+              "issue": "The face has a neutral expression. More emotion could attract more attention.",
+              "severity": "low",
+              "fix": "Try to have a more dynamic or surprised/excited facial expression."
+            }
+          ],
+          "strengths": [
+            "Clear title",
+            "Relatable content",
+            "High contrast"
+          ],
+          "ab_test_suggestions": [
+            {
+              "variant": "Add Larger Face",
+              "description": "Use a close-up face with expressive emotion",
+              "expected_lift": "+20-35%"
+            },
+            {
+              "variant": "Add Larger Face",
+              "description": "Use a close-up face with expressive emotion",
+              "expected_lift": "+20-35%"
+            }
+          ]
+        },
+        {
+          "video_title": "WHY NOT YOU????",
+          "predicted_ctr": 7.8,
+          "potential_improvement": "+5%",
+          "score_breakdown": {
+            "face_impact": 60,
+            "text_readability": 80,
+            "color_contrast": 80,
+            "overall": 85
+          },
+          "issues": [],
+          "strengths": [
+            "clear title",
+            "face makes eye contact",
+            "high contrast"
+          ],
+          "ab_test_suggestions": []
+        },
+        {
+          "video_title": "ROAD TO $10,000,000 PART TWO",
+          "predicted_ctr": 6.8,
+          "potential_improvement": "+30%",
+          "score_breakdown": {
+            "face_impact": 90,
+            "text_readability": 80,
+            "color_contrast": 40,
+            "overall": 65
+          },
+          "issues": [
+            {
+              "issue": "The overall image quality isn't great.",
+              "severity": "low",
+              "fix": "Use a better camera or improve lighting."
+            },
+            {
+              "issue": "Background is not well defined and distracting",
+              "severity": "medium",
+              "fix": "Use a blurred background or a simple, plain background."
+            },
+            {
+              "issue": "The face has an odd expression that may not appeal to a wide audience.",
+              "severity": "low",
+              "fix": "Consider using a more approachable or relatable expression."
+            },
+            {
+              "issue": "Contrast is low and subject does not pop",
+              "severity": "medium",
+              "fix": "Increase the contrast between the subject and the background"
+            }
+          ],
+          "strengths": [
+            "Large, expressive face",
+            "Clear text",
+            "Relevant title"
+          ],
+          "ab_test_suggestions": [
+            {
+              "variant": "Add Larger Face",
+              "description": "Use a close-up face with expressive emotion",
+              "expected_lift": "+20-35%"
+            }
+          ]
+        }
+      ]
+    },
+    "views_forecast": {
+      "forecasts": [
+        {
+          "video_title": "ROAD TO $10,000,000 PART ONE",
+          "predicted_7d_views": 1389170,
+          "predicted_30d_views": 1389170,
+          "viral_probability": 5.0,
+          "trajectory_type": "slow_burn",
+          "vs_channel_avg": "Within normal range"
+        },
+        {
+          "video_title": "WHY NOT YOU????",
+          "predicted_7d_views": 1226845,
+          "predicted_30d_views": 1226845,
+          "viral_probability": 5.0,
+          "trajectory_type": "slow_burn",
+          "vs_channel_avg": "Within normal range"
+        },
+        {
+          "video_title": "ROAD TO $10,000,000 PART TWO",
+          "predicted_7d_views": 1047318,
+          "predicted_30d_views": 1047318,
+          "viral_probability": 5.0,
+          "trajectory_type": "slow_burn",
+          "vs_channel_avg": "26% below average"
+        }
+      ],
+      "avg_viral_probability": 5.0
+    },
+    "competitor_intel": null,
+    "content_clusters": {
+      "clusters": [
+        {
+          "id": 9,
+          "name": "General Content",
+          "video_count": 1,
+          "avg_views": 1226845.0,
+          "avg_engagement": 0.02,
+          "performance_score": 0.9,
+          "common_elements": [],
+          "best_performer": {
+            "title": "WHY NOT YOU????",
+            "views": 1226845
+          },
+          "example_titles": [
+            "WHY NOT YOU????"
+          ]
+        },
+        {
+          "id": 0,
+          "name": "General Content",
+          "video_count": 1,
+          "avg_views": 1835319.0,
+          "avg_engagement": 0.01,
+          "performance_score": 1.34,
+          "common_elements": [],
+          "best_performer": {
+            "title": "ROAD TO $10,000,000 IS COMPLETE!!!",
+            "views": 1835319
+          },
+          "example_titles": [
+            "ROAD TO $10,000,000 IS COMPLETE!!!"
+          ]
+        },
+        {
+          "id": 6,
+          "name": "General Content",
+          "video_count": 1,
+          "avg_views": 2294820.0,
+          "avg_engagement": 0.01,
+          "performance_score": 1.68,
+          "common_elements": [],
+          "best_performer": {
+            "title": "TOGI VS PLINKO BALLS",
+            "views": 2294820
+          },
+          "example_titles": [
+            "TOGI VS PLINKO BALLS"
+          ]
+        },
+        {
+          "id": 10,
+          "name": "'Road' Content",
+          "video_count": 12,
+          "avg_views": 1262009.0,
+          "avg_engagement": 0.02,
+          "performance_score": 0.92,
+          "common_elements": [
+            "road",
+            "part",
+            "business"
+          ],
+          "best_performer": {
+            "title": "I lost everything.",
+            "views": 2767236
+          },
+          "example_titles": [
+            "ROAD TO $10,000,000 PART ONE",
+            "ROAD TO $10,000,000 PART TWO",
+            "ROAD TO $10,000,000 PART THREE"
+          ]
+        }
+      ],
+      "best_performing": "General Content",
+      "underperforming": [],
+      "gap_opportunities": [
+        "Consider creating 'listicle' content - typically high-performing format"
+      ],
+      "recommendations": [
+        "Your 'General Content' content performs best with 1,226,845 avg views. Consider making more of this type."
+      ]
+    },
+    "publish_times": null,
+    "hook_analysis": {
+      "videos_analyzed": 0,
+      "avg_hook_score": 0,
+      "best_patterns": [],
+      "recommendations": [],
+      "top_hooks": [],
+      "pattern_performance": {}
+    },
+    "color_insights": {
+      "total_videos": 3,
+      "best_color_temperatures": [
+        {
+          "temperature": "neutral",
+          "avg_views": 1221111.0
+        }
+      ],
+      "best_saturation_levels": [
+        {
+          "saturation": "low",
+          "avg_views": 1221111.0
+        }
+      ],
+      "top_performing_colors": [
+        "#808080",
+        "#646464",
+        "#505050"
+      ],
+      "color_recommendations": [
+        "Use neutral colors - they average 1,221,111 views",
+        "Prefer low saturation thumbnails",
+        "Top color: #808080 (1,221,111 avg views)"
+      ],
+      "temperature_performance": {
+        "neutral": 1221111.0
+      },
+      "saturation_performance": {
+        "low": 1221111.0
+      },
+      "brightness_performance": {
+        "medium": 1221111.0
+      }
+    },
+    "visual_charts": {
+      "color_temperature": {
+        "chart_type": "bar",
+        "title": "Color Temperature vs Views",
+        "svg_data_uri": "data:image/svg+xml;base64,CiAgICAgICAgPHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHJlY3Qgd2lkdGg9IjYwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNmOGZhZmMiIHJ4PSI4Ii8+CiAgICAgICAgICAgIDx0ZXh0IHg9IjMwMC4wIiB5PSIyNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNCIgCiAgICAgICAgICAgICAgICAgIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiMxZTI5M2IiPkNvbG9yIFRlbXBlcmF0dXJlIHZzIFZpZXdzPC90ZXh0PgogICAgICAgICAgICAKICAgICAgICAgICAgICAgIDx0ZXh0IHg9IjExMCIgeT0iMTU0LjAiIAogICAgICAgICAgICAgICAgICAgICAgdGV4dC1hbmNob3I9ImVuZCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzFlMjkzYiI+TmV1dHJhbDwvdGV4dD4KICAgICAgICAgICAgCiAgICAgICAgICAgICAgICA8cmVjdCB4PSIxMjAiIHk9IjEzNS4wIiB3aWR0aD0iNDYwLjAiIGhlaWdodD0iMzAiCiAgICAgICAgICAgICAgICAgICAgICByeD0iNCIgZmlsbD0iIzhiNWNmNiIgb3BhY2l0eT0iMC45Ii8+CiAgICAgICAgICAgIAogICAgICAgICAgICAgICAgPHRleHQgeD0iNTg4LjAiIHk9IjE1NC4wIgogICAgICAgICAgICAgICAgICAgICAgZm9udC1zaXplPSIxMSIgZmlsbD0iIzY0NzQ4YiI+MSwyMjEsMTExPC90ZXh0PgogICAgICAgICAgICAKICAgICAgICA8L3N2Zz4KICAgICAgICA=",
+        "width": 600,
+        "height": 300
+      },
+      "top_colors": {
+        "chart_type": "palette",
+        "title": "Top Performing Colors",
+        "svg_data_uri": "data:image/svg+xml;base64,CiAgICAgICAgPHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNmOGZhZmMiIHJ4PSI4Ii8+CiAgICAgICAgICAgIDx0ZXh0IHg9IjIwMC4wIiB5PSIyNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNCIKICAgICAgICAgICAgICAgICAgZm9udC13ZWlnaHQ9IjYwMCIgZmlsbD0iIzFlMjkzYiI+VG9wIFBlcmZvcm1pbmcgQ29sb3JzPC90ZXh0PgogICAgICAgICAgICAKICAgICAgICAgICAgICAgIDxyZWN0IHg9IjIwLjAiIHk9IjQwIiB3aWR0aD0iMTE2LjAiIGhlaWdodD0iNjAiIAogICAgICAgICAgICAgICAgICAgICAgcng9IjYiIGZpbGw9IiM4MDgwODAiIHN0cm9rZT0iI2UyZThmMCIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAgICAgICA8dGV4dCB4PSI3OC4wIiB5PSIxMTUiIAogICAgICAgICAgICAgICAgICAgICAgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI5IiBmaWxsPSIjNjQ3NDhiIj4jODA4MDgwPC90ZXh0PgogICAgICAgICAgICAKICAgICAgICAgICAgICAgIDxyZWN0IHg9IjE0MC4wIiB5PSI0MCIgd2lkdGg9IjExNi4wIiBoZWlnaHQ9IjYwIiAKICAgICAgICAgICAgICAgICAgICAgIHJ4PSI2IiBmaWxsPSIjNjQ2NDY0IiBzdHJva2U9IiNlMmU4ZjAiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgICAgICAgICAgICAgPHRleHQgeD0iMTk4LjAiIHk9IjExNSIgCiAgICAgICAgICAgICAgICAgICAgICB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjkiIGZpbGw9IiM2NDc0OGIiPiM2NDY0NjQ8L3RleHQ+CiAgICAgICAgICAgIAogICAgICAgICAgICAgICAgPHJlY3QgeD0iMjYwLjAiIHk9IjQwIiB3aWR0aD0iMTE2LjAiIGhlaWdodD0iNjAiIAogICAgICAgICAgICAgICAgICAgICAgcng9IjYiIGZpbGw9IiM1MDUwNTAiIHN0cm9rZT0iI2UyZThmMCIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICAgICAgICAgICAgICA8dGV4dCB4PSIzMTguMCIgeT0iMTE1IiAKICAgICAgICAgICAgICAgICAgICAgIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iOSIgZmlsbD0iIzY0NzQ4YiI+IzUwNTA1MDwvdGV4dD4KICAgICAgICAgICAgCiAgICAgICAgPC9zdmc+CiAgICAgICAg",
+        "width": 400,
+        "height": 120
+      },
+      "ctr_gauge": {
+        "chart_type": "gauge",
+        "title": "Avg CTR: 444.0%",
+        "svg_data_uri": "data:image/svg+xml;base64,CiAgICAgICAgPHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgICAgICAgICAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmOGZhZmMiIHJ4PSI4Ii8+CiAgICAgICAgICAgIAogICAgICAgICAgICA8IS0tIEJhY2tncm91bmQgYXJjIC0tPgogICAgICAgICAgICA8Y2lyY2xlIGN4PSIxMDAuMCIgY3k9IjEwMC4wIiByPSI3MC4wIiBmaWxsPSJub25lIiAKICAgICAgICAgICAgICAgICAgICBzdHJva2U9IiNlMmU4ZjAiIHN0cm9rZS13aWR0aD0iMTIiCiAgICAgICAgICAgICAgICAgICAgc3Ryb2tlLWRhc2hhcnJheT0iMzI5Ljg2NzIyODYyNjkyODMgNDM5LjgyMjk3MTUwMjU3MSIKICAgICAgICAgICAgICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIHRyYW5zZm9ybT0icm90YXRlKDEzNSAxMDAuMCAxMDAuMCkiLz4KICAgICAgICAgICAgCiAgICAgICAgICAgIDwhLS0gVmFsdWUgYXJjIC0tPgogICAgICAgICAgICA8Y2lyY2xlIGN4PSIxMDAuMCIgY3k9IjEwMC4wIiByPSI3MC4wIiBmaWxsPSJub25lIgogICAgICAgICAgICAgICAgICAgIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSIxMiIKICAgICAgICAgICAgICAgICAgICBzdHJva2UtZGFzaGFycmF5PSIzMjkuODY3MjI4NjI2OTI4MyA0MzkuODIyOTcxNTAyNTcxIgogICAgICAgICAgICAgICAgICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgdHJhbnNmb3JtPSJyb3RhdGUoMTM1IDEwMC4wIDEwMC4wKSIvPgogICAgICAgICAgICAKICAgICAgICAgICAgPCEtLSBTY29yZSB0ZXh0IC0tPgogICAgICAgICAgICA8dGV4dCB4PSIxMDAuMCIgeT0iMTA1LjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIAogICAgICAgICAgICAgICAgICBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMWUyOTNiIj40NDQ8L3RleHQ+CiAgICAgICAgICAgIDx0ZXh0IHg9IjEwMC4wIiB5PSIxMjUuMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIKICAgICAgICAgICAgICAgICAgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY0NzQ4YiI+QXZnIENUUjogNDQ0LjAlPC90ZXh0PgogICAgICAgIDwvc3ZnPgogICAgICAgIA==",
+        "width": 200,
+        "height": 200
+      }
+    }
+  }
+}

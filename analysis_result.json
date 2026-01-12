@@ -1,0 +1,137 @@
+{
+  "pipeline_stats": {
+    "raw_comments": 44,
+    "high_signal_comments": 4,
+    "pain_points_found": 4,
+    "true_gaps": 3,
+    "under_explained": 1,
+    "saturated": 0
+  },
+  "verified_gaps": [
+    {
+      "topic_keyword": "Todesminen challenges",
+      "user_struggle": "Wants to understand the strategy used to overcome specific game challenges.",
+      "total_engagement": 26,
+      "gap_status": "UNDER_EXPLAINED",
+      "verification_evidence": "The video mentions entering 'Todesminen' ('Es geht jetzt die Todesbienein'), states it will be 'ein heftiges Unterfangen' and that players will 'sterben alle zu 100 Prozent'. It talks about the experience and difficulties ('Es ist sehr viel laufen. Manchmal ist das Bubsborn in Geisteskrank f\u00fcr den Arsch.') but does not explain any strategies for overcoming specific challenges.",
+      "trend_score": 0,
+      "trend_trajectory": "UNKNOWN"
+    },
+    {
+      "topic_keyword": "Kroko's behavior",
+      "user_struggle": "Doesn't understand the reason for Kroko's strong emotional reaction.",
+      "total_engagement": 13,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "Kroko is mentioned as a new player ('Jetzt ist Kroko dabei. Der hat sich bereit erkl\u00e4rt. Er ist auch mage, dem mit Stila.'), but there is no mention of Kroko exhibiting any strong emotional reaction or the reasons behind it.",
+      "trend_score": 0,
+      "trend_trajectory": "UNKNOWN"
+    },
+    {
+      "topic_keyword": "DPS add-on",
+      "user_struggle": "Unsure about the current existence or availability of a specific game add-on that shows group pull rate.",
+      "total_engagement": 3,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "No mention found of any DPS add-on, game add-on, or group pull rate.",
+      "trend_score": 24,
+      "trend_trajectory": "RISING"
+    },
+    {
+      "topic_keyword": "Target of Target",
+      "user_struggle": "Confused about the 'target of target' game mechanic/display, possibly finding it difficult or frustrating.",
+      "total_engagement": 0,
+      "gap_status": "TRUE_GAP",
+      "verification_evidence": "No mention found of 'Target of Target' or any related game mechanic/display.",
+      "trend_score": 23,
+      "trend_trajectory": "STABLE"
+    }
+  ],
+  "opportunities": [
+    {
+      "topic_keyword": "Kroko's behavior",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Doesn't understand the reason for Kroko's strong emotional reaction.",
+      "total_engagement": 13,
+      "verification_evidence": "Kroko is mentioned as a new player ('Jetzt ist Kroko dabei. Der hat sich bereit erkl\u00e4rt. Er ist auch mage, dem mit Stila.'), but there is no mention of Kroko exhibiting any strong emotional reaction or the reasons behind it.",
+      "viral_titles": [
+        "WARUM ist Kroko SO KRASS ausgerastet? Die ganze Wahrheit!",
+        "Kroko's RAGE: Was WIRKLICH hinter seiner Reaktion steckt! (Trymacs)",
+        "Der Kroko-Moment: Keiner versteht, was passiert ist! JETZT ERKL\u00c4RT!"
+      ],
+      "why_this_gap": "This is a TRUE_GAP with moderate user engagement, indicating a clear missed opportunity to address viewer confusion about a specific in-game event or personality trait. Viewers are clearly intrigued by Kroko's strong emotional reaction, making it highly clickable.",
+      "influence_scores": {
+        "comment_influence": 55,
+        "competitor_influence": 0,
+        "trend_influence": 0,
+        "gap_severity_influence": 100,
+        "overall_score": 39
+      }
+    },
+    {
+      "topic_keyword": "DPS add-on",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Unsure about the current existence or availability of a specific game add-on that shows group pull rate.",
+      "total_engagement": 3,
+      "verification_evidence": "No mention found of any DPS add-on, game add-on, or group pull rate.",
+      "viral_titles": [
+        "Das NEUE DPS Addon: Gibt's das WIRKLICH noch? (Trymacs WoW)",
+        "Gruppe Pull Rate ADDON: Ist DAS noch aktuell? Deine Fragen, meine Antwort!",
+        "DPS-Addon: Verwirrung um 'Group Pull Rate' \u2013 ICH kl\u00e4re auf!"
+      ],
+      "why_this_gap": "Despite lower direct engagement, the rising trend score for a TRUE_GAP on a specific game mechanic indicates potential for capturing search traffic and serving a niche audience need that is gaining relevance.",
+      "influence_scores": {
+        "comment_influence": 20,
+        "competitor_influence": 0,
+        "trend_influence": 24,
+        "gap_severity_influence": 100,
+        "overall_score": 36
+      }
+    },
+    {
+      "topic_keyword": "Target of Target",
+      "gap_status": "TRUE_GAP",
+      "user_struggle": "Confused about the 'target of target' game mechanic/display, possibly finding it difficult or frustrating.",
+      "total_engagement": 0,
+      "verification_evidence": "No mention found of 'Target of Target' or any related game mechanic/display.",
+      "viral_titles": [
+        "Target of Target: So leicht l\u00f6st du DEINE Probleme!",
+        "Verwirrung um 'Target of Target' im Spiel? Die EINFACHSTE Erkl\u00e4rung!",
+        "Diesen 'Target of Target' Fehler macht JEDER! (Trymacs Tipps)"
+      ],
+      "why_this_gap": "A TRUE_GAP with a stable trend suggests an evergreen topic that viewers struggle with. Providing a clear explanation can establish Trymacs as a helpful resource and capture long-term search traffic, even with no prior direct engagement.",
+      "influence_scores": {
+        "comment_influence": 10,
+        "competitor_influence": 0,
+        "trend_influence": 23,
+        "gap_severity_influence": 100,
+        "overall_score": 33
+      }
+    },
+    {
+      "topic_keyword": "Todesminen challenges",
+      "gap_status": "UNDER_EXPLAINED",
+      "user_struggle": "Wants to understand the strategy used to overcome specific game challenges.",
+      "total_engagement": 26,
+      "verification_evidence": "The video mentions entering 'Todesminen' ('Es geht jetzt die Todesbienein'), states it will be 'ein heftiges Unterfangen' and that players will 'sterben alle zu 100 Prozent'. It talks about the experience and difficulties ('Es ist sehr viel laufen. Manchmal ist das Bubsborn in Geisteskrank f\u00fcr den Arsch.') but does not explain any strategies for overcoming specific challenges.",
+      "viral_titles": [
+        "Todesminen: UNSERE Strategie, damit ihr NICHT sterbt!",
+        "DIE Todesminen Herausforderung: SO schaffen WIR es (Trymacs Guide)",
+        "Keine Chance in den Todesminen? Diese Tricks braucht JEDER!"
+      ],
+      "why_this_gap": "High engagement on an UNDER_EXPLAINED topic shows a strong viewer desire for more detailed strategic guidance. This is a direct response to audience pain points, offering high utility and replayability for a guide-style video.",
+      "influence_scores": {
+        "comment_influence": 80,
+        "competitor_influence": 0,
+        "trend_influence": 0,
+        "gap_severity_influence": 60,
+        "overall_score": 35
+      }
+    }
+  ],
+  "top_opportunity": {
+    "topic_keyword": "Kroko's behavior",
+    "best_title": "WARUM ist Kroko SO KRASS ausgerastet? Die ganze Wahrheit!",
+    "engagement_potential": 4000,
+    "reason": "This 'TRUE_GAP' combined with moderate engagement around a specific character's emotional reaction creates immense curiosity. Such personality-driven mysteries often go viral as viewers seek the full story, providing a strong narrative hook for Trymacs to address directly and definitively."
+  },
+  "competitors_analyzed": []
+}

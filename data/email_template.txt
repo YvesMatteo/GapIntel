@@ -1,0 +1,16 @@
+SUBJECT: Quick question for {channel_name}
+---
+Hey {channel_name}!
+
+I noticed you have {subscriber_count} subscribers and {video_count} videos – that's impressive!
+
+I built an <b>AI tool</b> that analyzes your actual <b>audience comments</b> to find <b>EXACTLY</b> what topics your viewers are asking for, but you haven't covered yet. It's like having a research assistant that tells you: "<b>Your audience wants THIS video.</b>"
+
+It also checks <b>Google Trends</b> and <b>competitor channels</b> to find content opportunities/ideas.
+
+Would you be interested in a <b>free sample analysis</b> for your channel?
+
+Just reply "<b>yes</b>" and I'll send it over.
+
+Best,
+Yves Romano

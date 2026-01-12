@@ -1,0 +1,151 @@
+"""
+Premium Analysis - ML Viral Predictor
+Predicts viral potential of video ideas based on channel history and content patterns.
+"""
+
+from dataclasses import dataclass
+from typing import List, Dict, Optional
+import numpy as np
+
+@dataclass
+class ViralPrediction:
+    predicted_views: int
+    viral_probability: float  # 0-1
+    confidence_score: float   # 0-1
+    factors: Dict[str, float] # Contribution of each factor
+    tips: List[str]
+
+class ViralPredictor:
+    def __init__(self):
+        self.weights = {
+            'topic_relevance': 0.3,
+            'title_power': 0.25,
+            'hook_strength': 0.25,
+            'timing': 0.1,
+            'format_fit': 0.1
+        }
+
+    def predict(self, 
+                title: str, 
+                hook_text: str,
+                topic: str,
+                channel_history: List[Dict]) -> ViralPrediction:
+        """
+        Predict viral potential of a video idea.
+        
+        Args:
+            title: Proposed video title
+            hook_text: Proposed hook script
+            topic: Video topic/category
+            channel_history: List of past videos with view counts
+            
+        Returns:
+            ViralPrediction object
+        """
+        if not channel_history:
+            return ViralPrediction(0, 0, 0, {}, ["Need channel history for prediction"])
+
+        # Calculate baselines
+        views = [v.get('view_count', 0) for v in channel_history]
+        avg_views = np.mean(views) if views else 0
+        median_views = np.median(views) if views else 0
+        max_views = max(views) if views else 0
+        
+        # 1. Analyze Title Power
+        title_score = self._analyze_title(title, channel_history)
+        
+        # 2. Analyze Topic Relevance
+        topic_score = self._analyze_topic(topic, channel_history)
+        
+        # 3. Analyze Hook Strength (heuristic)
+        hook_score = self._analyze_hook(hook_text)
+        
+        # Calculate viral probability
+        raw_score = (
+            title_score * self.weights['title_power'] +
+            topic_score * self.weights['topic_relevance'] +
+            hook_score * self.weights['hook_strength'] +
+            0.5 * self.weights['timing'] +  # Placeholder
+            0.5 * self.weights['format_fit']  # Placeholder
+        )
+        
+        viral_prob = min(max(raw_score, 0), 0.95)
+        
+        # Predict views (conservative estimate based on prob)
+        # If prob > 0.8, predict near max_views
+        # If prob ~ 0.5, predict near avg_views
+        # If prob < 0.3, predict near median_views
+        
+        if viral_prob > 0.8:
+            base = max_views
+            multiplier = 0.8 + (viral_prob - 0.8) # 0.8 to 0.95
+        elif viral_prob > 0.5:
+            base = avg_views
+            multiplier = 1.0 + (viral_prob - 0.5) # 1.0 to 1.3
+        else:
+            base = median_views
+            multiplier = 0.5 + viral_prob # 0.5 to 0.8
+            
+        predicted_views = int(base * multiplier)
+        
+        # Generate tips
+        tips = []
+        if title_score < 0.6:
+            tips.append("Title could be stronger - try adding 'power words' or click-triggers.")
+        if hook_score < 0.6:
+            tips.append("Hook needs more urgency or curiosity gap.")
+        if viral_prob > 0.8:
+            tips.append("High viral potential! Ensure thumbnail matches title intensity.")
+            
+        return ViralPrediction(
+            predicted_views=predicted_views,
+            viral_probability=round(viral_prob, 2),
+            confidence_score=0.75, # Static for heuristic model
+            factors={
+                'title': round(title_score, 2),
+                'topic': round(topic_score, 2),
+                'hook': round(hook_score, 2)
+            },
+            tips=tips
+        )
+        
+    def _analyze_title(self, title: str, history: List[Dict]) -> float:
+        # Simple heuristic: check length and power words
+        score = 0.5
+        
+        # Length check (optimal: 30-60 chars)
+        if 30 <= len(title) <= 60:
+            score += 0.1
+            
+        # Check for successful past patterns
+        title_lower = title.lower()
+        top_videos = sorted(history, key=lambda x: x.get('view_count', 0), reverse=True)[:5]
+        
+        matches = 0
+        for vid in top_videos:
+            past_title = vid.get('title', '').lower()
+            # Check for common bigrams
+            words = past_title.split()
+            for i in range(len(words)-1):
+                if f"{words[i]} {words[i+1]}" in title_lower:
+                    matches += 1
+                    
+        score += min(matches * 0.1, 0.3)
+        return min(score, 1.0)
+
+    def _analyze_topic(self, topic: str, history: List[Dict]) -> float:
+        return 0.7 # Placeholder
+
+    def _analyze_hook(self, hook: str) -> float:
+        score = 0.5
+        hook_lower = hook.lower()
+        
+        # Check for hook elements
+        if '?' in hook: # Question
+            score += 0.1
+        if any(w in hook_lower for w in ['you', 'your', 'i', 'my']): # Personal
+            score += 0.1
+        if any(w in hook_lower for w in ['secret', 'know', 'never', 'stop']): # Curiosity
+            score += 0.1
+            
+        return min(score, 1.0)
