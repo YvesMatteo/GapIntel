@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Sparkles, TrendingUp, AlertCircle, ArrowRight, Zap, Target, PenTool } from "lucide-react";
 
 export default function ViralPredictorPage() {
@@ -11,6 +12,10 @@ export default function ViralPredictorPage() {
         hook: "",
         topic: "General",
     });
+
+    const searchParams = useSearchParams();
+    const accessKey = searchParams.get("key");
+    const [channelContext, setChannelContext] = useState<string>("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,7 +30,8 @@ export default function ViralPredictorPage() {
                 },
                 body: JSON.stringify({
                     ...formData,
-                    // Pass empty history for now, or could implement history fetching if we had channel ID
+                    access_key: accessKey,
+                    // Pass empty history for now, backend will fetch if access_key exists
                     history: []
                 }),
             });
@@ -34,6 +40,9 @@ export default function ViralPredictorPage() {
 
             const data = await response.json();
             setResult(data);
+            if (data.channel_context) {
+                setChannelContext(data.channel_context);
+            }
         } catch (error) {
             console.error(error);
             alert("Failed to generate prediction. Please try again.");
@@ -41,6 +50,25 @@ export default function ViralPredictorPage() {
             setLoading(false);
         }
     };
+
+    if (!accessKey) {
+        return (
+            <main className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
+                <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 p-12 text-center max-w-lg w-full">
+                    <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-purple-600 mx-auto mb-6">
+                        <Sparkles className="w-10 h-10" />
+                    </div>
+                    <h1 className="text-2xl font-serif font-medium text-slate-900 mb-4">Select a Report</h1>
+                    <p className="text-slate-500 mb-8">
+                        The Viral Predictor needs channel history to be accurate. Please open a report from your dashboard and click "Viral Predictor".
+                    </p>
+                    <a href="/dashboard" className="inline-block w-full bg-slate-900 text-white font-medium py-4 rounded-full hover:bg-slate-800 transition">
+                        Go to Dashboard
+                    </a>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-[#FAFAFA] pt-24 pb-20">
@@ -56,13 +84,14 @@ export default function ViralPredictorPage() {
                     </h1>
                     <p className="text-lg text-slate-500 max-w-2xl mx-auto">
                         Validate your video ideas before you film. Our AI analyzes your title and hook against millions of data points to predict performance.
+                        {channelContext && <span className="block mt-2 font-medium text-purple-600">Analyzing for channel: @{channelContext}</span>}
                     </p>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-8 items-start">
+                <div className="grid lg:grid-cols-5 md:grid-cols-2 gap-8 items-start">
 
                     {/* Input Form */}
-                    <div className="md:col-span-1 space-y-6">
+                    <div className="lg:col-span-2 md:col-span-1 space-y-6">
                         <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sticky top-32">
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
@@ -130,7 +159,7 @@ export default function ViralPredictorPage() {
                     </div>
 
                     {/* Results Area */}
-                    <div className="md:col-span-2">
+                    <div className="lg:col-span-3 md:col-span-1">
                         {!result && !loading && (
                             <div className="bg-white/50 border border-slate-200/50 rounded-[32px] p-12 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
                                 <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-purple-200 mb-6">
@@ -156,7 +185,7 @@ export default function ViralPredictorPage() {
                                             <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Viral Probability</p>
                                             <div className="flex items-baseline gap-2">
                                                 <span className={`text-6xl font-bold ${result.viral_probability > 0.7 ? 'text-green-600' :
-                                                        result.viral_probability > 0.4 ? 'text-yellow-600' : 'text-slate-600'
+                                                    result.viral_probability > 0.4 ? 'text-yellow-600' : 'text-slate-600'
                                                     }`}>
                                                     {(result.viral_probability * 100).toFixed(0)}%
                                                 </span>
@@ -165,7 +194,7 @@ export default function ViralPredictorPage() {
                                             <div className="w-full bg-slate-100 h-3 rounded-full mt-4 overflow-hidden">
                                                 <div
                                                     className={`h-full rounded-full transition-all duration-1000 ${result.viral_probability > 0.7 ? 'bg-green-500' :
-                                                            result.viral_probability > 0.4 ? 'bg-yellow-500' : 'bg-slate-500'
+                                                        result.viral_probability > 0.4 ? 'bg-yellow-500' : 'bg-slate-500'
                                                         }`}
                                                     style={{ width: `${result.viral_probability * 100}%` }}
                                                 />

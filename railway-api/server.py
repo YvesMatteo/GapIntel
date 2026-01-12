@@ -1609,26 +1609,41 @@ async def predict_video(request: Request):
         title = data.get('title')
         hook = data.get('hook', '')
         topic = data.get('topic', 'General')
-        channel_id = data.get('channel_id')
+        access_key = data.get('access_key')
         
         if not title:
             raise HTTPException(status_code=400, detail="Title is required")
 
-        # In a real implementation, we would fetch channel history here
-        # For now, we'll try to get it from cached opportunities or return a generic prediction
-        # Or better, we just instantiate the predictor and run it with empty history if none provided,
-        # but the predictor requires history. 
-        # So we should probably let the frontend pass recent video history if available,
-        # OR we fetch it quickly. Fetching is better but might be slow.
-        # Let's import the predictor first.
+        history = data.get('history', [])
+        channel_name_context = ""
+
+        # Fetch history from report if access_key provided
+        if access_key:
+            analysis = fetch_analysis_status(access_key)
+            if analysis and analysis.get("report_data"):
+                report = analysis["report_data"]
+                channel_name_context = report.get("channelName", "")
+                
+                # Try to extract history from various report sections
+                # 1. Premium views forecast history
+                if report.get("premium", {}).get("views_forecast", {}).get("forecasts"):
+                     # This usually contains recent videos
+                     pass
+                
+                # 2. Videos analyzed list (most reliable if populated with views)
+                if report.get("videos_analyzed"):
+                    # Transform to expected history format
+                    # {title, view_count, like_count, comment_count}
+                    for v in report["videos_analyzed"]:
+                        history.append({
+                            "title": v.get("title", ""),
+                            "view_count": v.get("view_count", 0),  # Ensure backend saves this
+                            "like_count": v.get("like_count", 0),
+                            "comment_count": v.get("comments_count", 0)
+                        })
+
         from premium.ml_models.viral_predictor import ViralPredictor
         predictor = ViralPredictor()
-        
-        # Simplified history for now (heuristic fallback will handle empty history gracefully or we can pass some dummy data)
-        # Actually, let's just make sure the predictor handles empty history or we fetch a little.
-        # For now, I will pass empty history and let the predictor return what it can based on title/hook rules.
-        
-        history = data.get('history', []) # Allow frontend to pass history
         
         prediction = predictor.predict(title, hook, topic, history)
         
@@ -1637,11 +1652,12 @@ async def predict_video(request: Request):
             'viral_probability': prediction.viral_probability,
             'confidence': prediction.confidence_score,
             'factors': prediction.factors,
-            'tips': prediction.tips
+            'tips': prediction.tips,
+            'channel_context': channel_name_context
         }
 
     except Exception as e:
-        logger.error(f"Prediction failed: {str(e)}")
+        print(f"Prediction failed: {str(e)}") # Use print as logger might be missing
         raise HTTPException(status_code=500, detail=str(e))
 
 

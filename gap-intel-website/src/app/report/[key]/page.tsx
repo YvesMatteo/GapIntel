@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle, Sparkles } from "lucide-react";
 import ReportActions from "@/components/ReportActions";
 
 // Initialize Supabase client for server component
@@ -317,11 +317,12 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                         <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-serif font-bold">G</div>
                         <span className="font-serif text-xl font-medium tracking-tight">GAP Intel</span>
                     </Link>
-                    <div className="flex items-center gap-4">
-                        <div className="hidden md:block text-right">
-                            <div className="text-xs text-slate-400 font-medium">ANALYSIS REPORT</div>
-                            <div className="text-sm font-bold text-slate-900">@{report.channelName}</div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <Link href={`/viral-predictor?key=${key}`}>
+                            <button className="h-10 px-5 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition font-medium text-sm flex items-center gap-2 shadow-lg shadow-purple-500/20">
+                                <Sparkles size={16} /> Predict Viral Video
+                            </button>
+                        </Link>
                         <Link href="/dashboard">
                             <button className="h-10 px-5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition font-medium text-sm">Dashboard</button>
                         </Link>
