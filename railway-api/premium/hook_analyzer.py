@@ -3,28 +3,23 @@ Premium Analysis - Hook Analyzer
 Analyzes the first 60 seconds of videos to identify patterns that drive views.
 
 Features:
-- Downloads only first minute of audio (fast)
-- Transcribes hooks using Whisper tiny model
+- Uses YouTube captions (instant, no audio download needed)
 - Extracts hook patterns (questions, statements, teasers, CTAs)
 - Correlates hook style with view performance using ML
+- Skips videos without captions (no transcription fallback)
 """
 
-import os
 import re
-import tempfile
-import subprocess
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
-import numpy as np
+from typing import List, Dict, Optional
 
-# Try to import whisper, handle if not available
+# Try to import youtube-transcript-api
 try:
-    import whisper
-    WHISPER_AVAILABLE = True
+    from youtube_transcript_api import YouTubeTranscriptApi
+    CAPTIONS_AVAILABLE = True
 except ImportError:
-    WHISPER_AVAILABLE = False
-    print("⚠️ Whisper not available, hook analysis will be limited")
+    CAPTIONS_AVAILABLE = False
+    print("⚠️ youtube-transcript-api not available, hook analysis will be limited")
 
 
 @dataclass
@@ -132,93 +127,49 @@ class HookAnalyzer:
         Initialize the hook analyzer.
         
         Args:
-            whisper_model: Whisper model size ('tiny', 'base', 'small')
+            whisper_model: Ignored (kept for API compatibility)
         """
-        self.whisper_model_name = whisper_model
-        self._whisper_model = None
-        
-    def _get_whisper_model(self):
-        """Lazy load whisper model."""
-        if self._whisper_model is None and WHISPER_AVAILABLE:
-            print(f"📥 Loading Whisper {self.whisper_model_name} model...")
-            self._whisper_model = whisper.load_model(self.whisper_model_name)
-        return self._whisper_model
+        # Note: whisper_model is ignored - we only use YouTube captions now
+        pass
     
-    def download_first_minute(self, video_id: str, output_dir: str = None) -> Optional[str]:
+    def fetch_captions(self, video_id: str, max_chars: int = 500) -> Optional[str]:
         """
-        Download only the first 60 seconds of audio from a YouTube video.
+        Fetch YouTube captions for a video (first ~60 seconds based on char count).
         
         Args:
             video_id: YouTube video ID
-            output_dir: Directory to save audio file
+            max_chars: Maximum characters to fetch (approx first 60 seconds)
             
         Returns:
-            Path to audio file or None if failed
+            Caption text or None if no captions available
         """
-        if output_dir is None:
-            output_dir = tempfile.mkdtemp()
+        if not CAPTIONS_AVAILABLE:
+            return None
             
-        output_path = Path(output_dir) / f"{video_id}_hook.mp3"
-        
         try:
-            # Use yt-dlp with duration limit
-            cmd = [
-                'yt-dlp',
-                '-x',  # Extract audio
-                '--audio-format', 'mp3',
-                '--audio-quality', '5',  # Lower quality = faster
-                '--download-sections', '*0:00-1:00',  # First minute only
-                '-o', str(output_path),
-                f'https://youtube.com/watch?v={video_id}'
-            ]
+            # New API (v1.2.3+): Create instance and fetch directly
+            api = YouTubeTranscriptApi()
+            transcript = api.fetch(video_id)
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60  # 60 second timeout
-            )
+            # Build the hook text (first ~60 seconds / max_chars)
+            hook_text = ""
+            for snippet in transcript:
+                # Stop after roughly 60 seconds of content
+                if snippet.start > 60:
+                    break
+                hook_text += snippet.text + " "
+                if len(hook_text) > max_chars:
+                    break
             
-            if output_path.exists():
-                return str(output_path)
-            else:
-                print(f"⚠️ Failed to download hook for {video_id}")
+            return hook_text.strip() if hook_text.strip() else None
+            
+        except Exception as e:
+            # Handle various error cases (no captions, disabled, etc.)
+            error_str = str(e).lower()
+            if 'disabled' in error_str or 'not found' in error_str or 'no transcript' in error_str:
                 return None
-                
-        except subprocess.TimeoutExpired:
-            print(f"⏱️ Timeout downloading hook for {video_id}")
+            print(f"⚠️ Caption fetch error for {video_id}: {e}")
             return None
-        except Exception as e:
-            print(f"❌ Error downloading hook for {video_id}: {e}")
-            return None
-    
-    def transcribe_hook(self, audio_path: str) -> Tuple[str, float]:
-        """
-        Transcribe the hook audio using Whisper.
-        
-        Args:
-            audio_path: Path to audio file
-            
-        Returns:
-            Tuple of (transcript, duration_seconds)
-        """
-        model = self._get_whisper_model()
-        if model is None:
-            return "", 0.0
-            
-        try:
-            result = model.transcribe(audio_path, language='en', fp16=False)
-            transcript = result.get('text', '').strip()
-            
-            # Calculate actual duration from segments
-            segments = result.get('segments', [])
-            duration = segments[-1]['end'] if segments else 0.0
-            
-            return transcript, duration
-            
-        except Exception as e:
-            print(f"❌ Transcription error: {e}")
-            return "", 0.0
     
     def detect_patterns(self, transcript: str) -> List[HookPattern]:
         """
@@ -276,67 +227,58 @@ class HookAnalyzer:
     
     def analyze_single_video(self, video_data: dict, avg_views: float) -> Optional[HookAnalysisResult]:
         """
-        Analyze a single video's hook.
+        Analyze a single video's hook using YouTube captions.
         
         Args:
             video_data: Dict with video_id, title, view_count
             avg_views: Channel average views for scoring
             
         Returns:
-            HookAnalysisResult or None if analysis failed
+            HookAnalysisResult or None if no captions available
         """
         video_id = video_data.get('video_id')
+        if not video_id:
+            return None
         
-        # Download first minute
-        audio_path = self.download_first_minute(video_id)
-        if not audio_path:
+        # Fetch captions (instant - no audio download needed)
+        caption_text = self.fetch_captions(video_id)
+        if not caption_text:
+            print(f"   ⚠️ No captions for {video_id} - skipping")
             return None
             
-        try:
-            # Transcribe
-            transcript, duration = self.transcribe_hook(audio_path)
-            if not transcript:
-                return None
-                
-            # Detect patterns
-            patterns = self.detect_patterns(transcript)
-            
-            # Extract opening words
-            opening_words = self.extract_opening_words(transcript)
-            
-            # Calculate score
-            view_count = video_data.get('view_count', 0)
-            hook_score = self.calculate_hook_score(patterns, view_count, avg_views)
-            
-            return HookAnalysisResult(
-                video_id=video_id,
-                video_title=video_data.get('title', ''),
-                view_count=view_count,
-                hook_transcript=transcript,
-                patterns=patterns,
-                hook_score=hook_score,
-                opening_words=opening_words,
-                hook_duration_seconds=duration,
-            )
-            
-        finally:
-            # Cleanup
-            if audio_path and Path(audio_path).exists():
-                try:
-                    Path(audio_path).unlink()
-                except:
-                    pass
+        # Detect patterns
+        patterns = self.detect_patterns(caption_text)
+        
+        # Extract opening words
+        opening_words = self.extract_opening_words(caption_text)
+        
+        # Calculate score
+        view_count = video_data.get('view_count', 0)
+        hook_score = self.calculate_hook_score(patterns, view_count, avg_views)
+        
+        return HookAnalysisResult(
+            video_id=video_id,
+            video_title=video_data.get('title', ''),
+            view_count=view_count,
+            hook_transcript=caption_text[:300],  # First 300 chars as hook
+            patterns=patterns,
+            hook_score=hook_score,
+            opening_words=opening_words,
+            hook_duration_seconds=60.0,  # Approximate
+        )
     
     def analyze_videos(self, videos_data: List[dict], max_videos: int = 20) -> List[HookAnalysisResult]:
         """
-        Analyze hooks for multiple videos.
+        Analyze hooks for multiple videos using YouTube captions.
+        
+        Videos without captions are skipped (no transcription fallback).
         
         Args:
-            videos_data: List of video dicts (can include 'transcript' for fallback)
+            videos_data: List of video dicts
             max_videos: Maximum videos to analyze
             
         Returns:
-            List of HookAnalysisResult
+            List of HookAnalysisResult (only for videos with captions)
         """
         videos = videos_data[:max_videos]
         
@@ -345,20 +287,20 @@ class HookAnalyzer:
         avg_views = total_views / len(videos) if videos else 1
         
         results = []
+        skipped = 0
         for i, video in enumerate(videos):
             print(f"🎣 Analyzing hook {i+1}/{len(videos)}: {video.get('title', '')[:50]}...")
             
-            # Try audio-based analysis first (if Whisper available)
-            result = None
-            if WHISPER_AVAILABLE:
-                result = self.analyze_single_video(video, avg_views)
+            # Use caption-based analysis only
+            result = self.analyze_single_video(video, avg_views)
             
-            # Fallback: Use existing transcript if available
-            if result is None and video.get('transcript'):
-                result = self.analyze_from_transcript(video, avg_views)
-                
             if result:
                 results.append(result)
+            else:
+                skipped += 1
+        
+        if skipped > 0:
+            print(f"   ℹ️ Skipped {skipped} videos (no captions available)")
                 
         return results
     

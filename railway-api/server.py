@@ -430,51 +430,109 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
 
 def recover_stuck_jobs():
     """
-    Check database for stuck jobs (pending/processing) and re-queue them.
+    Check database for stuck jobs (processing for too long) and handle them.
     Called at startup to recover from crashes or sleep.
+    
+    Logic:
+    - Jobs processing for >30 minutes are considered stuck
+    - Stuck jobs get retry_count incremented and re-queued
+    - Jobs with retry_count >= 3 are marked as failed (prevent infinite loops)
     """
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("⚠️ Cannot recover stuck jobs: Supabase credentials missing")
         return
     
-    # Find reports stuck in pending or processing for more than 10 minutes
-    url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id&status=in.(pending,processing)"
+    # Max time a job can be "processing" before considered stuck (30 minutes)
+    STUCK_THRESHOLD_MINUTES = 30
+    MAX_RETRIES = 3
+    
     headers = {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}"
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
     }
     
     try:
+        # Find reports stuck in "processing" status
+        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,retry_count&status=eq.processing"
         resp = requests.get(url, headers=headers)
+        
         if resp.status_code != 200:
             print(f"⚠️ Failed to fetch stuck jobs: {resp.text}")
             return
         
-        stuck_jobs = resp.json()
-        if not stuck_jobs:
+        processing_jobs = resp.json()
+        if not processing_jobs:
             print("✅ No stuck jobs found")
             return
         
-        print(f"🔄 Found {len(stuck_jobs)} stuck job(s), re-queuing...")
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        stuck_threshold = timedelta(minutes=STUCK_THRESHOLD_MINUTES)
         
-        for job in stuck_jobs:
-            # Get user email from user_id (needed for job queue)
-            user_url = f"{SUPABASE_URL}/rest/v1/rpc/get_user_email"
-            # Fallback: just use a placeholder since email mainly used for notifications
-            email = "recovered@gapintel.online"
-            
-            job_data = {
-                'channel_name': job.get('channel_handle') or job.get('channel_name'),
-                'access_key': job['access_key'],
-                'email': email,
-                'video_count': 20,  # Default to pro tier
-                'tier': 'pro'
-            }
-            
-            print(f"   📥 Re-queuing: {job['access_key']} ({job['channel_name']})")
-            job_queue.enqueue(job_data)
+        stuck_count = 0
+        requeued_count = 0
+        failed_count = 0
         
-        print(f"✅ Re-queued {len(stuck_jobs)} job(s)")
+        for job in processing_jobs:
+            # Check how long it's been processing
+            updated_at = job.get('updated_at')
+            if updated_at:
+                try:
+                    job_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                    time_stuck = now - job_time
+                    
+                    if time_stuck < stuck_threshold:
+                        # Not stuck long enough, skip
+                        continue
+                except Exception:
+                    pass  # If time parsing fails, treat as stuck
+            
+            stuck_count += 1
+            access_key = job['access_key']
+            retry_count = job.get('retry_count', 0) or 0
+            
+            if retry_count >= MAX_RETRIES:
+                # Too many retries - mark as permanently failed
+                print(f"   ❌ Marking as failed (max retries): {access_key}")
+                update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
+                requests.patch(
+                    update_url,
+                    headers=headers,
+                    json={
+                        "status": "failed",
+                        "report_data": {"error": f"Analysis failed after {MAX_RETRIES} retry attempts"}
+                    }
+                )
+                failed_count += 1
+            else:
+                # Re-queue with incremented retry count
+                print(f"   🔄 Re-queuing (retry #{retry_count + 1}): {access_key}")
+                
+                # Update retry count
+                update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
+                requests.patch(
+                    update_url,
+                    headers=headers,
+                    json={"status": "pending", "retry_count": retry_count + 1}
+                )
+                
+                # Add to job queue
+                job_data = {
+                    'channel_name': job.get('channel_handle') or job.get('channel_name'),
+                    'access_key': access_key,
+                    'email': "recovered@gapintel.online",
+                    'video_count': 20,
+                    'tier': 'pro'
+                }
+                job_queue.enqueue(job_data)
+                requeued_count += 1
+        
+        if stuck_count > 0:
+            print(f"✅ Processed {stuck_count} stuck job(s): {requeued_count} re-queued, {failed_count} failed")
+        else:
+            print("✅ No stuck jobs found (all processing jobs are within time limit)")
         
     except Exception as e:
         print(f"⚠️ Error recovering stuck jobs: {e}")
@@ -1661,41 +1719,30 @@ async def predict_video(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def startup_recovery():
-    """Reset any 'processing' jobs to 'failed' on server startup."""
-    print("🌅 Running startup recovery...")
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        print("⚠️ Supabase credentials missing, skipping recovery")
-        return
-
-    url = f"{SUPABASE_URL}/rest/v1/analyses"
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-    }
+def periodic_stuck_job_checker():
+    """
+    Background thread that periodically checks for stuck jobs.
+    Runs every 15 minutes to catch jobs that got stuck without server restart.
+    """
+    import time
+    CHECK_INTERVAL_MINUTES = 15
     
-    # Update all 'processing' to 'failed'
-    try:
-        resp = requests.patch(
-            f"{url}?analysis_status=eq.processing",
-            headers=headers,
-            json={"analysis_status": "failed", "report_data": {"error": "Server restarted during analysis"}}
-        )
-        if resp.status_code >= 400:
-            print(f"⚠️ Recovery failed: {resp.text}")
-        else:
-            print("✅ Reset 'processing' jobs to 'failed'")
-    except Exception as e:
-        print(f"⚠️ Recovery error: {e}")
+    print(f"🔄 Starting periodic stuck job checker (every {CHECK_INTERVAL_MINUTES} min)")
+    
+    while True:
+        time.sleep(CHECK_INTERVAL_MINUTES * 60)
+        try:
+            print(f"🔍 Periodic check: Looking for stuck jobs...")
+            recover_stuck_jobs()
+        except Exception as e:
+            print(f"⚠️ Periodic stuck job check failed: {e}")
 
 
 @app.on_event("startup")
 async def on_startup():
-    """Run recovery tasks on startup."""
-    # Run in thread to not block startup
-    threading.Thread(target=startup_recovery, daemon=True).start()
+    """Run recovery tasks on startup and start periodic checker."""
+    # Start periodic stuck job checker in background
+    threading.Thread(target=periodic_stuck_job_checker, daemon=True).start()
 
 
 if __name__ == "__main__":
