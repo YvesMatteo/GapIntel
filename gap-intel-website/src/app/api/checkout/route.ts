@@ -107,14 +107,7 @@ export async function POST(req: NextRequest) {
         // Create Stripe Checkout Session
         // ============================================
         const lineItem = {
-            price_data: {
-                currency: 'usd',
-                product_data: {
-                    name: tierConfig.name,
-                    description: tierConfig.description,
-                },
-                unit_amount: tierConfig.price,
-            },
+            price: tierConfig.priceId,
             quantity: 1,
         };
 

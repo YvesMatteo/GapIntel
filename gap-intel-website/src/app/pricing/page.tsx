@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Star, Zap, Shield, Crown, BarChart3, Sparkles, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,6 +96,54 @@ export default function PricingPage() {
     const router = useRouter();
     const [isAnnual, setIsAnnual] = useState(false);
     const [loading, setLoading] = useState<string | null>(null);
+    const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP' | 'CHF' | 'AUD' | 'CAD'>('USD');
+
+    // Currency Detection
+    useEffect(() => {
+        try {
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            console.log("Detected Timezone:", timeZone);
+
+            // Specific overrides first
+            if (timeZone === 'Europe/London' || timeZone === 'Europe/Dublin') {
+                setCurrency('GBP');
+            } else if (timeZone === 'Europe/Zurich' || timeZone.includes('Zurich')) {
+                setCurrency('CHF');
+            } else if (timeZone.startsWith('Australia/')) {
+                setCurrency('AUD');
+            } else if (timeZone.startsWith('America/Toronto') || timeZone.startsWith('America/Vancouver') || timeZone.startsWith('America/Edmonton') || timeZone.includes('Canada')) {
+                setCurrency('CAD');
+            }
+            // Broad regions last
+            else if (timeZone.startsWith('Europe/')) {
+                setCurrency('EUR');
+            } else {
+                setCurrency('USD');
+            }
+        } catch (e) {
+            console.error("Currency detection failed:", e);
+            setCurrency('USD'); // Fallback
+        }
+    }, []);
+
+    const PRICING_MAP = {
+        USD: { symbol: '$', Starter: 29, Pro: 59, Enterprise: 129 },
+        EUR: { symbol: '€', Starter: 29, Pro: 59, Enterprise: 129 },
+        GBP: { symbol: '£', Starter: 25, Pro: 49, Enterprise: 109 },
+        CHF: { symbol: 'CHF ', Starter: 29, Pro: 59, Enterprise: 129 },
+        AUD: { symbol: 'A$', Starter: 45, Pro: 89, Enterprise: 199 },
+        CAD: { symbol: 'C$', Starter: 39, Pro: 79, Enterprise: 179 },
+    };
+
+    const getPrice = (tierName: string) => {
+        const config = PRICING_MAP[currency];
+        const basePrice = config[tierName as keyof typeof config] as number;
+
+        if (isAnnual) {
+            return `${config.symbol}${Math.round(basePrice * 0.8)}`;
+        }
+        return `${config.symbol}${basePrice}`;
+    };
 
     const handleSubscribe = async (tier: PricingTier) => {
         // Require authentication before checkout
@@ -107,14 +155,14 @@ export default function PricingPage() {
         setLoading(tier.name);
 
         try {
-            const response = await fetch("/api/create-subscription", {
+            const response = await fetch("/api/checkout", { // Fixed endpoint from create-subscription to checkout
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    priceId: tier.priceId,
+                    tier: tier.name.toLowerCase(), // Use sanitized tier name for API
                     isAnnual,
                     email: user.email,
-                    userId: user.id, // Pass userId for organization creation
+                    channelName: user.user_metadata?.channel_name || 'unknown'
                 }),
             });
 
@@ -122,6 +170,8 @@ export default function PricingPage() {
 
             if (data.url) {
                 window.location.href = data.url;
+            } else {
+                console.error("No checkout URL returned", data);
             }
         } catch (error) {
             console.error("Subscription error:", error);
@@ -191,9 +241,7 @@ export default function PricingPage() {
                                 <h3 className={`text-2xl font-serif font-medium mb-2 ${tier.highlighted ? "text-white" : "text-slate-900"}`}>{tier.name}</h3>
                                 <div className="flex items-baseline gap-1 mb-4">
                                     <span className={`text-5xl font-medium tracking-tight ${tier.highlighted ? "text-white" : "text-slate-900"}`}>
-                                        {isAnnual && tier.period === "/month"
-                                            ? `$${Math.round(parseInt(tier.price.replace("$", "")) * 0.8)}`
-                                            : tier.price}
+                                        {getPrice(tier.name)}
                                     </span>
                                     <span className={`text-lg ${tier.highlighted ? "text-slate-400" : "text-slate-400"}`}>{tier.period}</span>
                                 </div>
