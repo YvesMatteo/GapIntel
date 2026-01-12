@@ -1665,7 +1665,10 @@ Examples:
                         videos_data.append(result)
                         print(f"   ✓ [{completed}/{len(videos_to_transcribe)}] {videos_to_transcribe[idx-1]['title'][:35]}...")
                     else:
-                        print(f"   ⚠️ [{completed}/{len(videos_to_transcribe)}] Failed: {error[:40]}...")
+                        if error:
+                            print(f"   ⚠️ [{completed}/{len(videos_to_transcribe)}] Failed: {error[:40]}...")
+                        else:
+                            print(f"   ℹ️ [{completed}/{len(videos_to_transcribe)}] Skipped (no captions)")
         
         # 2. Fetch comments from remaining videos (parallel, 5 workers - faster)
         if videos_comments_only:

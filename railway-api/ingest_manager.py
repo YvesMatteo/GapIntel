@@ -34,11 +34,7 @@ except ImportError:
     print("❌ yt-dlp not installed. Run: pip install yt-dlp")
     sys.exit(1)
 
-try:
-    import whisper
-except ImportError:
-    print("❌ openai-whisper not installed. Run: pip install openai-whisper")
-    sys.exit(1)
+# import whisper (Removed: strict caption-only mode)
 
 try:
     from googleapiclient.discovery import build
@@ -56,8 +52,7 @@ except ImportError:
     print("⚠️ youtube-transcript-api not available, smart transcription disabled")
 
 
-# Global Whisper model cache (avoid reloading for each video)
-_whisper_model = None
+# Whisper model cache removed
 _whisper_model_name = None
 
 
@@ -362,68 +357,57 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     if verbose:
         print(f"\n📹 Processing: {video_id}")
     
-    # Step 1 & 3: Smart Transcription (Try captions first)
-    transcription = None
-    audio_path = None
+    # Step 1: Smart Transcription (Strict: Captions ONLY)
+    transcription = None # Audio/Transcribe functions removed (Strict mode)
     video_info = None
     
-    # Try fetching captions (fastest)
+    # Try fetching captions
     if verbose:
         print(f"   🔍 Checking for captions...")
     
     caption_result = fetch_captions(video_id)
     
-    if caption_result:
+    if not caption_result:
         if verbose:
-            print(f"   ✅ Captions found! Skipping audio download.")
-        transcription = caption_result
+            print(f"   ❌ No captions found. Skipping video (Strict mode).")
+        return None
         
-        # We still need video metadata, but we can fetch it via yt-dlp without downloading audio
-        # or use a lighter weight method. For now, let's use yt-dlp to just get metadata (fast)
-        if verbose:
-            print(f"   ℹ️ Fetching metadata only...")
-        
-        try:
-            ydl_opts_meta = {
-                'quiet': True,
-                'no_warnings': True,
-                'skip_download': True, # Key: don't download anything
+    if verbose:
+        print(f"   ✅ Captions found!")
+    transcription = caption_result
+    
+    # Fetch metadata (lightweight, no download)
+    if verbose:
+        print(f"   ℹ️ Fetching metadata only...")
+    
+    try:
+        ydl_opts_meta = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True, # Key: don't download anything
+        }
+        with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
+            info = ydl.extract_info(url, download=False)
+            video_info = {
+                'id': info.get('id'),
+                'title': info.get('title'),
+                'url': info.get('webpage_url'),
+                'uploader': info.get('uploader'),
+                'uploader_id': info.get('uploader_id'),
+                'description': info.get('description'),
+                'view_count': info.get('view_count'),
+                'like_count': info.get('like_count'),
+                'duration': info.get('duration'),
+                'upload_date': info.get('upload_date'),
+                'thumbnail_url': info.get('thumbnail'),
+                'tags': info.get('tags', []),
             }
-            with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
-                info = ydl.extract_info(url, download=False)
-                video_info = {
-                    'id': info.get('id'),
-                    'title': info.get('title'),
-                    'url': info.get('webpage_url'),
-                    'uploader': info.get('uploader'),
-                    'uploader_id': info.get('uploader_id'),
-                    'description': info.get('description'),
-                    'view_count': info.get('view_count'),
-                    'like_count': info.get('like_count'),
-                    'duration': info.get('duration'),
-                    'upload_date': info.get('upload_date'),
-                    'thumbnail_url': info.get('thumbnail'),
-                    'tags': info.get('tags', []),
-                }
-        except Exception as e:
-            print(f"⚠️ Metadata fetch failed: {e}")
-            # Minimal fallback if metadata fails
-            video_info = {'id': video_id, 'title': f"Video {video_id}", 'url': url}
+    except Exception as e:
+        print(f"⚠️ Metadata fetch failed: {e}")
+        # Minimal fallback
+        video_info = {'id': video_id, 'title': f"Video {video_id}", 'url': url}
 
-    else:
-        # Fallback: Download audio and transcribe
-        if verbose:
-            print(f"   ⚠️ No captions found. Falling back to audio download + Whisper.")
-            print(f"   📥 Downloading audio...")
-            
-        audio_path, video_info = download_audio(url, temp_dir, video_id, verbose)
-        if verbose:
-            print(f"   ✓ Audio downloaded")
-            print(f"   🎙️ Transcribing with Whisper ({model_name})...")
-            
-        transcription = transcribe_audio(audio_path, model_name)
-
-    # Step 2: Fetch comments (raw, no filtering)
+    # Step 2: Fetch comments
     if verbose:
         print(f"   💬 Fetching comments...")
     comments = fetch_all_comments(video_id, api_key, max_comments=200)
