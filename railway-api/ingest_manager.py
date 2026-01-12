@@ -47,6 +47,14 @@ except ImportError:
     print("❌ google-api-python-client not installed. Run: pip install google-api-python-client")
     sys.exit(1)
 
+# Try to import youtube-transcript-api
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    CAPTIONS_AVAILABLE = True
+except ImportError:
+    CAPTIONS_AVAILABLE = False
+    print("⚠️ youtube-transcript-api not available, smart transcription disabled")
+
 
 # Global Whisper model cache (avoid reloading for each video)
 _whisper_model = None
@@ -278,6 +286,49 @@ def transcribe_audio(audio_path: Path, model_name: str = "tiny") -> dict:
     }
 
 
+def fetch_captions(video_id: str) -> dict:
+    """
+    Fetch YouTube captions for a video using youtube-transcript-api.
+    Returns format compatible with Whisper output: {text, segments}
+    """
+    if not CAPTIONS_AVAILABLE:
+        return None
+        
+    try:
+        # Use new API (v1.2.3+)
+        api = YouTubeTranscriptApi()
+        transcript = api.fetch(video_id)
+        
+        full_text = ""
+        segments = []
+        
+        for snippet in transcript:
+            text = snippet.text.replace('\n', ' ').strip()
+            start = snippet.start
+            end = start + snippet.duration
+            
+            full_text += text + " "
+            
+            segments.append({
+                'start': start,
+                'end': end,
+                'text': text
+            })
+            
+        return {
+            'text': full_text.strip(),
+            'language': 'en',  # Assumed or API could provide
+            'segments': segments
+        }
+    except Exception as e:
+        # Don't print huge stack traces for common "no caption" errors
+        error = str(e).lower()
+        if 'disabled' in error or 'not found' in error or 'no transcript' in error:
+            return None
+        print(f"⚠️ Caption fetch failed: {e}")
+        return None
+
+
 def process_video(url: str, api_key: str, model_name: str = "tiny", 
                   temp_dir: Path = None, verbose: bool = True) -> dict:
     """
@@ -311,13 +362,67 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     if verbose:
         print(f"\n📹 Processing: {video_id}")
     
-    # Step 1: Download audio
-    if verbose:
-        print(f"   📥 Downloading audio...")
-    audio_path, video_info = download_audio(url, temp_dir, video_id, verbose)
-    if verbose:
-        print(f"   ✓ {video_info['title'][:50]}...")
+    # Step 1 & 3: Smart Transcription (Try captions first)
+    transcription = None
+    audio_path = None
+    video_info = None
     
+    # Try fetching captions (fastest)
+    if verbose:
+        print(f"   🔍 Checking for captions...")
+    
+    caption_result = fetch_captions(video_id)
+    
+    if caption_result:
+        if verbose:
+            print(f"   ✅ Captions found! Skipping audio download.")
+        transcription = caption_result
+        
+        # We still need video metadata, but we can fetch it via yt-dlp without downloading audio
+        # or use a lighter weight method. For now, let's use yt-dlp to just get metadata (fast)
+        if verbose:
+            print(f"   ℹ️ Fetching metadata only...")
+        
+        try:
+            ydl_opts_meta = {
+                'quiet': True,
+                'no_warnings': True,
+                'skip_download': True, # Key: don't download anything
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_meta) as ydl:
+                info = ydl.extract_info(url, download=False)
+                video_info = {
+                    'id': info.get('id'),
+                    'title': info.get('title'),
+                    'url': info.get('webpage_url'),
+                    'uploader': info.get('uploader'),
+                    'uploader_id': info.get('uploader_id'),
+                    'description': info.get('description'),
+                    'view_count': info.get('view_count'),
+                    'like_count': info.get('like_count'),
+                    'duration': info.get('duration'),
+                    'upload_date': info.get('upload_date'),
+                    'thumbnail_url': info.get('thumbnail'),
+                    'tags': info.get('tags', []),
+                }
+        except Exception as e:
+            print(f"⚠️ Metadata fetch failed: {e}")
+            # Minimal fallback if metadata fails
+            video_info = {'id': video_id, 'title': f"Video {video_id}", 'url': url}
+
+    else:
+        # Fallback: Download audio and transcribe
+        if verbose:
+            print(f"   ⚠️ No captions found. Falling back to audio download + Whisper.")
+            print(f"   📥 Downloading audio...")
+            
+        audio_path, video_info = download_audio(url, temp_dir, video_id, verbose)
+        if verbose:
+            print(f"   ✓ Audio downloaded")
+            print(f"   🎙️ Transcribing with Whisper ({model_name})...")
+            
+        transcription = transcribe_audio(audio_path, model_name)
+
     # Step 2: Fetch comments (raw, no filtering)
     if verbose:
         print(f"   💬 Fetching comments...")
@@ -325,13 +430,9 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     if verbose:
         print(f"   ✓ {len(comments)} comments")
     
-    # Step 3: Transcribe
-    if verbose:
-        print(f"   🎙️ Transcribing...")
-    transcription = transcribe_audio(audio_path, model_name)
     word_count = len(transcription['text'].split())
     if verbose:
-        print(f"   ✓ {word_count} words")
+        print(f"   ✓ {word_count} words in transcript")
     
     # Return structured data
     return {
