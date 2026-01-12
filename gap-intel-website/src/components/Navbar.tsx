@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
+import { Sparkles } from "lucide-react";
 
 export default function Navbar() {
     const { user, loading, signOut } = useAuth();
@@ -56,10 +57,9 @@ export default function Navbar() {
                         Pricing
                     </Link>
                     <Link
-                        href="/viral-predictor"
-                        className="text-sm font-medium text-purple-600 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full transition hidden md:block border border-purple-100"
+                        className="text-sm font-medium text-purple-600 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full transition hidden md:flex items-center gap-1.5 border border-purple-100"
                     >
-                        Viral Predictor ✨
+                        Viral Predictor <Sparkles size={14} fill="currentColor" className="text-purple-500" />
                     </Link>
 
                     {loading ? (

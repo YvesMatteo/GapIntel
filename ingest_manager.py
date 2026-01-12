@@ -202,25 +202,12 @@ def transcribe_audio(audio_path: Path, model_name: str = "base") -> dict:
 
 
 def process_video(url: str, api_key: str, model_name: str = "base", 
-                  temp_dir: Path = None, verbose: bool = True) -> dict:
+                  temp_dir: Path = None, verbose: bool = False) -> dict:
     """
-    Process a single YouTube video: download, transcribe, fetch comments.
-    
-    This is the main reusable function for other scripts.
-    
-    Args:
-        url: YouTube video URL
-        api_key: YouTube Data API key
-        model_name: Whisper model size
-        temp_dir: Directory for temp audio files (default: ./data/.temp)
-        verbose: Print progress messages
-        
-    Returns:
-        dict with keys:
-            - video_info: Video metadata
-            - transcript: Full transcript text
-            - transcript_segments: List of {start, end, text}
-            - comments: List of raw comments
+    Process a single YouTube video:
+    1. Try fetching existing captions (INSTANT).
+    2. If missing, download ONLY first 60s of audio (HOOK) and transcribe (FAST).
+    3. Fetch comments.
     """
     # Setup temp directory
     if temp_dir is None:
@@ -233,34 +220,103 @@ def process_video(url: str, api_key: str, model_name: str = "base",
     
     if verbose:
         print(f"\n📹 Processing: {video_id}")
+
+    transcript_text = ""
+    transcript_segments = []
     
-    # Step 1: Download audio
-    if verbose:
-        print(f"   📥 Downloading audio...")
-    audio_path, video_info = download_audio(url, temp_dir, video_id, verbose)
-    if verbose:
-        print(f"   ✓ {video_info['title'][:50]}...")
+    # --- STRATEGY 1: Fetch Existing Captions (Instant) ---
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        if verbose: print("   📑 Pinging caption API...")
+        
+        # Try fetching manually created, then generated captions
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        # Prefer English, fallback to auto-generated
+        try:
+            transcript_obj = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
+        except:
+            transcript_obj = transcript_list.find_manually_created_transcript(['en'])
+            
+        # Fetch actual data
+        full_transcript = transcript_obj.fetch()
+        
+        # Format segments
+        for item in full_transcript:
+            transcript_segments.append({
+                'start': round(item['start'], 2),
+                'end': round(item['start'] + item['duration'], 2),
+                'text': item['text']
+            })
+            transcript_text += item['text'] + " "
+            
+        if verbose: print("   ✓ Captions fetched instantly!")
+
+    except Exception:
+        # --- STRATEGY 2: Fallback to Partial Audio Download (Hook Only) ---
+        if verbose: print("   ⚠️ No captions found. Downloading HOOK only (0-45s)...")
+        try:
+            # Modified download_audio to support partial download would be complex to inject
+            # So we implement a streamlined partial download here
+            audio_path = temp_dir / f"{video_id}_hook.mp3"
+            
+            # Use yt-dlp to download only first 45 seconds
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': str(temp_dir / f"{video_id}_hook.%(ext)s"),
+                'quiet': True,
+                'no_warnings': True,
+                'download_ranges': lambda _, __: [{'start_time': 0, 'end_time': 45}], # VALID syntax for yt-dlp
+                'force_keyframes_at_cuts': True,
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.extract_info(url, download=True)
+
+            # Find the file
+            downloaded_files = list(temp_dir.glob(f"{video_id}_hook.*"))
+            if downloaded_files:
+                if verbose: print("   🎙️ Transcribing hook...")
+                transcription = transcribe_audio(downloaded_files[0], model_name)
+                transcript_text = "[HOOK ONLY] " + transcription['text']
+                transcript_segments = transcription['segments']
+            else:
+                if verbose: print("   ❌ Download failed.")
+                
+        except Exception as e:
+            if verbose: print(f"   ❌ Fallback failed: {e}")
+
+    # Fetch metadata (lightweight)
+    video_info = {
+        'id': video_id,
+        'title': f"Video {video_id}", # Placeholder, would need API fetch to be accurate if not downloading
+        'url': url
+    }
     
-    # Step 2: Fetch comments (raw, no filtering)
-    if verbose:
-        print(f"   💬 Fetching comments...")
+    # If we didn't download full info, fetch basic metadata via API
+    try:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+        vid_resp = youtube.videos().list(part='snippet,statistics,contentDetails', id=video_id).execute()
+        if vid_resp['items']:
+            item = vid_resp['items'][0]
+            video_info.update({
+                'title': item['snippet']['title'],
+                'channel': item['snippet']['channelTitle'],
+                'upload_date': item['snippet']['publishedAt'],
+                'view_count': int(item['statistics'].get('viewCount', 0)),
+                'thumbnail_url': item['snippet']['thumbnails']['high']['url']
+            })
+    except:
+        pass
+
+    # Fetch comments
+    if verbose: print(f"   💬 Fetching comments...")
     comments = fetch_all_comments(video_id, api_key, max_comments=200)
-    if verbose:
-        print(f"   ✓ {len(comments)} comments")
-    
-    # Step 3: Transcribe
-    if verbose:
-        print(f"   🎙️ Transcribing...")
-    transcription = transcribe_audio(audio_path, model_name)
-    word_count = len(transcription['text'].split())
-    if verbose:
-        print(f"   ✓ {word_count} words")
-    
-    # Return structured data
+
     return {
         'video_info': video_info,
-        'transcript': transcription['text'],
-        'transcript_segments': transcription['segments'],
+        'transcript': transcript_text,
+        'transcript_segments': transcript_segments,
         'comments': comments,
     }
 

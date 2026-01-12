@@ -14,8 +14,10 @@ import {
   ArrowRight,
   CheckCircle2,
   PlayCircle,
+  Users,
   Clock,
-  Youtube
+  Youtube,
+  MousePointerClick
 } from "lucide-react";
 
 // --- Components ---
@@ -511,7 +513,9 @@ export default function Home() {
         {/* Floating Stats */}
         <FloatingStat top="30%" left="8%" rotate={-6} delay={0.4}>
           <div className="bg-white px-4 py-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 transform hover:scale-105 transition-transform">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-lg">📈</div>
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+              <TrendingUp size={18} strokeWidth={2.5} />
+            </div>
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Predicted Views</div>
               <div className="text-sm font-bold text-slate-900">+124%</div>
@@ -521,10 +525,49 @@ export default function Home() {
 
         <FloatingStat top="45%" right="10%" rotate={6} delay={0.6}>
           <div className="bg-white px-4 py-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 transform hover:scale-105 transition-transform">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 text-lg">🎯</div>
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+              <MousePointerClick size={18} strokeWidth={2.5} />
+            </div>
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Click Rate</div>
               <div className="text-sm font-bold text-slate-900">15.2%</div>
+            </div>
+          </div>
+        </FloatingStat>
+
+        {/* New Additional Stats */}
+        <FloatingStat top="60%" left="6%" rotate={8} delay={0.8}>
+          <div className="bg-white px-4 py-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 transform hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
+              <Clock size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Retention</div>
+              <div className="text-sm font-bold text-slate-900">&gt; 60%</div>
+            </div>
+          </div>
+        </FloatingStat>
+
+        <FloatingStat top="25%" right="15%" rotate={-4} delay={1.0}>
+          <div className="bg-white px-4 py-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 transform hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+              <Zap size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Viral Score</div>
+              <div className="text-sm font-bold text-slate-900">9.8/10</div>
+            </div>
+          </div>
+        </FloatingStat>
+
+        <FloatingStat top="75%" right="8%" rotate={-8} delay={1.2}>
+          <div className="bg-white px-4 py-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center gap-3 transform hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <Users size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Subscribers</div>
+              <div className="text-sm font-bold text-slate-900">+12.4K</div>
             </div>
           </div>
         </FloatingStat>
@@ -686,21 +729,7 @@ export default function Home() {
               </div>
             </div>
             {/* Floating Elements on Mockup */}
-            <motion.div
-              animate={{ y: [-10, 10, -10] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute right-8 top-20 bg-white p-4 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-[200px]"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-100">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 font-medium">Predicted Views</div>
-                  <div className="text-lg font-bold text-slate-900">+124%</div>
-                </div>
-              </div>
-            </motion.div>
+
           </div>
         </motion.div>
       </section>

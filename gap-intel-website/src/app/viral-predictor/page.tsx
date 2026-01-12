@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sparkles, TrendingUp, AlertCircle, ArrowRight, Zap, Target, PenTool } from "lucide-react";
 
 export default function ViralPredictorPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+            <ViralPredictorContent />
+        </Suspense>
+    );
+}
+
+function ViralPredictorContent() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [formData, setFormData] = useState({
