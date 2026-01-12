@@ -57,6 +57,7 @@ export default function Navbar() {
                         Pricing
                     </Link>
                     <Link
+                        href="/viral-predictor"
                         className="text-sm font-medium text-purple-600 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full transition hidden md:flex items-center gap-1.5 border border-purple-100"
                     >
                         Viral Predictor <Sparkles size={14} fill="currentColor" className="text-purple-500" />

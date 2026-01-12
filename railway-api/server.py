@@ -1661,6 +1661,43 @@ async def predict_video(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def startup_recovery():
+    """Reset any 'processing' jobs to 'failed' on server startup."""
+    print("🌅 Running startup recovery...")
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("⚠️ Supabase credentials missing, skipping recovery")
+        return
+
+    url = f"{SUPABASE_URL}/rest/v1/analyses"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
+    
+    # Update all 'processing' to 'failed'
+    try:
+        resp = requests.patch(
+            f"{url}?analysis_status=eq.processing",
+            headers=headers,
+            json={"analysis_status": "failed", "report_data": {"error": "Server restarted during analysis"}}
+        )
+        if resp.status_code >= 400:
+            print(f"⚠️ Recovery failed: {resp.text}")
+        else:
+            print("✅ Reset 'processing' jobs to 'failed'")
+    except Exception as e:
+        print(f"⚠️ Recovery error: {e}")
+
+
+@app.on_event("startup")
+async def on_startup():
+    """Run recovery tasks on startup."""
+    # Run in thread to not block startup
+    threading.Thread(target=startup_recovery, daemon=True).start()
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
