@@ -42,14 +42,19 @@ class ViralPredictor:
         Returns:
             ViralPrediction object
         """
+        # Baselines - use defaults if no history
         if not channel_history:
-            return ViralPrediction(0, 0, 0, {}, ["Need channel history for prediction"])
+            # Use baseline metrics for a typical video
+            avg_views = 10000
+            median_views = 5000
+            max_views = 50000
+        else:
+            # Calculate baselines from history
+            views = [v.get('view_count', 0) for v in channel_history]
+            avg_views = np.mean(views) if views else 10000
+            median_views = np.median(views) if views else 5000
+            max_views = max(views) if views else 50000
 
-        # Calculate baselines
-        views = [v.get('view_count', 0) for v in channel_history]
-        avg_views = np.mean(views) if views else 0
-        median_views = np.median(views) if views else 0
-        max_views = max(views) if views else 0
         
         # 1. Analyze Title Power
         title_score = self._analyze_title(title, channel_history)
@@ -116,21 +121,30 @@ class ViralPredictor:
         # Length check (optimal: 30-60 chars)
         if 30 <= len(title) <= 60:
             score += 0.1
-            
-        # Check for successful past patterns
-        title_lower = title.lower()
-        top_videos = sorted(history, key=lambda x: x.get('view_count', 0), reverse=True)[:5]
         
-        matches = 0
-        for vid in top_videos:
-            past_title = vid.get('title', '').lower()
-            # Check for common bigrams
-            words = past_title.split()
-            for i in range(len(words)-1):
-                if f"{words[i]} {words[i+1]}" in title_lower:
-                    matches += 1
-                    
-        score += min(matches * 0.1, 0.3)
+        # Power words check
+        power_words = ['secret', 'amazing', 'best', 'ultimate', 'how to', 'why', 'what', 'top', 'shocking']
+        title_lower = title.lower()
+        for word in power_words:
+            if word in title_lower:
+                score += 0.05
+                break
+            
+        # Check for successful past patterns (only if history exists)
+        if history:
+            top_videos = sorted(history, key=lambda x: x.get('view_count', 0), reverse=True)[:5]
+            
+            matches = 0
+            for vid in top_videos:
+                past_title = vid.get('title', '').lower()
+                # Check for common bigrams
+                words = past_title.split()
+                for i in range(len(words)-1):
+                    if f"{words[i]} {words[i+1]}" in title_lower:
+                        matches += 1
+                        
+            score += min(matches * 0.1, 0.3)
+        
         return min(score, 1.0)
 
     def _analyze_topic(self, topic: str, history: List[Dict]) -> float:
