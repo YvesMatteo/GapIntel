@@ -55,14 +55,15 @@ export async function GET(req: NextRequest) {
 
         console.log(`[Team API] Subscription found:`, sub);
 
-        if (!sub || (sub.tier !== "enterprise" && sub.tier !== "pro")) {
-            console.log(`[Team API] Not pro/enterprise tier: ${sub?.tier}`);
+        if (!sub || !['enterprise', 'pro', 'starter'].includes(sub.tier)) {
+            console.log(`[Team API] Not allowed tier: ${sub?.tier || 'no subscription found'}`);
             return NextResponse.json({
-                error: "Team management requires Pro or Enterprise subscription",
+                error: `Team management requires a paid subscription. Your tier: ${sub?.tier || 'none'}`,
                 organization: null,
                 members: []
             });
         }
+
 
         // Get or create organization
         let { data: org } = await supabaseAdmin
