@@ -34,14 +34,29 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Check if user is enterprise tier
-        const { data: sub } = await supabaseAdmin
+        console.log(`[Team API] User: ${user.email}, ID: ${user.id}`);
+
+        // Check if user is enterprise tier - try by email first, then by user_id
+        let { data: sub } = await supabaseAdmin
             .from("user_subscriptions")
-            .select("tier")
+            .select("tier, user_email")
             .eq("user_email", user.email)
             .single();
 
+        // If not found by email, try by user_id
+        if (!sub) {
+            const { data: subById } = await supabaseAdmin
+                .from("user_subscriptions")
+                .select("tier, user_email")
+                .eq("user_id", user.id)
+                .single();
+            sub = subById;
+        }
+
+        console.log(`[Team API] Subscription found:`, sub);
+
         if (!sub || (sub.tier !== "enterprise" && sub.tier !== "pro")) {
+            console.log(`[Team API] Not pro/enterprise tier: ${sub?.tier}`);
             return NextResponse.json({
                 error: "Team management requires Pro or Enterprise subscription",
                 organization: null,
