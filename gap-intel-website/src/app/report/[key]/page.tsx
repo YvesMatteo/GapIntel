@@ -630,6 +630,56 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                 </div>
                             )}
 
+                            {/* Publish Times */}
+                            {analysis.report_data.premium.publish_times && (
+                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-[32px] p-8 border border-blue-100">
+                                    <h3 className="text-2xl font-serif font-medium text-slate-900 mb-2">⏰ Best Time to Post</h3>
+                                    <p className="text-sm text-slate-500 mb-6">Optimal upload windows based on your channel history</p>
+
+                                    <div className="grid md:grid-cols-2 gap-8 mb-6">
+                                        {/* Best Days */}
+                                        <div className="bg-white rounded-2xl p-6 border border-blue-100">
+                                            <div className="text-sm text-slate-500 mb-1">Best Days</div>
+                                            <div className="text-2xl font-bold text-blue-600">
+                                                {analysis.report_data.premium.publish_times.best_days.join(", ")}
+                                            </div>
+                                        </div>
+
+                                        {/* Top Recommendation */}
+                                        {analysis.report_data.premium.publish_times.recommendations[0] && (
+                                            <div className="bg-white rounded-2xl p-6 border border-blue-100">
+                                                <div className="text-sm text-slate-500 mb-1">Top Slot (UTC)</div>
+                                                <div className="text-2xl font-bold text-slate-900">
+                                                    {analysis.report_data.premium.publish_times.recommendations[0].day} @ {analysis.report_data.premium.publish_times.recommendations[0].hour}:00
+                                                </div>
+                                                <div className="text-xs text-green-600 font-bold mt-1">
+                                                    {analysis.report_data.premium.publish_times.recommendations[0].boost} predicted boost
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Detailed Schedule */}
+                                    {analysis.report_data.premium.publish_times.recommendations && (
+                                        <div className="bg-blue-100/50 rounded-xl p-4">
+                                            <h4 className="font-semibold text-blue-800 mb-3">💡 Recommended Schedule</h4>
+                                            <div className="space-y-3">
+                                                {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
+                                                    <div key={i} className="flex items-start gap-3 text-sm">
+                                                        <div className="bg-white text-blue-600 font-bold px-2 py-1 rounded border border-blue-200 text-xs shrink-0">
+                                                            {rec.day} {rec.hour}:00 UTC
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-blue-900 block">{rec.reasoning}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Visual Charts */}
                             {analysis.report_data.premium.visual_charts && (
                                 <div className="grid md:grid-cols-2 gap-6">

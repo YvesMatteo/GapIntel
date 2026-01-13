@@ -45,6 +45,14 @@ from premium.hook_analyzer import HookAnalyzer
 from premium.color_ml_analyzer import ColorMLAnalyzer
 from premium.visual_report_generator import VisualReportGenerator
 
+# Language instructions for AI prompts
+LANGUAGE_INSTRUCTIONS = {
+    "en": "Respond in English.",
+    "de": "Antworte auf Deutsch. Alle Analysen, Titel und Empfehlungen sollen auf Deutsch sein.",
+    "fr": "Réponds en français. Toutes les analyses, titres et recommandations doivent être en français.",
+    "it": "Rispondi in italiano. Tutte le analisi, i titoli e le raccomandazioni devono essere in italiano.",
+    "es": "Responde en español. Todos los análisis, títulos y recomendaciones deben estar en español."
+}
 
 
 def get_channel_id(youtube, handle: str) -> tuple[str, str]:
@@ -382,7 +390,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
         return {}
 
 
-def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro") -> dict:
+def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
     """
     PHASE 2 (MAP): Extract USER PAIN POINTS, not video ideas.
     This prevents hallucination by asking for problems, not solutions.
@@ -433,14 +441,16 @@ OUTPUT JSON (only include pain points you found evidence for):
         }
     ]
 }
-"""
+
+{language_instruction}
+""".format(language_instruction=LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS['en']))
     result = call_ai_model(client, prompt, model_type, gemini_model)
     if not result:
         return {"pain_points": []}
     return result
 
 
-def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro") -> dict:
+def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
     """
     PHASE 2B (REDUCE): Cluster similar pain points without inventing new concepts.
     Enhanced to track engagement metrics and filter low-quality gaps.
@@ -508,7 +518,9 @@ OUTPUT JSON:
 }}
 
 ONLY include gaps where mention_count >= 3 AND is_actionable = true.
-"""
+
+{language_instruction}
+""".format(language_instruction=LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS['en']))
     result = call_ai_model(client, prompt, model_type, gemini_model)
     
     # Post-process: Filter out gaps that don't meet minimum criteria
@@ -530,7 +542,7 @@ ONLY include gaps where mention_count >= 3 AND is_actionable = true.
     return result if result else {"clustered_pain_points": []}
 
 
-def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro") -> dict:
+def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
     """
     PHASE 3: The Gap Verification Engine.
     Cross-references pain points against creator's actual content.
@@ -591,7 +603,9 @@ OUTPUT JSON:
         }}
     ]
 }}
-"""
+
+{{language_instruction}}
+""".replace('{{language_instruction}}', LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS['en']))
     result = call_ai_model(client, prompt, model_type, gemini_model)
     
     # Merge back the video_potential data from clustering step
@@ -615,7 +629,7 @@ OUTPUT JSON:
 # Old merge_signals_reduce is replaced by cluster_pain_points and verify_gaps_against_content above
 
 
-def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro") -> dict:
+def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
     """
     ANALYTICAL EXTRACTION PIPELINE (4 Phases):
     1. Signal-to-Noise Filter (Python)
@@ -666,12 +680,12 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
         batch_id = (i // batch_size) + 1
         print(f"   🔹 Batch {batch_id}: Analyzing {len(batch)} comments...")
         
-        result = extract_batch_signals(ai_client, batch, channel_name, batch_id, model_type, gemini_model)
+        result = extract_batch_signals(ai_client, batch, channel_name, batch_id, model_type, gemini_model, language)
         all_pain_results.append(result)
     
     # Cluster pain points
     print(f"\n📉 PHASE 2B: Clustering Pain Points...")
-    clustered = cluster_pain_points(ai_client, all_pain_results, channel_name, model_type, gemini_model)
+    clustered = cluster_pain_points(ai_client, all_pain_results, channel_name, model_type, gemini_model, language)
     pain_points = clustered.get('clustered_pain_points', [])
     print(f"   ✓ Found {len(pain_points)} distinct user struggles")
     
@@ -679,7 +693,7 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     # PHASE 3: GAP VERIFICATION (The Sellable Feature)
     # =========================================================
     print(f"\n🔎 PHASE 3: Verifying Gaps Against Creator's Content...")
-    verified = verify_gaps_against_content(ai_client, pain_points, transcripts_summary, model_type, gemini_model)
+    verified = verify_gaps_against_content(ai_client, pain_points, transcripts_summary, model_type, gemini_model, language)
     verified_gaps = verified.get('verified_gaps', [])
     
     # Separate by status
@@ -869,7 +883,7 @@ def run_premium_analysis(
         'advanced_thumbnail': False, 
         'views_forecast': False, 
         'clustering': False, 
-        'publish_time': False,
+        'publish_time': True,  # Enabled for starter per user request
         'ml_predictor': False,
     },
     'pro': {
@@ -1492,8 +1506,40 @@ def generate_report(output_path: Path, channel_name: str, videos_data: list, ana
             info = v['video_info']
             f.write(f"- **{info['title']}**  \n")
             f.write(f"  Comments: {len(v['comments'])} | ")
-            f.write(f"[Watch]({info['url']})\n\n")
+            f.write("[Watch]({info['url']})\n\n")
+
+        # =========================================================
+        # PREMIUM SECTIONS (If available/enabled)
+        # =========================================================
+        premium = analysis.get('premium', {})
         
+        # Best Time to Post
+        if premium.get('publish_times'):
+            pt = premium['publish_times']
+            f.write("---\n\n")
+            f.write("## ⏰ Best Time to Post\n\n")
+            f.write(f"**Best Days:** {', '.join(pt.get('best_days', []))}\n\n")
+            
+            if pt.get('recommendations'):
+                f.write("### Recommended Slots:\n")
+                for rec in pt['recommendations']:
+                    f.write(f"- **{rec.get('day')} @ {rec.get('hour')}:00 UTC** ({rec.get('boost')} boost)\n")
+                    f.write(f"  *Reason: {rec.get('reasoning')}*\n")
+            f.write("\n")
+
+        # Color Insights
+        if premium.get('color_insights'):
+            ci = premium['color_insights']
+            f.write("---\n\n")
+            f.write("## 🎨 Thumbnail Color Insights\n\n")
+            f.write(f"**Top Performing Colors:** {', '.join(ci.get('top_performing_colors', []))}\n\n")
+            
+            if ci.get('color_recommendations'):
+                f.write("### Recommendations:\n")
+                for rec in ci['color_recommendations']:
+                    f.write(f"- {rec}\n")
+            f.write("\n")
+
         # =========================================================
         # COMPETITORS
         # =========================================================
@@ -1553,6 +1599,8 @@ Examples:
     parser.add_argument('--email', help='User email for analysis results')
     parser.add_argument('--tier', default='starter', choices=['starter', 'pro', 'enterprise'],
                         help='Subscription tier for feature access (default: starter)')
+    parser.add_argument('--language', default='en', choices=['en', 'de', 'fr', 'it', 'es'],
+                        help='Report language: en, de, fr, it, es (default: en)')
     
     args = parser.parse_args()
     
@@ -1730,7 +1778,7 @@ Examples:
 
         # Step 5: AI Analysis
         print(f"\n🧠 Running AI gap analysis...")
-        analysis = analyze_with_ai(ai_client, videos_data, channel_name, competitors_data, model_type=args.ai, gemini_model=args.gemini_model)
+        analysis = analyze_with_ai(ai_client, videos_data, channel_name, competitors_data, model_type=args.ai, gemini_model=args.gemini_model, language=args.language)
         
         # Add videos_analyzed for frontend dashboard
         analysis['videos_analyzed'] = [

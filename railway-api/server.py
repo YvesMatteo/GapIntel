@@ -128,7 +128,8 @@ class JobQueue:
                         job['email'],
                         job['video_count'],
                         job.get('tier', 'starter'),
-                        job.get('include_shorts', True)
+                        job.get('include_shorts', True),
+                        job.get('language', 'en')
                     )
                 finally:
                     with self._lock:
@@ -168,6 +169,7 @@ class AnalyzeRequest(BaseModel):
     video_count: int = 1
     include_shorts: bool = True
     tier: str = "starter"
+    language: str = "en"  # Report language: en, de, fr, it, es
     
     @validator('channel_name')
     def validate_channel_name(cls, v):
@@ -327,9 +329,9 @@ def handle_failure_logic(email: str, access_key: str, channel_name: str, error_m
 # Maximum time for an analysis job (10 minutes)
 JOB_TIMEOUT_SECONDS = 10 * 60
 
-def run_analysis(channel_name: str, access_key: str, email: str, video_count: int = 1, tier: str = "starter", include_shorts: bool = True):
+def run_analysis(channel_name: str, access_key: str, email: str, video_count: int = 1, tier: str = "starter", include_shorts: bool = True, language: str = "en"):
     """Run the gap analyzer with timeout protection. Called by queue worker."""
-    print(f"🚀 Starting analysis for @{channel_name} (key: {access_key}) videos: {video_count} tier: {tier} shorts: {include_shorts}")
+    print(f"🚀 Starting analysis for @{channel_name} (key: {access_key}) videos: {video_count} tier: {tier} shorts: {include_shorts} lang: {language}")
     
     try:
         update_analysis_status(access_key, "processing")
@@ -344,7 +346,8 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
             "--model", "tiny",
             "--ai", "gemini",
             "--gemini-model", "gemini-2.0-flash",
-            "--tier", tier
+            "--tier", tier,
+            "--language", language
         ]
         
         # Handle shorts preference
@@ -669,7 +672,8 @@ async def analyze(
         'include_shorts': include_shorts,
         'email': email,
         'video_count': video_count,
-        'tier': request.tier
+        'tier': request.tier,
+        'language': request.language
     }
     job_queue.enqueue(job_data)
     

@@ -7,6 +7,15 @@ import Navbar from "@/components/Navbar";
 import { BarChart3, FileText, CreditCard, TrendingUp, Clock, CheckCircle, AlertCircle, Loader2, Plus, X, Search, Trash2, FolderPlus, MoreVertical, Key, Users, Palette, ArrowUpRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Language options for report generation
+const LANGUAGE_OPTIONS = [
+    { code: "en", name: "English", flag: "🇬🇧" },
+    { code: "de", name: "Deutsch", flag: "🇩🇪" },
+    { code: "fr", name: "Français", flag: "🇫🇷" },
+    { code: "it", name: "Italiano", flag: "🇮🇹" },
+    { code: "es", name: "Español", flag: "🇪🇸" },
+];
+
 interface Report {
     id: string;
     access_key: string;
@@ -46,6 +55,7 @@ export default function DashboardPage() {
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [syncing, setSyncing] = useState(false);
+    const [reportLanguage, setReportLanguage] = useState("en");
 
     // Folder and delete state
     const [folders, setFolders] = useState<Folder[]>([]);
@@ -218,6 +228,7 @@ export default function DashboardPage() {
                     channelName: channelInfo.title,
                     channelHandle: channelInput,
                     includeShorts: includeShorts,
+                    language: reportLanguage,
                 }),
             });
             const data = await res.json();
@@ -603,6 +614,27 @@ export default function DashboardPage() {
                                 >
                                     <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${includeShorts ? 'left-6' : 'left-1'}`} />
                                 </button>
+                            </div>
+
+                            {/* Report Language Selector */}
+                            <div className="p-4 bg-slate-50 rounded-xl">
+                                <label className="block font-medium text-slate-900 mb-2">Report Language</label>
+                                <p className="text-sm text-slate-500 mb-3">The analysis will be generated in this language</p>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {LANGUAGE_OPTIONS.map((lang) => (
+                                        <button
+                                            key={lang.code}
+                                            onClick={() => setReportLanguage(lang.code)}
+                                            className={`flex flex-col items-center p-2 rounded-lg border transition ${reportLanguage === lang.code
+                                                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                }`}
+                                        >
+                                            <span className="text-xl mb-1">{lang.flag}</span>
+                                            <span className="text-xs font-medium">{lang.code.toUpperCase()}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="pt-4 border-t border-slate-100">

@@ -81,7 +81,8 @@ Return a JSON object with these exact fields:
     
     "has_bright_colors": true/false,
     "has_high_contrast": true/false (good subject/background separation),
-    "dominant_colors": ["color1", "color2"],
+    "dominant_colors": ["#RRGGBB", "#RRGGBB"], // List 2-3 most VIBRANT/IMPACTFUL hex codes. Ignore dull backgrounds (gray/black/white) unless essential.
+    "color_palette_type": "vibrant/dark/pastel/minimalist/neon",
     
     "issues": [
         {{"issue": "description", "severity": "high/medium/low", "fix": "how to fix"}}
@@ -93,6 +94,7 @@ Return a JSON object with these exact fields:
 }}
 
 Be accurate and specific. Only report issues that actually exist in this thumbnail.
+For dominant_colors, favor the ACCENT colors that pop (e.g. the text color, the shirt color, the background glow) over the general dark background.
 Return ONLY the JSON object, no other text."""
 
     try:
