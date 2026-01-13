@@ -31,7 +31,7 @@ function ViralPredictorContent() {
         setResult(null);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/predict-video`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://thriving-presence-production-ca4a.up.railway.app'}/api/predict-video`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
