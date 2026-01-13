@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { channelName, channelHandle, includeShorts, language = "en" } = body;
+        const { channelName, channelHandle, includeShorts } = body;
 
         if (!channelName) {
             return NextResponse.json({ error: "Channel name is required" }, { status: 400 });
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
         const tier = subscription?.tier || "free";
         const analysesThisMonth = subscription?.analyses_this_month || 0;
         const limit = TIER_LIMITS[tier] || 0;
+        const language = subscription?.preferred_language || "en";
 
         // Check if user has reached their limit
         if (tier === "free") {
