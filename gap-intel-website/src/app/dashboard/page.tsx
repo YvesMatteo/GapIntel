@@ -342,7 +342,7 @@ export default function DashboardPage() {
                                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                             <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${Math.min(100, ((subscription?.analyses_this_month || 0) / getTierLimit(subscription?.tier || 'free')) * 100)}%` }}
+                                                animate={{ width: `${Math.min(100, ((subscription?.analyses_this_month || 0) / (getTierLimit(subscription?.tier || 'free') || 1)) * 100)}%` }}
                                                 className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
                                             />
                                         </div>
