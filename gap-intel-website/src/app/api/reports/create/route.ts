@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { channelName, channelHandle, includeShorts } = body;
+        const { channelName, channelHandle, channelThumbnail, includeShorts } = body;
 
         if (!channelName) {
             return NextResponse.json({ error: "Channel name is required" }, { status: 400 });
@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
                 access_key: accessKey,
                 channel_name: channelName,
                 channel_handle: channelHandle || channelName,
+                channel_thumbnail: channelThumbnail || null,
                 status: "pending",
             });
 

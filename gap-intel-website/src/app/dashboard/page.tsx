@@ -12,6 +12,7 @@ interface Report {
     access_key: string;
     channel_name: string;
     channel_handle: string;
+    channel_thumbnail?: string;
     status: "pending" | "processing" | "completed" | "failed";
     created_at: string;
     folder_id: string | null;
@@ -42,7 +43,7 @@ export default function DashboardPage() {
     const [channelInput, setChannelInput] = useState("");
     const [includeShorts, setIncludeShorts] = useState(true);
     const [verifying, setVerifying] = useState(false);
-    const [channelInfo, setChannelInfo] = useState<{ title: string; subscriberCount: string } | null>(null);
+    const [channelInfo, setChannelInfo] = useState<{ title: string; subscriberCount: string; thumbnailUrl?: string } | null>(null);
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [syncing, setSyncing] = useState(false);
@@ -217,6 +218,7 @@ export default function DashboardPage() {
                 body: JSON.stringify({
                     channelName: channelInfo.title,
                     channelHandle: channelInput,
+                    channelThumbnail: channelInfo.thumbnailUrl,
                     includeShorts: includeShorts,
                 }),
             });
@@ -479,8 +481,24 @@ export default function DashboardPage() {
                                 {filteredReports.slice(0, 50).map((report) => (
                                     <div key={report.id} className="p-6 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition flex items-center justify-between group">
                                         <div className="flex items-center gap-6">
-                                            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center">
-                                                {getStatusIcon(report.status)}
+                                            <div className="relative">
+                                                {report.channel_thumbnail ? (
+                                                    <img
+                                                        src={report.channel_thumbnail}
+                                                        alt={report.channel_name}
+                                                        className="w-12 h-12 rounded-full object-cover border border-slate-200"
+                                                    />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-lg font-bold">
+                                                        {(report.channel_name || 'C')[0].toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center">
+                                                    {report.status === 'completed' && <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
+                                                    {report.status === 'processing' && <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />}
+                                                    {report.status === 'failed' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                                                    {report.status === 'pending' && <Clock className="w-3.5 h-3.5 text-slate-400" />}
+                                                </div>
                                             </div>
                                             <div>
                                                 <h4 className="text-lg font-medium text-slate-900 mb-1">
@@ -574,9 +592,17 @@ export default function DashboardPage() {
 
                             {channelInfo && (
                                 <div className="p-4 bg-green-50 border border-green-100 rounded-xl flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                                        <CheckCircle className="w-5 h-5" />
-                                    </div>
+                                    {channelInfo.thumbnailUrl ? (
+                                        <img
+                                            src={channelInfo.thumbnailUrl}
+                                            alt={channelInfo.title}
+                                            className="w-12 h-12 rounded-full object-cover border-2 border-green-200"
+                                        />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                                            <CheckCircle className="w-6 h-6" />
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="font-medium text-green-900">{channelInfo.title}</p>
                                         <p className="text-sm text-green-700">{channelInfo.subscriberCount} subscribers</p>
