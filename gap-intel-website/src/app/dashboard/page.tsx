@@ -535,7 +535,7 @@ export default function DashboardPage() {
                                                             </span>
                                                             <span className="flex items-center gap-1">
                                                                 <Clock className="w-3 h-3" />
-                                                                {new Date(report.created_at).toLocaleDateString()}
+                                                                {new Date(report.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                                                             </span>
                                                             {report.folder_id && folders.find(f => f.id === report.folder_id) && (
                                                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">
