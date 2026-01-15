@@ -109,7 +109,7 @@ const FloatingIcon = ({ src, alt, top, left, right, rotate, delay, scale = 1, pa
     >
       <motion.div
         animate={{ y: [-10, 10, -10], rotate: [rotate - 2, rotate + 2, rotate - 2] }}
-        transition={{ duration: 4 + Math.random() * 2, repeat: Infinity, ease: "easeInOut", delay: Math.random() * 2 }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
         className="relative"
       >
         <div className={`w-20 h-20 rounded-2xl bg-white p-2 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.1)] border border-slate-100 transform hover:scale-110 transition-transform duration-300`} style={{ transform: `scale(${scale})` }}>
@@ -137,7 +137,7 @@ const FloatingStat = ({ top, left, right, rotate, delay, children }: any) => {
     >
       <motion.div
         animate={{ y: [-8, 8, -8] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: Math.random() }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       >
         {children}
       </motion.div>
@@ -158,7 +158,7 @@ const GapVisual = () => (
       <div className="text-xs text-slate-600 font-medium">Pls do a 100 days survival challenge!!</div>
     </motion.div>
     <motion.div
-      animate={{ y: [10, -5, 10] }}
+      animate={{ y: [0, -20, 0] }}
       transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-3 w-4/5 self-end flex items-center gap-3 relative z-10"
     >
@@ -358,8 +358,8 @@ const StepAnalysisVisual = () => (
         className="absolute w-2 h-2 bg-indigo-500 rounded-full shadow-lg shadow-indigo-500/50"
         initial={{ opacity: 0, scale: 0 }}
         animate={{
-          x: [0, (Math.random() - 0.5) * 120],
-          y: [0, (Math.random() - 0.5) * 120],
+          x: [0, 50],
+          y: [0, 50],
           opacity: [1, 0],
           scale: [1, 0]
         }}
