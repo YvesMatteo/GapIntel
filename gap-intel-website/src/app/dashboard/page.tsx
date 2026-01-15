@@ -124,9 +124,18 @@ export default function DashboardPage() {
                 fetch("/api/user/subscription")
             ]);
 
-            if (reportsRes.ok) setReports(await reportsRes.json());
-            if (foldersRes.ok) setFolders(await foldersRes.json());
-            if (subRes.ok) setSubscription(await subRes.json());
+            if (reportsRes.ok) {
+                const data = await reportsRes.json();
+                setReports(data.reports || []);
+            }
+            if (foldersRes.ok) {
+                const data = await foldersRes.json();
+                setFolders(data.folders || []);
+            }
+            if (subRes.ok) {
+                const data = await subRes.json();
+                setSubscription(data.subscription || data);
+            }
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
         } finally {
