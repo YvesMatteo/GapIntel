@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const input = searchParams.get('input');
+    const input = searchParams.get('query') || searchParams.get('input');
 
     if (!input) {
         return NextResponse.json({ error: 'Channel input is required' }, { status: 400 });
