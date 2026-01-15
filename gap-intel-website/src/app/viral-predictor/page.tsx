@@ -1,62 +1,83 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sparkles, TrendingUp, AlertCircle, ArrowRight, Zap, Target, PenTool } from "lucide-react";
+import Link from "next/link";
+import {
+    Sparkles, TrendingUp, AlertCircle, ArrowRight, Zap, Target, PenTool,
+    Type, BarChart3, Lightbulb, CheckCircle, XCircle, Info, RefreshCw,
+    ChevronRight, Copy, Check
+} from "lucide-react";
+import {
+    analyzeTitle,
+    generateAlternativeTitles,
+    predictViewRange,
+    HOOK_PATTERNS,
+    AUDIENCE_BENCHMARKS,
+    type TitleAnalysis,
+    type AlternativeTitle
+} from "@/lib/titleAnalyzer";
 
 export default function ViralPredictorPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+        <Suspense fallback={<LoadingState />}>
             <ViralPredictorContent />
         </Suspense>
     );
 }
 
+function LoadingState() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+            <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+}
+
 function ViralPredictorContent() {
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<any>(null);
-    const [formData, setFormData] = useState({
-        title: "",
-        hook: "",
-        topic: "General",
-    });
+    const [title, setTitle] = useState("");
+    const [hook, setHook] = useState("");
+    const [audienceSize, setAudienceSize] = useState<keyof typeof AUDIENCE_BENCHMARKS>("medium");
+    const [topic, setTopic] = useState("General");
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
     const searchParams = useSearchParams();
     const accessKey = searchParams.get("key");
-    const [channelContext, setChannelContext] = useState<string>("");
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setResult(null);
+    // Real-time analysis
+    const analysis = useMemo(() => analyzeTitle(title), [title]);
+    const alternatives = useMemo(() => generateAlternativeTitles(title, topic), [title, topic]);
+    const viewPrediction = useMemo(
+        () => predictViewRange(analysis.overallScore, audienceSize, analysis.ctrBoost),
+        [analysis.overallScore, audienceSize, analysis.ctrBoost]
+    );
 
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://thriving-presence-production-ca4a.up.railway.app'}/api/predict-video`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    access_key: accessKey,
-                    // Pass empty history for now, backend will fetch if access_key exists
-                    history: []
-                }),
-            });
+    const handleCopyTitle = (altTitle: string, index: number) => {
+        navigator.clipboard.writeText(altTitle);
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(null), 2000);
+    };
 
-            if (!response.ok) throw new Error("Prediction failed");
+    const getScoreColor = (score: number) => {
+        if (score >= 75) return 'text-green-600';
+        if (score >= 50) return 'text-yellow-600';
+        if (score >= 25) return 'text-orange-600';
+        return 'text-red-600';
+    };
 
-            const data = await response.json();
-            setResult(data);
-            if (data.channel_context) {
-                setChannelContext(data.channel_context);
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Failed to generate prediction. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+    const getScoreLabel = (score: number) => {
+        if (score >= 80) return 'High Viral Potential';
+        if (score >= 65) return 'Strong Potential';
+        if (score >= 50) return 'Moderate Potential';
+        if (score >= 30) return 'Needs Optimization';
+        return 'Low Potential';
+    };
+
+    const getScoreBg = (score: number) => {
+        if (score >= 75) return 'from-green-500 to-emerald-500';
+        if (score >= 50) return 'from-yellow-500 to-orange-500';
+        if (score >= 25) return 'from-orange-500 to-red-500';
+        return 'from-red-500 to-red-600';
     };
 
     if (!accessKey) {
@@ -70,74 +91,117 @@ function ViralPredictorContent() {
                     <p className="text-slate-500 mb-8">
                         The Viral Predictor needs channel history to be accurate. Please open a report from your dashboard and click "Viral Predictor".
                     </p>
-                    <a href="/dashboard" className="inline-block w-full bg-slate-900 text-white font-medium py-4 rounded-full hover:bg-slate-800 transition">
+                    <Link href="/dashboard" className="inline-block w-full bg-slate-900 text-white font-medium py-4 rounded-full hover:bg-slate-800 transition">
                         Go to Dashboard
-                    </a>
+                    </Link>
                 </div>
             </main>
         );
     }
 
     return (
-        <main className="min-h-screen bg-[#FAFAFA] pt-24 pb-20">
-            <div className="max-w-4xl mx-auto px-6">
+        <main className="min-h-screen bg-gradient-to-b from-purple-50/50 via-white to-[#FAFAFA] pt-24 pb-20">
+            <div className="max-w-6xl mx-auto px-6">
 
                 {/* Header */}
                 <div className="mb-12 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm font-medium mb-4">
-                        <Sparkles className="w-4 h-4" /> Pro Feature
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-100 text-purple-700 text-sm font-medium mb-4">
+                        <Sparkles className="w-4 h-4" /> Premium Tool
                     </div>
                     <h1 className="text-4xl md:text-5xl font-serif font-medium text-slate-900 mb-4">
-                        Viral Probability Predictor
+                        Viral Title Predictor
                     </h1>
                     <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-                        Validate your video ideas before you film. Our AI analyzes your title and hook against millions of data points to predict performance.
-                        {channelContext && <span className="block mt-2 font-medium text-purple-600">Analyzing for channel: @{channelContext}</span>}
+                        Test your video titles before you film. Our AI analyzes title patterns, hook strength,
+                        and CTR factors to predict viral potential.
                     </p>
                 </div>
 
-                <div className="grid lg:grid-cols-5 md:grid-cols-2 gap-8 items-start">
+                <div className="grid lg:grid-cols-5 gap-8 items-start">
 
-                    {/* Input Form */}
-                    <div className="lg:col-span-2 md:col-span-1 space-y-6">
-                        <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sticky top-32">
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Input Panel */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white rounded-[32px] shadow-xl shadow-purple-100/50 border border-slate-100 p-8 sticky top-24">
+                            <div className="space-y-6">
+
+                                {/* Title Input with Live Counter */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Video Title
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-sm font-medium text-slate-700">
+                                            Video Title
+                                        </label>
+                                        <span className={`text-xs font-medium ${title.length >= 50 && title.length <= 60
+                                                ? 'text-green-600'
+                                                : title.length > 70
+                                                    ? 'text-red-600'
+                                                    : 'text-slate-400'
+                                            }`}>
+                                            {title.length}/60 chars
+                                            {title.length >= 50 && title.length <= 60 && ' ✓'}
+                                        </span>
+                                    </div>
                                     <input
-                                        required
                                         type="text"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition"
-                                        placeholder="e.g., I Built a House in 24 Hours"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-lg"
+                                        placeholder="Enter your video title..."
                                     />
-                                    <p className="text-xs text-slate-400 mt-2">Make it punchy and under 60 chars.</p>
+
+                                    {/* Live Hook Detection */}
+                                    {title.length > 0 && (
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <span className="text-lg">{analysis.hookEmoji}</span>
+                                            <span className="text-sm text-slate-600">
+                                                Detected: <span className="font-medium text-purple-600">{analysis.hookName}</span>
+                                            </span>
+                                            {analysis.ctrBoost > 0 && (
+                                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                                                    +{analysis.ctrBoost}% CTR
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
+                                {/* Opening Hook */}
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
                                         Opening Hook (First Sentence)
                                     </label>
                                     <textarea
-                                        required
                                         rows={3}
-                                        value={formData.hook}
-                                        onChange={(e) => setFormData({ ...formData, hook: e.target.value })}
+                                        value={hook}
+                                        onChange={(e) => setHook(e.target.value)}
                                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition resize-none"
-                                        placeholder="e.g., You won't believe what happened when..."
+                                        placeholder="What's the first line of your video?"
                                     />
                                 </div>
 
+                                {/* Audience Size */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                        Channel Size
+                                    </label>
+                                    <select
+                                        value={audienceSize}
+                                        onChange={(e) => setAudienceSize(e.target.value as keyof typeof AUDIENCE_BENCHMARKS)}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition appearance-none bg-white"
+                                    >
+                                        {Object.entries(AUDIENCE_BENCHMARKS).map(([key, value]) => (
+                                            <option key={key} value={key}>{value.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Topic */}
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
                                         Topic / Niche
                                     </label>
                                     <select
-                                        value={formData.topic}
-                                        onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                                        value={topic}
+                                        onChange={(e) => setTopic(e.target.value)}
                                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition appearance-none bg-white"
                                     >
                                         <option>General</option>
@@ -145,120 +209,268 @@ function ViralPredictorContent() {
                                         <option>Education</option>
                                         <option>Entertainment</option>
                                         <option>Tech / Review</option>
+                                        <option>Finance / Business</option>
                                         <option>Vlog / Lifestyle</option>
                                     </select>
                                 </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full h-14 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {loading ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <>
-                                            <Zap className="w-5 h-5" /> Predict Performance
-                                        </>
-                                    )}
-                                </button>
-                            </form>
+                                {/* Research Note */}
+                                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                    <div className="flex items-start gap-2">
+                                        <Lightbulb className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
+                                        <p className="text-xs text-purple-700">
+                                            <strong>Pro Tip:</strong> Number hooks ("7 Ways...") get 3× better CTR.
+                                            Keep titles 50-60 characters for optimal display.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Results Area */}
-                    <div className="lg:col-span-3 md:col-span-1">
-                        {!result && !loading && (
-                            <div className="bg-white/50 border border-slate-200/50 rounded-[32px] p-12 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
+                    {/* Results Panel */}
+                    <div className="lg:col-span-3 space-y-6">
+
+                        {/* Empty State */}
+                        {title.length === 0 && (
+                            <div className="bg-white/50 border border-slate-200/50 rounded-[32px] p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
                                 <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-purple-200 mb-6">
-                                    <Target className="w-10 h-10" />
+                                    <Type className="w-10 h-10" />
                                 </div>
-                                <h3 className="text-xl font-medium text-slate-900 mb-2">Ready to Analyze</h3>
+                                <h3 className="text-xl font-medium text-slate-900 mb-2">Start Typing</h3>
                                 <p className="text-slate-500 max-w-sm">
-                                    Enter your video details on the left to get instant AI-powered performance predictions.
+                                    Enter your video title to get instant AI-powered analysis and optimization suggestions.
                                 </p>
                             </div>
                         )}
 
-                        {result && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                {/* Score Card */}
-                                <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 p-8 overflow-hidden relative">
-                                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                                        <Sparkles className="w-48 h-48" />
-                                    </div>
+                        {/* Live Results */}
+                        {title.length > 0 && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+                                {/* Viral Score Hero */}
+                                <div className={`bg-gradient-to-br ${getScoreBg(analysis.overallScore)} rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl`}>
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -mr-32 -mt-32" />
 
                                     <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Viral Probability</p>
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`text-6xl font-bold ${result.viral_probability > 0.7 ? 'text-green-600' :
-                                                    result.viral_probability > 0.4 ? 'text-yellow-600' : 'text-slate-600'
-                                                    }`}>
-                                                    {(result.viral_probability * 100).toFixed(0)}%
-                                                </span>
-                                                <span className="text-slate-400 font-medium">chance</span>
+                                        <div className="text-center md:text-left">
+                                            <p className="text-white/80 text-sm font-medium uppercase tracking-wider mb-2">
+                                                Viral Potential Score
+                                            </p>
+                                            <div className="flex items-baseline gap-2 justify-center md:justify-start">
+                                                <span className="text-7xl font-bold">{analysis.overallScore}</span>
+                                                <span className="text-3xl text-white/60">/100</span>
                                             </div>
-                                            <div className="w-full bg-slate-100 h-3 rounded-full mt-4 overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all duration-1000 ${result.viral_probability > 0.7 ? 'bg-green-500' :
-                                                        result.viral_probability > 0.4 ? 'bg-yellow-500' : 'bg-slate-500'
-                                                        }`}
-                                                    style={{ width: `${result.viral_probability * 100}%` }}
-                                                />
-                                            </div>
+                                            <p className="text-xl font-medium mt-2 text-white/90">
+                                                {getScoreLabel(analysis.overallScore)}
+                                            </p>
                                         </div>
 
-                                        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                                            <p className="text-sm font-medium text-slate-500 mb-1">Predicted Views</p>
-                                            <div className="text-3xl font-bold text-slate-900 mb-4">
-                                                {result.predicted_views.toLocaleString()}
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <TrendingUp className="w-5 h-5" />
+                                                <span className="font-medium">Predicted Views</span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-sm text-slate-600">
-                                                <Target className="w-4 h-4 text-purple-500" />
-                                                <span>Based on topic benchmarks</span>
+                                            <div className="text-3xl font-bold mb-1">
+                                                {viewPrediction.display}
                                             </div>
+                                            <p className="text-sm text-white/70">
+                                                Based on {AUDIENCE_BENCHMARKS[audienceSize].label}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Factor Breakdown */}
-                                <div className="grid md:grid-cols-3 gap-6">
-                                    {Object.entries(result.factors).map(([key, value]: [string, any]) => (
-                                        <div key={key} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
-                                            <p className="text-sm text-slate-500 capitalize mb-2">{key} Score</p>
-                                            <div className="text-2xl font-bold text-slate-900 mb-2">
-                                                {(value * 10).toFixed(1)}<span className="text-sm text-slate-400 font-normal">/10</span>
-                                            </div>
-                                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-slate-900 rounded-full"
-                                                    style={{ width: `${value * 100}%` }}
-                                                />
-                                            </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {/* Title Hook */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                                        <div className="text-2xl mb-2">{analysis.hookEmoji}</div>
+                                        <p className="text-sm text-slate-500 mb-1">Hook Strength</p>
+                                        <div className="text-2xl font-bold text-slate-900">
+                                            {analysis.thss.toFixed(1)}<span className="text-sm text-slate-400 font-normal">/10</span>
                                         </div>
-                                    ))}
+                                        <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-purple-500 rounded-full transition-all"
+                                                style={{ width: `${analysis.thss * 10}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* CTR Boost */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                                        <div className="text-2xl mb-2">📈</div>
+                                        <p className="text-sm text-slate-500 mb-1">CTR Boost</p>
+                                        <div className="text-2xl font-bold text-green-600">
+                                            +{analysis.ctrBoost}%
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-2">vs standard titles</p>
+                                    </div>
+
+                                    {/* Length Score */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                                        <div className="text-2xl mb-2">📏</div>
+                                        <p className="text-sm text-slate-500 mb-1">Title Length</p>
+                                        <div className={`text-2xl font-bold ${analysis.lengthStatus === 'optimal' ? 'text-green-600' :
+                                                analysis.lengthStatus === 'truncated' ? 'text-red-600' : 'text-yellow-600'
+                                            }`}>
+                                            {analysis.lengthValue} chars
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-2">
+                                            {analysis.lengthStatus === 'optimal' ? '✓ Perfect' :
+                                                analysis.lengthStatus === 'truncated' ? '⚠️ Will truncate' :
+                                                    analysis.lengthStatus === 'short' ? '↑ Could be longer' : '↓ Slightly long'}
+                                        </p>
+                                    </div>
+
+                                    {/* Structure */}
+                                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                                        <div className="text-2xl mb-2">🎯</div>
+                                        <p className="text-sm text-slate-500 mb-1">Structure</p>
+                                        <div className="text-2xl font-bold text-slate-900">
+                                            {analysis.tse.toFixed(1)}<span className="text-sm text-slate-400 font-normal">/10</span>
+                                        </div>
+                                        <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-blue-500 rounded-full transition-all"
+                                                style={{ width: `${analysis.tse * 10}%` }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Actionable Tips */}
-                                {result.tips && result.tips.length > 0 && (
-                                    <div className="bg-purple-50 rounded-[32px] p-8 border border-purple-100">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-purple-600 shadow-sm">
-                                                <PenTool className="w-5 h-5" />
+                                {/* Issues & Strengths */}
+                                {(analysis.issues.length > 0 || analysis.strengths.length > 0) && (
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        {analysis.strengths.length > 0 && (
+                                            <div className="bg-green-50 rounded-2xl p-5 border border-green-100">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                                    <span className="font-medium text-green-800">Strengths</span>
+                                                </div>
+                                                <ul className="space-y-2">
+                                                    {analysis.strengths.map((s, i) => (
+                                                        <li key={i} className="flex items-start gap-2 text-sm text-green-700">
+                                                            <ChevronRight className="w-4 h-4 mt-0.5 shrink-0" />
+                                                            <span>{s}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
-                                            <h3 className="text-xl font-medium text-slate-900">Optimization Tips</h3>
-                                        </div>
-                                        <ul className="space-y-4">
-                                            {result.tips.map((tip: string, i: number) => (
-                                                <li key={i} className="flex gap-3 text-slate-600 bg-white/60 p-4 rounded-xl">
-                                                    <ArrowRight className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
-                                                    <span>{tip}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        )}
+
+                                        {analysis.issues.length > 0 && (
+                                            <div className="bg-orange-50 rounded-2xl p-5 border border-orange-100">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                                                    <span className="font-medium text-orange-800">Improvements</span>
+                                                </div>
+                                                <ul className="space-y-2">
+                                                    {analysis.issues.map((issue, i) => (
+                                                        <li key={i} className="flex items-start gap-2 text-sm text-orange-700">
+                                                            <ChevronRight className="w-4 h-4 mt-0.5 shrink-0" />
+                                                            <span>{issue}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
+
+                                {/* Alternative Titles */}
+                                {alternatives.length > 0 && (
+                                    <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-3 mb-5">
+                                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                                                <RefreshCw className="w-5 h-5 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-slate-900">Alternative Titles</h3>
+                                                <p className="text-sm text-slate-500">AI-generated variants with different hooks</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {/* Original */}
+                                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Your Title</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full">
+                                                            {analysis.hookName}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-slate-900 font-medium">{title}</p>
+                                                <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                                                    <span>THSS: {analysis.thss.toFixed(1)}</span>
+                                                    <span>CTR: +{analysis.ctrBoost}%</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Alternatives */}
+                                            {alternatives.map((alt, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 hover:bg-purple-50 transition group"
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-lg">{alt.emoji}</span>
+                                                            <span className="text-xs font-medium text-purple-600 uppercase tracking-wider">
+                                                                {alt.hookName}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleCopyTitle(alt.title, i)}
+                                                            className="opacity-0 group-hover:opacity-100 transition p-2 hover:bg-purple-100 rounded-lg"
+                                                        >
+                                                            {copiedIndex === i ? (
+                                                                <Check className="w-4 h-4 text-green-600" />
+                                                            ) : (
+                                                                <Copy className="w-4 h-4 text-purple-600" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-slate-900 font-medium">{alt.title}</p>
+                                                    <div className="flex items-center gap-4 mt-2 text-xs">
+                                                        <span className="text-slate-500">THSS: {alt.thss.toFixed(1)}</span>
+                                                        <span className="text-green-600 font-medium">{alt.improvement}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Research Insights */}
+                                <div className="bg-slate-50 rounded-[24px] p-6 border border-slate-100">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <BarChart3 className="w-5 h-5 text-slate-600" />
+                                        <h3 className="font-semibold text-slate-900">Research-Backed Insights</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                        <div className="flex items-start gap-2">
+                                            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-slate-600">Number hooks get <strong>3× better CTR</strong> than standard titles</span>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-slate-600">Optimal title length: <strong>50-60 characters</strong></span>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-slate-600">Keyword in first 30 chars = <strong>+15% CTR</strong></span>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-slate-600">Year reference (2025) adds <strong>+15% relevance</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         )}
                     </div>
