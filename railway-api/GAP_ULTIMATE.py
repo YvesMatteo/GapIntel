@@ -390,7 +390,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
         return {}
 
 
-def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
+def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 2 (MAP): Extract USER PAIN POINTS, not video ideas.
     This prevents hallucination by asking for problems, not solutions.
@@ -450,7 +450,7 @@ OUTPUT JSON (only include pain points you found evidence for):
     return result
 
 
-def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
+def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 2B (REDUCE): Cluster similar pain points without inventing new concepts.
     Enhanced to track engagement metrics and filter low-quality gaps.
@@ -542,7 +542,7 @@ ONLY include gaps where mention_count >= 3 AND is_actionable = true.
     return result if result else {"clustered_pain_points": []}
 
 
-def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
+def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 3: The Gap Verification Engine.
     Cross-references pain points against creator's actual content.
@@ -629,7 +629,7 @@ OUTPUT JSON:
 # Old merge_signals_reduce is replaced by cluster_pain_points and verify_gaps_against_content above
 
 
-def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.5-pro", language: str = "en") -> dict:
+def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     ANALYTICAL EXTRACTION PIPELINE (4 Phases):
     1. Signal-to-Noise Filter (Python)
@@ -1109,10 +1109,19 @@ def run_premium_analysis(
             print(f"   ⚠️ Views Forecasting failed: {e}")
     
     # =========================================================
-    # 4. COMPETITOR INTEL (All Tiers - Limited by Tier)
+    # 4. COMPETITOR INTEL (All Tiers - Limited by Tier) + CACHING
     # =========================================================
     try:
         print(f"   ⚔️ Running Competitor Analysis (max {limits['competitors']} channels)...")
+        
+        # Import cache
+        try:
+            from premium.db.competitor_cache import get_competitor_cache
+            cache = get_competitor_cache()
+        except Exception as e:
+            print(f"      ⚠️ Cache unavailable: {e}")
+            cache = None
+        
         competitor_analyzer = CompetitorAnalyzer()
         
         # Discover competitors
@@ -1123,10 +1132,21 @@ def run_premium_analysis(
         )
         
         competitor_insights = []
+        cache_hits = 0
+        
         for comp_id in discovered[:limits['competitors']]:
             try:
+                # Check cache first
+                cached_data = cache.get(comp_id) if cache else None
+                
+                if cached_data:
+                    competitor_insights.append(cached_data)
+                    cache_hits += 1
+                    continue
+                
+                # Cache miss - fetch fresh data
                 insight = competitor_analyzer.analyze_competitor(comp_id, video_limit=10)
-                competitor_insights.append({
+                insight_data = {
                     'channel_name': insight.channel_name,
                     'subscriber_count': insight.subscriber_count,
                     'avg_views': int(insight.avg_views_per_video),
@@ -1134,7 +1154,13 @@ def run_premium_analysis(
                     'upload_frequency_days': round(insight.upload_frequency_days, 1),
                     'top_formats': insight.top_formats[:3],
                     'posting_days': insight.posting_day_pattern[:3]
-                })
+                }
+                competitor_insights.append(insight_data)
+                
+                # Save to cache for next time
+                if cache:
+                    cache.set(comp_id, insight_data)
+                    
             except Exception as e:
                 print(f"      ⚠️ Competitor analysis failed: {e}")
                 continue
@@ -1142,9 +1168,10 @@ def run_premium_analysis(
         premium_data['competitor_intel'] = {
             'competitors_tracked': len(competitor_insights),
             'max_allowed': limits['competitors'],
-            'competitors': competitor_insights
+            'competitors': competitor_insights,
+            'cache_hits': cache_hits
         }
-        print(f"      ✓ Analyzed {len(competitor_insights)} competitors")
+        print(f"      ✓ Analyzed {len(competitor_insights)} competitors ({cache_hits} from cache)")
     except Exception as e:
         print(f"   ⚠️ Competitor Analysis failed: {e}")
     
@@ -1702,7 +1729,7 @@ Examples:
                 except Exception as e:
                     return idx, None, str(e)
             
-            with ThreadPoolExecutor(max_workers=3) as executor:
+            with ThreadPoolExecutor(max_workers=4) as executor:
                 futures = {executor.submit(process_single_video, (i, v)): i for i, v in enumerate(videos_to_transcribe, 1)}
                 
                 completed = 0
@@ -1748,7 +1775,7 @@ Examples:
                 except Exception as e:
                     return idx, None, str(e)
             
-            with ThreadPoolExecutor(max_workers=5) as executor:
+            with ThreadPoolExecutor(max_workers=6) as executor:
                 futures = {executor.submit(fetch_comments_only, (i, v)): i for i, v in enumerate(videos_comments_only, 1)}
                 
                 completed = 0
