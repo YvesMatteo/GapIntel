@@ -85,6 +85,7 @@ def send_analysis_started_email(user_email: str, channel_name: str, report_id: s
     """
     Sends a confirmation email when analysis begins.
     No access key shown - user accesses via their account dashboard.
+    Premium dark theme design with visual progress steps.
     """
     subject = f"🚀 Analysis Started for @{channel_name}"
     
@@ -93,67 +94,319 @@ def send_analysis_started_email(user_email: str, channel_name: str, report_id: s
     html_content = f"""
     <!DOCTYPE html>
     <html>
-    <head>{EMAIL_STYLES}</head>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+                line-height: 1.6; 
+                color: #e2e8f0; 
+                background-color: #0f172a; 
+                margin: 0; 
+                padding: 40px 20px; 
+            }}
+            .container {{ 
+                max-width: 560px; 
+                margin: 0 auto; 
+                background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); 
+                border-radius: 24px; 
+                overflow: hidden; 
+                border: 1px solid #334155;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            }}
+            .header {{ 
+                background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); 
+                padding: 48px 32px; 
+                text-align: center; 
+                position: relative;
+            }}
+            .header::after {{
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            }}
+            .logo {{ 
+                font-size: 32px; 
+                font-weight: 800; 
+                color: white; 
+                letter-spacing: -1px; 
+                margin: 0;
+                text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            }}
+            .tagline {{ 
+                color: rgba(255,255,255,0.85); 
+                font-size: 14px; 
+                margin-top: 8px;
+                font-weight: 500;
+            }}
+            .content {{ 
+                padding: 40px 32px; 
+            }}
+            .channel-card {{
+                background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+                border: 1px solid #3b82f6;
+                border-radius: 16px;
+                padding: 24px;
+                text-align: center;
+                margin-bottom: 32px;
+                position: relative;
+                overflow: hidden;
+            }}
+            .channel-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+            }}
+            .pulse-dot {{
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                background: #22c55e;
+                border-radius: 50%;
+                margin-right: 8px;
+                box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+            }}
+            .status-label {{
+                font-size: 12px;
+                color: #22c55e;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                font-weight: 600;
+                margin-bottom: 12px;
+            }}
+            .channel-name {{
+                font-size: 24px;
+                font-weight: 700;
+                color: #ffffff;
+                margin: 0;
+            }}
+            .message {{ 
+                color: #94a3b8; 
+                font-size: 15px; 
+                margin-bottom: 24px; 
+            }}
+            .progress-section {{
+                margin: 32px 0;
+            }}
+            .progress-title {{
+                font-size: 13px;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                margin-bottom: 20px;
+                font-weight: 600;
+            }}
+            .step {{
+                display: flex;
+                align-items: flex-start;
+                margin-bottom: 16px;
+                padding: 16px;
+                background: rgba(30, 41, 59, 0.5);
+                border-radius: 12px;
+                border: 1px solid #334155;
+            }}
+            .step-icon {{
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                margin-right: 16px;
+                flex-shrink: 0;
+            }}
+            .step-icon.active {{
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            }}
+            .step-icon.pending {{
+                background: #334155;
+            }}
+            .step-content {{
+                flex: 1;
+            }}
+            .step-title {{
+                font-size: 14px;
+                font-weight: 600;
+                color: #e2e8f0;
+                margin: 0 0 4px 0;
+            }}
+            .step-desc {{
+                font-size: 13px;
+                color: #64748b;
+                margin: 0;
+            }}
+            .time-estimate {{
+                background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                border-radius: 12px;
+                padding: 16px 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 24px 0;
+            }}
+            .time-icon {{
+                font-size: 20px;
+                margin-right: 12px;
+            }}
+            .time-text {{
+                font-size: 14px;
+                color: #c4b5fd;
+            }}
+            .time-text strong {{
+                color: #ffffff;
+            }}
+            .cta-button {{ 
+                display: inline-block; 
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+                color: white !important; 
+                padding: 16px 40px; 
+                border-radius: 12px; 
+                text-decoration: none; 
+                font-weight: 600; 
+                font-size: 15px;
+                transition: all 0.2s ease;
+                box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+            }}
+            .footer {{ 
+                background: #0f172a; 
+                padding: 32px; 
+                text-align: center; 
+                border-top: 1px solid #1e293b; 
+            }}
+            .footer p {{ 
+                color: #475569; 
+                font-size: 13px; 
+                margin: 6px 0; 
+            }}
+            .footer a {{ 
+                color: #3b82f6; 
+                text-decoration: none; 
+            }}
+            .social-links {{
+                margin-top: 16px;
+            }}
+            .social-links a {{
+                display: inline-block;
+                margin: 0 8px;
+                color: #64748b;
+                text-decoration: none;
+                font-size: 13px;
+            }}
+        </style>
+    </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>GAP Intel</h1>
-                <div class="subtitle">AI-Powered Content Strategy</div>
+                <h1 class="logo">GAP Intel</h1>
+                <p class="tagline">AI-Powered Content Intelligence</p>
             </div>
             
             <div class="content">
-                <p class="greeting">Hi there! 👋</p>
-                
-                <p class="message">
-                    Great news! We've started analyzing <strong>@{channel_name}</strong>. 
-                    Our AI is now crunching the data to find your best content opportunities.
-                </p>
-                
-                <div class="highlight-box">
-                    <div class="highlight-label">Analyzing Channel</div>
-                    <div class="highlight-value">@{channel_name}</div>
+                <div class="channel-card">
+                    <div class="status-label">
+                        <span class="pulse-dot"></span>
+                        Analysis in Progress
+                    </div>
+                    <h2 class="channel-name">@{channel_name}</h2>
                 </div>
                 
                 <p class="message">
-                    <strong>What happens next?</strong><br>
-                    We'll analyze your recent videos, thumbnails, engagement patterns, and compare them against top performers in your niche. This typically takes <strong>5-15 minutes</strong>.
+                    Your content gap analysis has started! Our AI is now diving deep into your channel to uncover growth opportunities and actionable insights.
                 </p>
                 
-                <p class="message">
-                    You'll receive another email as soon as your report is ready. In the meantime, you can track progress from your dashboard.
-                </p>
-                
-                <div style="text-align: center;">
-                    <a href="https://www.gapintel.online/dashboard" class="cta-button">View Dashboard →</a>
+                <div class="progress-section">
+                    <div class="progress-title">What We're Analyzing</div>
+                    
+                    <div class="step">
+                        <div class="step-icon active">📊</div>
+                        <div class="step-content">
+                            <p class="step-title">Performance Metrics</p>
+                            <p class="step-desc">Views, engagement rates, and growth patterns</p>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-icon active">🎨</div>
+                        <div class="step-content">
+                            <p class="step-title">Thumbnail Analysis</p>
+                            <p class="step-desc">Visual elements, colors, and click-through optimization</p>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-icon active">🎯</div>
+                        <div class="step-content">
+                            <p class="step-title">Content Gaps</p>
+                            <p class="step-desc">Untapped topics your audience wants to see</p>
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <div class="step-icon active">🏆</div>
+                        <div class="step-content">
+                            <p class="step-title">Competitor Insights</p>
+                            <p class="step-desc">What's working for top performers in your niche</p>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="divider"></div>
+                <div class="time-estimate">
+                    <span class="time-icon">⏱️</span>
+                    <span class="time-text">Estimated time: <strong>5-15 minutes</strong></span>
+                </div>
                 
-                <p class="message" style="font-size: 13px; color: #94a3b8;">
-                    💡 <strong>Tip:</strong> While you wait, check out our analysis guide to get the most value from your report.
+                <p class="message" style="text-align: center; margin-bottom: 8px;">
+                    We'll email you the moment your report is ready.
                 </p>
+                
+                <div style="text-align: center; margin-top: 24px;">
+                    <a href="https://www.gapintel.online/dashboard" class="cta-button">Track Progress →</a>
+                </div>
             </div>
             
             <div class="footer">
-                <p>GAP Intel - AI-Powered YouTube Analytics</p>
-                <p>Questions? Reply to this email or visit <a href="https://www.gapintel.online">gapintel.online</a></p>
+                <p><strong style="color: #94a3b8;">GAP Intel</strong></p>
+                <p>AI-Powered YouTube Analytics</p>
+                <p style="margin-top: 16px;">
+                    Questions? Reply to this email or visit 
+                    <a href="https://www.gapintel.online">gapintel.online</a>
+                </p>
             </div>
         </div>
     </body>
     </html>
     """
 
-    text_content = f"""Hi there!
+    text_content = f"""🚀 Analysis Started for @{channel_name}
 
-Great news! We've started analyzing @{channel_name}.
+Your content gap analysis has started! Our AI is now diving deep into your channel.
 
-Our AI is now crunching the data to find your best content opportunities. This typically takes 5-15 minutes.
+WHAT WE'RE ANALYZING:
+• Performance Metrics - Views, engagement rates, and growth patterns
+• Thumbnail Analysis - Visual elements, colors, and CTR optimization  
+• Content Gaps - Untapped topics your audience wants to see
+• Competitor Insights - What's working for top performers
 
-You'll receive another email as soon as your report is ready.
+⏱️ Estimated time: 5-15 minutes
+
+We'll email you the moment your report is ready.
 
 Track progress: https://www.gapintel.online/dashboard
 
-GAP Intel - AI-Powered Content Strategy
+---
+GAP Intel - AI-Powered YouTube Analytics
+Questions? Reply to this email or visit gapintel.online
 """
 
     return send_email(user_email, subject, html_content, text_content)

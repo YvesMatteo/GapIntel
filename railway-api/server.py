@@ -345,7 +345,7 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
             "--videos", str(video_count),
             "--model", "tiny",
             "--ai", "gemini",
-            "--gemini-model", "gemini-2.5-flash",
+            "--gemini-model", "gemini-2.0-flash",
             "--tier", tier,
             "--language", language
         ]

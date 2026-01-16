@@ -343,7 +343,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
     """
     # Use env var or default if not provided
     if not gemini_model_name:
-        gemini_model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-exp")
+        gemini_model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
 
     try:
         if model_type == "openai":
@@ -390,7 +390,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
         return {}
 
 
-def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.5-flash", language: str = "en") -> dict:
+def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 2 (MAP): Extract USER PAIN POINTS, not video ideas.
     This prevents hallucination by asking for problems, not solutions.
@@ -450,7 +450,7 @@ OUTPUT JSON (only include pain points you found evidence for):
     return result
 
 
-def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.5-flash", language: str = "en") -> dict:
+def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 2B (REDUCE): Cluster similar pain points without inventing new concepts.
     Enhanced to track engagement metrics and filter low-quality gaps.
@@ -542,7 +542,7 @@ ONLY include gaps where mention_count >= 3 AND is_actionable = true.
     return result if result else {"clustered_pain_points": []}
 
 
-def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.5-flash", language: str = "en") -> dict:
+def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     PHASE 3: The Gap Verification Engine.
     Cross-references pain points against creator's actual content.
@@ -629,7 +629,7 @@ OUTPUT JSON:
 # Old merge_signals_reduce is replaced by cluster_pain_points and verify_gaps_against_content above
 
 
-def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.5-flash", language: str = "en") -> dict:
+def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
     """
     ANALYTICAL EXTRACTION PIPELINE (4 Phases):
     1. Signal-to-Noise Filter (Python)
@@ -849,7 +849,7 @@ def run_premium_analysis(
     tier: str = "starter",
     ai_client=None,
     model_type: str = "gemini",
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-2.0-flash"
 ) -> dict:
     """
     Run premium analysis modules based on subscription tier.
@@ -969,7 +969,7 @@ def run_premium_analysis(
         thumbnail_analyses = analyze_thumbnails_batch(
             videos=videos_data,
             ai_client=ai_client,
-            model=gemini_model,  # gemini-2.5-flash
+            model=gemini_model,  # gemini-2.0-flash
             max_videos=3  # Analyze top 3 thumbnails
         )
         
@@ -1618,8 +1618,8 @@ Examples:
                         help='Skip YouTube Shorts (videos <= 60 seconds)')
     parser.add_argument('--ai', choices=['openai', 'gemini', 'local'], default='gemini',
                         help='AI backend: openai, gemini (default), or local (free/ollama).')
-    parser.add_argument('--gemini-model', default='gemini-2.5-flash',
-                        help='Specific Gemini model to use (default: gemini-2.5-flash).')
+    parser.add_argument('--gemini-model', default='gemini-2.0-flash',
+                        help='Specific Gemini model to use (default: gemini-2.0-flash).')
     parser.add_argument('--competitors', nargs='+', help='List of competitor channel handles (e.g. @Rival1 @Rival2)')
     parser.add_argument('--sample', action='store_true', help='Run in "Free Sample" mode (3 videos, preview report)')
     parser.add_argument('--access_key', help='Supabase access key for tracking')
