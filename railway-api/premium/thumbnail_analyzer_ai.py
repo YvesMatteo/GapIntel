@@ -1,6 +1,6 @@
 """
 Thumbnail Analyzer using Gemini AI Vision
-Uses gemini-2.0-flash for cost-effective, accurate thumbnail analysis.
+Uses gemini-2.5-flash for cost-effective, accurate thumbnail analysis.
 """
 
 import json
@@ -49,7 +49,7 @@ def analyze_thumbnail_with_gemini(
     thumbnail_url: str,
     video_title: str,
     ai_client,
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.5-flash"
 ) -> ThumbnailAnalysis:
     """
     Analyze a YouTube thumbnail using Gemini Vision.
@@ -58,7 +58,7 @@ def analyze_thumbnail_with_gemini(
         thumbnail_url: URL of the thumbnail image
         video_title: Title of the video (for context)
         ai_client: Gemini client instance
-        model: Gemini model to use (default: gemini-2.0-flash for cost)
+        model: Gemini model to use (default: gemini-2.5-flash for cost)
     
     Returns:
         ThumbnailAnalysis with detected features and issues
@@ -160,7 +160,7 @@ Return ONLY the JSON object, no other text."""
 def analyze_thumbnails_batch(
     videos: List[Dict],
     ai_client,
-    model: str = "gemini-2.0-flash",
+    model: str = "gemini-2.5-flash",
     max_videos: int = 5
 ) -> List[Dict]:
     """
