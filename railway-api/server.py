@@ -166,6 +166,20 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
     return True
 
 
+
+@app.get("/api/debug/config")
+async def debug_config():
+    """Debug endpoint to check server configuration (Public)."""
+    return {
+        "api_key_configured": bool(API_SECRET_KEY),
+        "api_key_length": len(API_SECRET_KEY) if API_SECRET_KEY else 0,
+        "api_key_prefix": API_SECRET_KEY[:5] if API_SECRET_KEY else None,
+        "api_key_suffix": API_SECRET_KEY[-5:] if API_SECRET_KEY else None,
+        "supabase_url_configured": bool(SUPABASE_URL),
+        "supabase_key_configured": bool(SUPABASE_KEY),
+        "server_time": datetime.now().isoformat()
+    }
+
 # ============================================
 # Input Validation
 # ============================================
