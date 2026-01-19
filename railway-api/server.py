@@ -419,14 +419,23 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
         if process.returncode == 0:
             try:
                 json_candidate = ""
-                for line in reversed(output):
-                    if line.strip().startswith("{") and line.strip().endswith("}"):
-                        json_candidate = line.strip()
-                        break
-                
-                if json_candidate:
-                    analysis_result = json.loads(json_candidate)
-                else:
+                # Look for explicit JSON block first
+                try:
+                    full_output = stdout_text
+                    if "___JSON_START___" in full_output and "___JSON_END___" in full_output:
+                        json_str = full_output.split("___JSON_START___")[1].split("___JSON_END___")[0].strip()
+                        analysis_result = json.loads(json_str)
+                    else:
+                        # Fallback to old method
+                        for line in reversed(output):
+                            if line.strip().startswith("{") and line.strip().endswith("}"):
+                                json_candidate = line.strip()
+                                break
+                        if json_candidate:
+                            analysis_result = json.loads(json_candidate)
+                        else:
+                            raise ValueError("No JSON found")
+                except Exception:
                     analysis_result = {
                         "raw_report": stdout_text,
                         "generated_at": datetime.utcnow().isoformat()
@@ -629,7 +638,7 @@ async def root():
     return {
         "status": "healthy",
         "service": "GAP Intel Analysis API",
-        "version": "2.0.2"
+        "version": "2.0.3"
     }
 
 # Worker Heartbeat (to detect frozen threads)
