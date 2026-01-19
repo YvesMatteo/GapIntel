@@ -65,28 +65,29 @@ const pricingTiers: PricingTier[] = [
         priceId: "price_pro",
         color: "purple",
         glowColor: "bg-purple-500/20"
-    button: {
-            name: "Enterprise",
-            tierKey: "enterprise",
-            price: "$129",
-            period: "/month",
-            description: "For agencies and multi-channel creators",
-            badge: "BEST VALUE",
-            features: [
-                "25 analyses per month",
-                "Everything in Pro, plus:",
-                "100 competitor channels",
-                "Team collaboration (10 seats)",
-                "Full API access",
-                "White-label reports",
-                "Custom branding",
-                "Priority support"
-            ],
-            cta: "Go Enterprise",
-            priceId: "price_enterprise",
-            color: "orange",
-            glowColor: "bg-orange-500/20"
-        }
+    },
+    {
+        name: "Enterprise",
+        tierKey: "enterprise",
+        price: "$129",
+        period: "/month",
+        description: "For agencies and multi-channel creators",
+        badge: "BEST VALUE",
+        features: [
+            "25 analyses per month",
+            "Everything in Pro, plus:",
+            "100 competitor channels",
+            "Team collaboration (10 seats)",
+            "Full API access",
+            "White-label reports",
+            "Custom branding",
+            "Priority support"
+        ],
+        cta: "Go Enterprise",
+        priceId: "price_enterprise",
+        color: "orange",
+        glowColor: "bg-orange-500/20"
+    }
 ];
 
 const featureComparison = [
@@ -383,10 +384,10 @@ export default function PricingPage() {
                                 <motion.div
                                     whileHover={{ y: isCurrentPlan ? 0 : -8 }}
                                     className={`relative rounded-[40px] p-8 flex flex-col h-full transition-all duration-500 group ${isCurrentPlan
-                                            ? "bg-gradient-to-b from-emerald-50 to-emerald-100/50 border-2 border-emerald-300 shadow-xl shadow-emerald-200/40"
-                                            : tier.highlighted
-                                                ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/30 md:-mt-8 md:mb-8 ring-1 ring-slate-800"
-                                                : "bg-white/80 backdrop-blur-sm border border-slate-100 shadow-xl shadow-slate-200/50 text-slate-900 hover:shadow-2xl hover:shadow-slate-200/60 hover:bg-white"
+                                        ? "bg-gradient-to-b from-emerald-50 to-emerald-100/50 border-2 border-emerald-300 shadow-xl shadow-emerald-200/40"
+                                        : tier.highlighted
+                                            ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/30 md:-mt-8 md:mb-8 ring-1 ring-slate-800"
+                                            : "bg-white/80 backdrop-blur-sm border border-slate-100 shadow-xl shadow-slate-200/50 text-slate-900 hover:shadow-2xl hover:shadow-slate-200/60 hover:bg-white"
                                         }`}
                                 >
                                     {/* Current Plan Badge */}
@@ -452,12 +453,12 @@ export default function PricingPage() {
                                         onClick={() => handleSubscribe(tier)}
                                         disabled={loading === tier.name || buttonState.disabled}
                                         className={`w-full h-14 rounded-full font-bold text-base transition-all duration-300 relative overflow-hidden group/btn z-20 ${buttonState.variant === 'current'
-                                                ? "bg-emerald-200 text-emerald-800 cursor-default"
-                                                : buttonState.variant === 'secondary'
-                                                    ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                                    : tier.highlighted
-                                                        ? "bg-white text-slate-900 hover:bg-slate-50 shadow-lg shadow-white/10"
-                                                        : "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/20"
+                                            ? "bg-emerald-200 text-emerald-800 cursor-default"
+                                            : buttonState.variant === 'secondary'
+                                                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                : tier.highlighted
+                                                    ? "bg-white text-slate-900 hover:bg-slate-50 shadow-lg shadow-white/10"
+                                                    : "bg-slate-900 text-white hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/20"
                                             } disabled:opacity-70 disabled:cursor-not-allowed`}
                                     >
                                         <span className="relative z-10 flex items-center justify-center gap-2">

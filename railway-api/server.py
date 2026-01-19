@@ -719,6 +719,271 @@ async def queue_status():
 
 
 # ============================================
+# YouTube Analytics OAuth Endpoints (Premium CTR)
+# ============================================
+
+@app.get("/api/youtube-analytics/authorize")
+async def youtube_analytics_authorize(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Start OAuth flow for YouTube Analytics.
+    
+    Query params:
+    - user_id: The user's Supabase user ID
+    - redirect_uri: Where to redirect after auth (defaults to production)
+    
+    Returns:
+    - authorization_url: URL to redirect user to
+    - state: State token for validation
+    """
+    user_id = req.query_params.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id parameter required")
+    
+    redirect_uri = req.query_params.get(
+        "redirect_uri", 
+        "https://gapintel.online/api/youtube-analytics/callback"
+    )
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        oauth = YouTubeAnalyticsOAuth()
+        
+        auth_url, state = oauth.get_authorization_url(user_id, redirect_uri)
+        
+        return {
+            "status": "success",
+            "authorization_url": auth_url,
+            "state": state
+        }
+    except Exception as e:
+        print(f"❌ YouTube Analytics OAuth error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/youtube-analytics/callback")
+async def youtube_analytics_callback(
+    code: str,
+    state: str
+):
+    """
+    Handle OAuth callback from Google.
+    
+    Query params:
+    - code: Authorization code from Google
+    - state: State token for validation
+    
+    Redirects to dashboard with success/error status.
+    """
+    from fastapi.responses import RedirectResponse
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        oauth = YouTubeAnalyticsOAuth()
+        
+        tokens = oauth.handle_callback(code, state)
+        
+        if tokens:
+            # Redirect to dashboard with success
+            return RedirectResponse(
+                url="https://gapintel.online/dashboard/connect-analytics?status=success"
+            )
+        else:
+            return RedirectResponse(
+                url="https://gapintel.online/dashboard/connect-analytics?status=error&message=auth_failed"
+            )
+    except Exception as e:
+        print(f"❌ YouTube Analytics callback error: {e}")
+        return RedirectResponse(
+            url=f"https://gapintel.online/dashboard/connect-analytics?status=error&message={str(e)}"
+        )
+
+
+@app.delete("/api/youtube-analytics/disconnect")
+async def youtube_analytics_disconnect(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Disconnect YouTube Analytics access for a user.
+    
+    Query params:
+    - user_id: The user's Supabase user ID
+    """
+    user_id = req.query_params.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id parameter required")
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        oauth = YouTubeAnalyticsOAuth()
+        
+        success = oauth.disconnect(user_id)
+        
+        return {
+            "status": "success" if success else "error",
+            "message": "YouTube Analytics disconnected" if success else "Failed to disconnect"
+        }
+    except Exception as e:
+        print(f"❌ YouTube Analytics disconnect error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/youtube-analytics/status")
+async def youtube_analytics_status(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Check YouTube Analytics connection status for a user.
+    
+    Query params:
+    - user_id: The user's Supabase user ID
+    """
+    user_id = req.query_params.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id parameter required")
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        oauth = YouTubeAnalyticsOAuth()
+        
+        tokens = oauth.get_tokens(user_id)
+        
+        if tokens:
+            return {
+                "status": "connected",
+                "channel_id": tokens.channel_id,
+                "expires_at": tokens.expires_at.isoformat(),
+                "scopes": tokens.scopes
+            }
+        else:
+            return {
+                "status": "not_connected"
+            }
+    except Exception as e:
+        print(f"❌ YouTube Analytics status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/youtube-analytics/collect")
+async def youtube_analytics_collect(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Trigger CTR data collection for a connected channel.
+    
+    Query params:
+    - user_id: The user's Supabase user ID
+    - max_videos: Maximum videos to process (default 100)
+    """
+    user_id = req.query_params.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id parameter required")
+    
+    max_videos = int(req.query_params.get("max_videos", 100))
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        from premium.ml_models.ctr_data_collector import CTRDataCollector
+        
+        # Get tokens to find channel_id
+        oauth = YouTubeAnalyticsOAuth()
+        tokens = oauth.get_tokens(user_id)
+        
+        if not tokens:
+            raise HTTPException(status_code=400, detail="YouTube Analytics not connected")
+        
+        # Collect data
+        collector = CTRDataCollector()
+        result = collector.collect_from_channel(
+            channel_id=tokens.channel_id,
+            user_id=user_id,
+            max_videos=max_videos
+        )
+        
+        return {
+            "status": "success" if result.status in ["success", "partial"] else "error",
+            "result": result.to_dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ CTR data collection error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ctr-model/stats")
+async def ctr_model_stats(
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Get CTR model training statistics.
+    
+    Returns info about available training data and model status.
+    """
+    try:
+        from premium.ml_models.ctr_predictor import CTRModelTrainer, GLOBAL_MODEL_PATH
+        import os
+        
+        trainer = CTRModelTrainer()
+        stats = trainer.get_training_stats()
+        
+        # Check if global model exists
+        global_model_exists = os.path.exists(GLOBAL_MODEL_PATH)
+        
+        return {
+            "status": "success",
+            "training_data": stats,
+            "global_model_exists": global_model_exists,
+            "can_train": stats.get("can_train_global", False)
+        }
+    except Exception as e:
+        print(f"❌ CTR model stats error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ctr-model/train")
+async def ctr_model_train(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Trigger CTR model training.
+    
+    Query params:
+    - type: 'global' or 'channel'
+    - channel_id: Required if type is 'channel'
+    """
+    model_type = req.query_params.get("type", "global")
+    channel_id = req.query_params.get("channel_id")
+    
+    if model_type == "channel" and not channel_id:
+        raise HTTPException(status_code=400, detail="channel_id required for channel model")
+    
+    try:
+        from premium.ml_models.ctr_predictor import CTRModelTrainer
+        
+        trainer = CTRModelTrainer()
+        
+        if model_type == "global":
+            result = trainer.train_global_model()
+        else:
+            result = trainer.train_channel_model(channel_id)
+        
+        return {
+            "status": "success" if result.get("success") else "error",
+            "result": result
+        }
+    except Exception as e:
+        print(f"❌ CTR model training error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
 # Subscription Management Endpoints
 # ============================================
 

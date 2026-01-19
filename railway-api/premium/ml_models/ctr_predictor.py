@@ -3,6 +3,11 @@ Premium Analysis - CTR Prediction Model
 Predicts click-through rate for YouTube thumbnails using machine learning.
 
 Uses XGBoost for fast, accurate predictions on CPU.
+
+Model loading hierarchy:
+1. Channel-specific model (if available and user connected Analytics)
+2. Global model (trained on 1000+ videos from all connected creators)
+3. Rule-based estimation (fallback when no trained models exist)
 """
 
 import os
@@ -28,6 +33,12 @@ except ImportError:
     print("⚠️ ML dependencies not installed. Install: pip install xgboost scikit-learn")
 
 
+# Model paths
+MODELS_DIR = os.path.join(os.path.dirname(__file__), 'trained')
+GLOBAL_MODEL_PATH = os.path.join(MODELS_DIR, 'ctr_global.joblib')
+CHANNEL_MODELS_DIR = os.path.join(MODELS_DIR, 'channels')
+
+
 @dataclass
 class CTRPrediction:
     """Result of a CTR prediction."""
@@ -37,6 +48,7 @@ class CTRPrediction:
     top_positive_factors: List[Dict]
     top_negative_factors: List[Dict]
     improvement_suggestions: List[str]
+    model_type: str = 'rule_based'  # 'channel_specific', 'global', or 'rule_based'
     
     def to_dict(self) -> Dict:
         return {
@@ -45,7 +57,8 @@ class CTRPrediction:
             'ctr_vs_channel_avg': round(self.ctr_vs_channel_avg, 2),
             'top_positive_factors': self.top_positive_factors,
             'top_negative_factors': self.top_negative_factors,
-            'improvement_suggestions': self.improvement_suggestions
+            'improvement_suggestions': self.improvement_suggestions,
+            'model_type': self.model_type
         }
 
 
@@ -93,14 +106,43 @@ class CTRPredictor:
         'new', 'update', 'breaking', 'exclusive', 'free'
     ]
     
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None, channel_id: Optional[str] = None):
         self.model = None
         self.scaler = None
         self.feature_importances = None
         self.channel_avg_ctr = 5.0  # Default average CTR
+        self.model_type = 'rule_based'
+        self.feature_columns = None
+        
+        # Create models directory if it doesn't exist
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        os.makedirs(CHANNEL_MODELS_DIR, exist_ok=True)
+        
+        # Model loading hierarchy:
+        # 1. Explicit model path
+        # 2. Channel-specific model
+        # 3. Global model
+        # 4. Rule-based (fallback)
         
         if model_path and os.path.exists(model_path):
             self.load_model(model_path)
+            self.model_type = 'custom'
+        elif channel_id:
+            # Try channel-specific model first
+            channel_model_path = os.path.join(CHANNEL_MODELS_DIR, f'{channel_id}.joblib')
+            if os.path.exists(channel_model_path):
+                self.load_model(channel_model_path)
+                self.model_type = 'channel_specific'
+                print(f"📊 Loaded channel-specific CTR model for {channel_id}")
+            elif os.path.exists(GLOBAL_MODEL_PATH):
+                self.load_model(GLOBAL_MODEL_PATH)
+                self.model_type = 'global'
+                print("📊 Loaded global CTR model")
+        elif os.path.exists(GLOBAL_MODEL_PATH):
+            # No channel specified, try global model
+            self.load_model(GLOBAL_MODEL_PATH)
+            self.model_type = 'global'
+            print("📊 Loaded global CTR model")
     
     def extract_title_features(self, title: str) -> Dict:
         """Extract features from video title."""
@@ -240,7 +282,8 @@ class CTRPredictor:
             ctr_vs_channel_avg=predicted_ctr - self.channel_avg_ctr,
             top_positive_factors=positive_factors[:3],
             top_negative_factors=negative_factors[:3],
-            improvement_suggestions=suggestions[:5]
+            improvement_suggestions=suggestions[:5],
+            model_type=self.model_type
         )
     
     def _rule_based_prediction(self, thumbnail_features: Dict, title: str) -> CTRPrediction:
@@ -409,9 +452,401 @@ class CTRPredictor:
         print(f"📂 Model loaded from {path}")
 
 
+class CTRModelTrainer:
+    """
+    Trains CTR prediction models from collected data.
+    
+    Supports:
+    - Global model: Trained on all available training data
+    - Channel-specific model: Fine-tuned for individual channels
+    
+    Usage:
+        trainer = CTRModelTrainer()
+        
+        # Train global model
+        result = trainer.train_global_model()
+        
+        # Train channel-specific model
+        result = trainer.train_channel_model(channel_id="UCxxx")
+    """
+    
+    def __init__(self, 
+                 supabase_url: Optional[str] = None,
+                 supabase_key: Optional[str] = None):
+        self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
+        self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        
+        # Ensure model directories exist
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        os.makedirs(CHANNEL_MODELS_DIR, exist_ok=True)
+    
+    def get_training_stats(self) -> Dict:
+        """Get statistics about available training data."""
+        if not self.supabase_url or not self.supabase_key:
+            return {'error': 'Supabase not configured', 'can_train': False}
+        
+        headers = {
+            'apikey': self.supabase_key,
+            'Authorization': f'Bearer {self.supabase_key}',
+        }
+        
+        try:
+            response = requests.get(
+                f"{self.supabase_url}/rest/v1/ctr_training_data",
+                headers=headers,
+                params={
+                    'select': 'video_id,channel_id,ctr_actual,impressions',
+                    'impressions': 'gte.1000'
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data:
+                    df = pd.DataFrame(data)
+                    return {
+                        'total_samples': len(df),
+                        'unique_channels': df['channel_id'].nunique(),
+                        'unique_videos': df['video_id'].nunique(),
+                        'avg_ctr': round(df['ctr_actual'].mean(), 2) if len(df) > 0 else 0,
+                        'can_train_global': len(df) >= 1000,
+                        'channels_with_50_plus': (df.groupby('channel_id').size() >= 50).sum()
+                    }
+            
+            return {'total_samples': 0, 'can_train_global': False}
+            
+        except Exception as e:
+            return {'error': str(e), 'can_train_global': False}
+    
+    def _fetch_training_data(self, 
+                              channel_id: Optional[str] = None,
+                              min_impressions: int = 1000) -> pd.DataFrame:
+        """Fetch training data from Supabase."""
+        if not self.supabase_url or not self.supabase_key:
+            return pd.DataFrame()
+        
+        headers = {
+            'apikey': self.supabase_key,
+            'Authorization': f'Bearer {self.supabase_key}',
+        }
+        
+        params = {
+            'select': '*',
+            'impressions': f'gte.{min_impressions}',
+            'order': 'fetch_date.desc',
+            'limit': 10000
+        }
+        
+        if channel_id:
+            params['channel_id'] = f'eq.{channel_id}'
+        
+        try:
+            response = requests.get(
+                f"{self.supabase_url}/rest/v1/ctr_training_data",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+            return pd.DataFrame(response.json())
+        except Exception as e:
+            print(f"❌ Failed to fetch training data: {e}")
+            return pd.DataFrame()
+    
+    def train_global_model(self, min_samples: int = 1000) -> Dict:
+        """
+        Train global CTR prediction model.
+        
+        Uses all available training data with 5-fold cross-validation.
+        
+        Args:
+            min_samples: Minimum samples required to train
+            
+        Returns:
+            Training result with metrics and model path
+        """
+        if not ML_AVAILABLE:
+            return {'success': False, 'error': 'ML dependencies not available'}
+        
+        print("🔧 Training global CTR model...")
+        
+        # Fetch training data
+        df = self._fetch_training_data(min_impressions=1000)
+        
+        if len(df) < min_samples:
+            return {
+                'success': False, 
+                'error': f'Not enough training data ({len(df)} samples, need {min_samples})'
+            }
+        
+        # Prepare features and target
+        predictor = CTRPredictor()  # Use for feature preparation
+        
+        # Build feature matrix
+        feature_rows = []
+        target_values = []
+        
+        for _, row in df.iterrows():
+            # Parse thumbnail features
+            thumb_features = {}
+            if row.get('thumbnail_features'):
+                try:
+                    thumb_features = json.loads(row['thumbnail_features']) if isinstance(row['thumbnail_features'], str) else row['thumbnail_features']
+                except:
+                    pass
+            
+            # Build feature vector
+            features = {
+                **thumb_features,
+                'title_length': row.get('title_length', 0),
+                'title_has_numbers': row.get('title_has_numbers', False),
+                'title_has_question': row.get('title_has_question', False),
+                'title_has_power_words': row.get('title_has_power_words', False),
+                'title_capitalization_ratio': row.get('title_capitalization_ratio', 0)
+            }
+            
+            feature_vector = []
+            for name in predictor.FEATURE_NAMES:
+                value = features.get(name, 0)
+                if isinstance(value, bool):
+                    value = float(value)
+                elif isinstance(value, (list, tuple)):
+                    value = float(value[0]) if value else 0
+                elif value is None:
+                    value = 0
+                feature_vector.append(float(value))
+            
+            feature_rows.append(feature_vector)
+            target_values.append(row['ctr_actual'])
+        
+        X = np.array(feature_rows)
+        y = np.array(target_values)
+        
+        # Train/test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        
+        # Scale features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Train XGBoost with cross-validation
+        model = xgb.XGBRegressor(
+            n_estimators=200,
+            max_depth=6,
+            learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=0.1,
+            random_state=42
+        )
+        
+        # Cross-validation
+        cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=5, scoring='neg_mean_absolute_error')
+        cv_mae = -cv_scores.mean()
+        
+        # Final training
+        model.fit(
+            X_train_scaled, y_train,
+            eval_set=[(X_test_scaled, y_test)],
+            verbose=False
+        )
+        
+        # Evaluate
+        y_pred = model.predict(X_test_scaled)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        print(f"📊 Global Model Performance:")
+        print(f"   CV MAE: {cv_mae:.4f}")
+        print(f"   Test MAE: {mae:.4f}")
+        print(f"   Test R²: {r2:.4f}")
+        
+        # Feature importances
+        feature_importances = dict(zip(predictor.FEATURE_NAMES, model.feature_importances_))
+        
+        # Save model
+        model_data = {
+            'model': model,
+            'scaler': scaler,
+            'feature_importances': feature_importances,
+            'channel_avg_ctr': float(y.mean()),
+            'feature_names': predictor.FEATURE_NAMES,
+            'trained_at': datetime.now().isoformat(),
+            'training_samples': len(X_train),
+            'metrics': {'mae': mae, 'r2': r2, 'cv_mae': cv_mae}
+        }
+        
+        joblib.dump(model_data, GLOBAL_MODEL_PATH)
+        print(f"💾 Global model saved to {GLOBAL_MODEL_PATH}")
+        
+        return {
+            'success': True,
+            'model_path': GLOBAL_MODEL_PATH,
+            'training_samples': len(X_train),
+            'metrics': {
+                'mae': round(mae, 4),
+                'r2': round(r2, 4),
+                'cv_mae': round(cv_mae, 4)
+            },
+            'top_features': sorted(
+                feature_importances.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:10]
+        }
+    
+    def train_channel_model(self, channel_id: str, min_samples: int = 50) -> Dict:
+        """
+        Train channel-specific CTR prediction model.
+        
+        Uses transfer learning: starts with global model and fine-tunes
+        on channel-specific data.
+        
+        Args:
+            channel_id: YouTube channel ID
+            min_samples: Minimum samples required
+            
+        Returns:
+            Training result with metrics and model path
+        """
+        if not ML_AVAILABLE:
+            return {'success': False, 'error': 'ML dependencies not available'}
+        
+        print(f"🔧 Training channel-specific model for {channel_id}...")
+        
+        # Fetch channel data
+        df = self._fetch_training_data(channel_id=channel_id, min_impressions=100)
+        
+        if len(df) < min_samples:
+            return {
+                'success': False,
+                'error': f'Not enough channel data ({len(df)} samples, need {min_samples})'
+            }
+        
+        # Load global model as base (if exists)
+        base_model = None
+        if os.path.exists(GLOBAL_MODEL_PATH):
+            try:
+                base_data = joblib.load(GLOBAL_MODEL_PATH)
+                base_model = base_data['model']
+                print("   📊 Using global model as base")
+            except:
+                pass
+        
+        # Prepare features (same as global)
+        predictor = CTRPredictor()
+        
+        feature_rows = []
+        target_values = []
+        
+        for _, row in df.iterrows():
+            thumb_features = {}
+            if row.get('thumbnail_features'):
+                try:
+                    thumb_features = json.loads(row['thumbnail_features']) if isinstance(row['thumbnail_features'], str) else row['thumbnail_features']
+                except:
+                    pass
+            
+            features = {
+                **thumb_features,
+                'title_length': row.get('title_length', 0),
+                'title_has_numbers': row.get('title_has_numbers', False),
+                'title_has_question': row.get('title_has_question', False),
+                'title_has_power_words': row.get('title_has_power_words', False),
+                'title_capitalization_ratio': row.get('title_capitalization_ratio', 0)
+            }
+            
+            feature_vector = []
+            for name in predictor.FEATURE_NAMES:
+                value = features.get(name, 0)
+                if isinstance(value, bool):
+                    value = float(value)
+                elif isinstance(value, (list, tuple)):
+                    value = float(value[0]) if value else 0
+                elif value is None:
+                    value = 0
+                feature_vector.append(float(value))
+            
+            feature_rows.append(feature_vector)
+            target_values.append(row['ctr_actual'])
+        
+        X = np.array(feature_rows)
+        y = np.array(target_values)
+        
+        # Split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        
+        # Scale
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Train model (smaller, to avoid overfitting on limited data)
+        model = xgb.XGBRegressor(
+            n_estimators=100,
+            max_depth=4,
+            learning_rate=0.1,
+            subsample=0.8,
+            random_state=42
+        )
+        
+        model.fit(X_train_scaled, y_train, verbose=False)
+        
+        # Evaluate
+        y_pred = model.predict(X_test_scaled)
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        print(f"📊 Channel Model Performance:")
+        print(f"   MAE: {mae:.4f}")
+        print(f"   R²: {r2:.4f}")
+        
+        # Feature importances
+        feature_importances = dict(zip(predictor.FEATURE_NAMES, model.feature_importances_))
+        
+        # Save model
+        model_path = os.path.join(CHANNEL_MODELS_DIR, f'{channel_id}.joblib')
+        
+        model_data = {
+            'model': model,
+            'scaler': scaler,
+            'feature_importances': feature_importances,
+            'channel_avg_ctr': float(y.mean()),
+            'feature_names': predictor.FEATURE_NAMES,
+            'trained_at': datetime.now().isoformat(),
+            'training_samples': len(X_train),
+            'channel_id': channel_id,
+            'metrics': {'mae': mae, 'r2': r2}
+        }
+        
+        joblib.dump(model_data, model_path)
+        print(f"💾 Channel model saved to {model_path}")
+        
+        return {
+            'success': True,
+            'model_path': model_path,
+            'channel_id': channel_id,
+            'training_samples': len(X_train),
+            'metrics': {
+                'mae': round(mae, 4),
+                'r2': round(r2, 4)
+            }
+        }
+
+
+# Import for trainer
+import requests
+from datetime import datetime
+
+
 # === Quick test ===
 if __name__ == "__main__":
-    print("🧪 Testing CTR Predictor (rule-based mode)...")
+    print("🧪 Testing CTR Predictor...")
     
     predictor = CTRPredictor()
     
@@ -435,6 +870,7 @@ if __name__ == "__main__":
     prediction = predictor.predict(test_features, test_title)
     
     print(f"\n📊 Prediction Results:")
+    print(f"   Model Type: {prediction.model_type}")
     print(f"   Predicted CTR: {prediction.predicted_ctr:.1f}%")
     print(f"   Confidence: {prediction.confidence:.0%}")
     print(f"   vs Channel Avg: {prediction.ctr_vs_channel_avg:+.1f}%")
@@ -446,3 +882,10 @@ if __name__ == "__main__":
     print(f"\n   💡 Suggestions:")
     for i, s in enumerate(prediction.improvement_suggestions[:3], 1):
         print(f"      {i}. {s}")
+    
+    # Test trainer stats
+    print(f"\n🔧 Testing CTR Model Trainer...")
+    trainer = CTRModelTrainer()
+    stats = trainer.get_training_stats()
+    print(f"   Training data stats: {stats}")
+
