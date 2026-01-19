@@ -120,8 +120,8 @@ class YouTubeAnalyticsOAuth:
                  client_secret: Optional[str] = None,
                  supabase_url: Optional[str] = None,
                  supabase_key: Optional[str] = None):
-        self.client_id = client_id or os.getenv('GOOGLE_CLIENT_ID')
-        self.client_secret = client_secret or os.getenv('GOOGLE_CLIENT_SECRET')
+        self.client_id = (client_id or os.getenv('GOOGLE_CLIENT_ID', '')).strip().strip('"').strip("'")
+        self.client_secret = (client_secret or os.getenv('GOOGLE_CLIENT_SECRET', '')).strip().strip('"').strip("'")
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
         self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_SERVICE_KEY')
         
@@ -130,6 +130,10 @@ class YouTubeAnalyticsOAuth:
         
         if not self.client_id or not self.client_secret:
             print("⚠️ Google OAuth credentials not configured")
+        else:
+            # Debug log (masked)
+            cid_masked = f"{self.client_id[:5]}...{self.client_id[-5:]}" if len(self.client_id) > 10 else "SHORT"
+            print(f"✅ OAuth Configured with Client ID: {cid_masked}")
     
     def get_authorization_url(self, user_id: str, redirect_uri: str) -> Tuple[str, str]:
         """

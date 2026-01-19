@@ -1,0 +1,66 @@
+Starting Container
+/app/server.py:174: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('channel_name')
+/app/server.py:185: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('access_key')
+/app/server.py:193: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('email')
+/app/server.py:199: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('video_count')
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     100.64.0.2:49770 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.3:35418 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.3:35418 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+🔧 Starting GAP Intel API v2.0.0 (Security Hardened)
+INFO:     100.64.0.3:35418 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+   CORS: 4 origins
+INFO:     100.64.0.4:39234 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+   Rate Limit: 10/min
+INFO:     100.64.0.3:35418 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+   Max Concurrent Jobs: 5
+INFO:     100.64.0.3:35418 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 200 OK
+   API Auth: Enabled
+🔍 Checking for stuck jobs...
+✅ No stuck jobs found
+INFO:     100.64.0.2:49768 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.2:49770 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+❌ Token exchange failed: 401 Client Error: Unauthorized for url: https://oauth2.googleapis.com/token
+INFO:     100.64.0.5:33164 - "GET /api/youtube-analytics/callback?code=4%2F0ASc3gC2PnMJG7IW1subAlSciR7XzhQF0nY37pXOjLCyykp83i_OP86wITBq8ZnYwBcXn_w&state=gAAAAABpbmysYuGCuPXNQJTTTO2OtRXZN8PaKVerYvJCGTi7aqXusxLYm9_WcymOfkgOarcaRCd031kwFb7EsyqHeFA5laBdy2CNh8hKg-eb_Jkx8E7T1435UJCT8Ox5FSM98YfnpLLU2zDrUHl0DAnOq6LGtpwyYOXjbvGWK1ASe0bfe0P0AsCVE_D0byCtpPifvKyddbrG3E-i2PknR9uF5Imtl2c-oXQ7a8oxGzia5xyf2piBzuvVcu5bGS7PeWnh0LjdnmCvnW8n9vvIQDecoJ0vqgN4_Ina-n02OCP7vVilJW5oOFzIArEGttO5EEcmgg0h5F32UnjCzf4UvHPmHCOHMiCigw%3D%3D HTTP/1.1" 200 OK
+INFO:     100.64.0.5:33164 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.5:33164 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.6:21226 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.4:49786 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.4:49786 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.4:49786 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.7:12652 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.4:49786 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.8:12982 - "GET /api/youtube-analytics/status?user_id=98ec3e16-812a-4ed7-ab04-056d62c9bce8 HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.4:34222 - "GET / HTTP/1.1" 200 OK
+INFO:     100.64.0.7:36094 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.2:18104 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.7:36094 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.4:51190 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.4:51190 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.9:22024 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.9:22024 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.6:33978 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.6:33978 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.6:33978 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.10:18108 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 200 OK
+INFO:     100.64.0.9:23484 - "GET /api/youtube-analytics/callback?code=4%2F0ASc3gC3H0yfzNlGXtqBDU42ZfdwvSjhLYYPY9Ff7RITsrt7LgKwUFSOgv3ffkhzMLxPAKQ&state=gAAAAABpbm7l5FZqy_4SQ0UDqw-tfFIRGOjhUbsz6s-WwOxmmpTXMv9yDvQsI7IhJHYYiGfnRZ0ljjrGQhANhgxBYsg5iuhc5N0i0s9WdrqsCM-gDW_c5tBm62Pf9iuUKiuiuPnzsaChZ2GbXpLAidiT4dJONwfGb1my1pJsM8lF23FV7AdZDxOF4SVMuzeHDevWnVw8fBbLbWJJ4HRfCvh6DHy1v9i98gc0s-YJXJuAx1vl6eavqDFr0uDP5E6k6X_Ns-0x-dHnGLMiL3RYyu263s4gQZt4AOtD-ZS7rOw6HEFAPl29RS3XTfAimNjxKL_qgXkWE1OmNzktgchR58wcd9BXj7Ww5A%3D%3D HTTP/1.1" 200 OK
+INFO:     100.64.0.9:23484 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.9:23484 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.11:34066 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54242 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54246 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54246 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54242 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+❌ Token exchange failed: 401 Client Error: Unauthorized for url: https://oauth2.googleapis.com/token
+INFO:     100.64.0.12:54242 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54246 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.12:54246 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.13:17820 - "GET /api/youtube-analytics/status?user_id=a8d77cc3-88d3-4088-a627-156650d45acb HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.14:60436 - "GET /api/youtube-analytics/status?user_id=36a0abbc-082b-4b96-b710-39562f5dc849 HTTP/1.1" 401 Unauthorized
