@@ -335,7 +335,7 @@ class YouTubeAnalyticsOAuth:
             return False
     
     def _store_tokens(self, user_id: str, tokens: OAuthTokens) -> bool:
-        """Store encrypted tokens in Supabase."""
+        """Store encrypted tokens in Supabase (upsert by user_id)."""
         if not self.supabase_url or not self.supabase_key:
             print("⚠️ Supabase not configured, tokens not persisted")
             return False
@@ -344,7 +344,6 @@ class YouTubeAnalyticsOAuth:
             'apikey': self.supabase_key,
             'Authorization': f'Bearer {self.supabase_key}',
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
         }
         
         data = {
@@ -358,11 +357,20 @@ class YouTubeAnalyticsOAuth:
         }
         
         try:
+            # First, delete all existing tokens for this user (to avoid duplicates)
+            delete_response = requests.delete(
+                f"{self.supabase_url}/rest/v1/youtube_analytics_tokens?user_id=eq.{user_id}",
+                headers=headers
+            )
+            print(f"🗑️ Cleaned up old tokens for user {user_id[:8]}...: {delete_response.status_code}")
+            
+            # Then insert the new token
             response = requests.post(
                 f"{self.supabase_url}/rest/v1/youtube_analytics_tokens",
                 headers=headers,
                 json=data
             )
+            print(f"✅ Stored token for user {user_id[:8]}...: {response.status_code}")
             return response.status_code in [200, 201]
         except requests.RequestException as e:
             print(f"❌ Failed to store tokens: {e}")
@@ -375,6 +383,7 @@ class YouTubeAnalyticsOAuth:
         Automatically refreshes if expired.
         """
         if not self.supabase_url or not self.supabase_key:
+            print("❌ Supabase not configured")
             return None
         
         headers = {
@@ -383,21 +392,38 @@ class YouTubeAnalyticsOAuth:
         }
         
         try:
+            # Get the most recent token for this user
             response = requests.get(
                 f"{self.supabase_url}/rest/v1/youtube_analytics_tokens",
                 headers=headers,
-                params={'user_id': f'eq.{user_id}', 'select': '*'}
+                params={
+                    'user_id': f'eq.{user_id}', 
+                    'select': '*',
+                    'order': 'updated_at.desc',
+                    'limit': '1'
+                }
             )
             response.raise_for_status()
             data = response.json()
             
             if not data:
+                print(f"ℹ️ No tokens found for user {user_id[:8]}...")
                 return None
             
             row = data[0]
+            print(f"✅ Found token for user {user_id[:8]}..., channel: {row.get('channel_id', 'unknown')}")
+            
+            # Decrypt tokens
+            access_token = self.encryptor.decrypt(row['access_token_encrypted'])
+            refresh_token = self.encryptor.decrypt(row['refresh_token_encrypted'])
+            
+            if not access_token or not refresh_token:
+                print(f"❌ Failed to decrypt tokens for user {user_id[:8]}...")
+                return None
+            
             tokens = OAuthTokens(
-                access_token=self.encryptor.decrypt(row['access_token_encrypted']),
-                refresh_token=self.encryptor.decrypt(row['refresh_token_encrypted']),
+                access_token=access_token,
+                refresh_token=refresh_token,
                 expires_at=datetime.fromisoformat(row['expires_at'].replace('Z', '+00:00')),
                 scopes=row['scopes'],
                 channel_id=row['channel_id']
@@ -405,18 +431,23 @@ class YouTubeAnalyticsOAuth:
             
             # Refresh if expired
             if tokens.is_expired():
+                print(f"🔄 Token expired for user {user_id[:8]}..., refreshing...")
                 new_access_token = self.refresh_access_token(tokens.refresh_token)
                 if new_access_token:
                     tokens.access_token = new_access_token
                     tokens.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
                     self._store_tokens(user_id, tokens)
+                    print(f"✅ Token refreshed successfully for user {user_id[:8]}...")
                 else:
+                    print(f"❌ Token refresh failed for user {user_id[:8]}..., connection lost")
                     return None  # Refresh failed
             
             return tokens
             
         except Exception as e:
             print(f"❌ Failed to retrieve tokens: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def disconnect(self, user_id: str) -> bool:
