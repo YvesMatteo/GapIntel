@@ -20,6 +20,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from pytrends.request import TrendReq
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -46,6 +47,7 @@ from premium.color_ml_analyzer import ColorMLAnalyzer
 from premium.visual_report_generator import VisualReportGenerator
 from premium.satisfaction_analyzer import SatisfactionAnalyzer
 from premium.growth_pattern_analyzer import GrowthPatternAnalyzer
+from premium.ml_models.sentiment_engine import SentimentEngine
 
 # Language instructions for AI prompts
 LANGUAGE_INSTRUCTIONS = {
@@ -55,6 +57,9 @@ LANGUAGE_INSTRUCTIONS = {
     "it": "Rispondi in italiano. Tutte le analisi, i titoli e le raccomandazioni devono essere in italiano.",
     "es": "Responde en español. Todos los análisis, títulos y recomendaciones deben estar en español."
 }
+
+# Standard Model Configuration
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 
 
 def get_channel_id(youtube, handle: str) -> tuple[str, str]:
@@ -281,43 +286,64 @@ def filter_high_signal_comments(comments: list) -> list:
 def get_trend_data(keywords: list) -> dict:
     """
     Check Google Trends interest (0-100) for given key phrases.
-    Robust validation to prevent 429 errors.
+    Batches requests to prevent 429 errors and improve speed.
     """
     trend_results = {}
     pytrends = TrendReq(hl='en-US', tz=360)
     
     print("\n📈 Checking Google Trends data...")
+    
+    # Filter valid keywords and remove duplicates
+    valid_keywords = []
+    seen = set()
     for kw in keywords:
+        clean_kw = re.sub(r'[^\w\s]', '', kw).strip()
+        if clean_kw and clean_kw not in seen:
+            valid_keywords.append(clean_kw)
+            seen.add(clean_kw)
+    
+    # Batch into groups of 5
+    batch_size = 5
+    for i in range(0, len(valid_keywords), batch_size):
+        batch_kws = valid_keywords[i:i+batch_size]
         try:
-            # Clean keyword for trends (remove emojis, keep simple)
-            clean_kw = re.sub(r'[^\w\s]', '', kw).strip()
-            if not clean_kw: continue
-            
-            # Rate limit protection
-            time.sleep(2)
-            pytrends.build_payload([clean_kw], timeframe='today 3-m')
+            # Reduced wait time due to batching
+            time.sleep(1)
+            pytrends.build_payload(batch_kws, timeframe='today 3-m')
             data = pytrends.interest_over_time()
             
             if not data.empty:
-                # Get average interest of last 30 days
-                recent_data = data.tail(4) 
-                score = int(recent_data[clean_kw].mean())
-                # Determine trajectory
-                slope = "STABLE"
-                if len(recent_data) >= 2:
-                    start, end = recent_data[clean_kw].iloc[0], recent_data[clean_kw].iloc[-1]
-                    if end > start * 1.2: slope = "RISING"
-                    elif end < start * 0.8: slope = "FALLING"
-                
-                trend_results[kw] = {"score": score, "trajectory": slope}
-                print(f"   • {clean_kw}: {score} ({slope})")
+                # Process each keyword in the batch
+                recent_data = data.tail(4)
+                for kw in batch_kws:
+                    if kw in recent_data:
+                        score = int(recent_data[kw].mean())
+                        # Determine trajectory
+                        slope = "STABLE"
+                        if len(recent_data) >= 2:
+                            start, end = recent_data[kw].iloc[0], recent_data[kw].iloc[-1]
+                            if end > start * 1.2: slope = "RISING"
+                            elif end < start * 0.8: slope = "FALLING"
+                        
+                        trend_results[kw] = {"score": score, "trajectory": slope}
+                        print(f"   • {kw}: {score} ({slope})")
+                    else:
+                        trend_results[kw] = {"score": 0, "trajectory": "UNKNOWN"}
             else:
-                trend_results[kw] = {"score": 0, "trajectory": "UNKNOWN"}
+                 for kw in batch_kws:
+                    trend_results[kw] = {"score": 0, "trajectory": "UNKNOWN"}
         except Exception as e:
-            print(f"   ⚠️ Trend lookup failed for '{kw}': {e}")
-            trend_results[kw] = {"score": 0, "trajectory": "ERROR"}
+            print(f"   ⚠️ Trend batch failed for {batch_kws}: {e}")
+            for kw in batch_kws:
+                trend_results[kw] = {"score": 0, "trajectory": "ERROR"}
+
+    # Map back to original keywords
+    final_results = {}
+    for kw in keywords:
+        clean = re.sub(r'[^\w\s]', '', kw).strip()
+        final_results[kw] = trend_results.get(clean, {"score": 0, "trajectory": "UNKNOWN"})
             
-    return trend_results
+    return final_results
 
 
 def fetch_competitor_videos(youtube, competitors: list) -> dict:
@@ -356,7 +382,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
     """
     # Use env var or default if not provided
     if not gemini_model_name:
-        gemini_model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
+        gemini_model_name = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
 
     try:
         if model_type == "openai":
@@ -403,7 +429,7 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
         return {}
 
 
-def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
+def extract_batch_signals(client, batch_comments: list, channel_name: str, batch_id: int, model_type: str = "openai", gemini_model: str = DEFAULT_GEMINI_MODEL, language: str = "en") -> dict:
     """
     PHASE 2 (MAP): Extract USER PAIN POINTS, not video ideas.
     This prevents hallucination by asking for problems, not solutions.
@@ -463,7 +489,7 @@ OUTPUT JSON (only include pain points you found evidence for):
     return result
 
 
-def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
+def cluster_pain_points(client, all_pain_points: list, channel_name: str, model_type: str = "openai", gemini_model: str = DEFAULT_GEMINI_MODEL, language: str = "en") -> dict:
     """
     PHASE 2B (REDUCE): Cluster similar pain points without inventing new concepts.
     Enhanced to track engagement metrics and filter low-quality gaps.
@@ -555,7 +581,7 @@ ONLY include gaps where mention_count >= 3 AND is_actionable = true.
     return result if result else {"clustered_pain_points": []}
 
 
-def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
+def verify_gaps_against_content(client, pain_points: list, transcripts: list, model_type: str = "openai", gemini_model: str = DEFAULT_GEMINI_MODEL, language: str = "en") -> dict:
     """
     PHASE 3: The Gap Verification Engine.
     Cross-references pain points against creator's actual content.
@@ -639,10 +665,10 @@ OUTPUT JSON:
     return result if result else {"verified_gaps": []}
 
 
-# Old merge_signals_reduce is replaced by cluster_pain_points and verify_gaps_against_content above
 
 
-def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = "gemini-2.0-flash", language: str = "en") -> dict:
+
+def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, competitors_data: dict, model_type: str = "openai", gemini_model: str = DEFAULT_GEMINI_MODEL, language: str = "en") -> dict:
     """
     ANALYTICAL EXTRACTION PIPELINE (4 Phases):
     1. Signal-to-Noise Filter (Python)
@@ -675,6 +701,24 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     total_question_comments = count_questions(all_comments)
     high_signal_comments = filter_high_signal_comments(all_comments)
     
+    # Apply ML Sentiment Analysis (New)
+    try:
+        print("   🧠 Running DistilBERT Sentiment Analysis...")
+        sentiment_engine = SentimentEngine()
+        high_signal_comments = sentiment_engine.analyze_batch(high_signal_comments)
+        
+        # Calculate sentiment stats
+        sentiments = [c.get('sentiment', 'NEUTRAL') for c in high_signal_comments]
+        categories = [c.get('category', 'unknown') for c in high_signal_comments]
+        
+        print(f"      ✓ Analyzed {len(high_signal_comments)} comments")
+        print(f"      • Positive: {sentiments.count('POSITIVE')}")
+        print(f"      • Confusion: {categories.count('confusion')}")
+        print(f"      • Inquiries: {categories.count('inquiry')}")
+        
+    except Exception as e:
+        print(f"   ⚠️ Sentiment Analysis failed: {e}")
+
     if not high_signal_comments:
         print("   ⚠️ No high-signal comments found. Falling back to top liked comments.")
         all_comments.sort(key=lambda x: x['likes'], reverse=True)
@@ -689,13 +733,29 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     batch_size = 500 if model_type == "gemini" else 100
     all_pain_results = []
     
+    # process batches in parallel
+    batch_args = []
     for i in range(0, len(high_signal_comments), batch_size):
         batch = high_signal_comments[i:i+batch_size]
         batch_id = (i // batch_size) + 1
-        print(f"   🔹 Batch {batch_id}: Analyzing {len(batch)} comments...")
-        
-        result = extract_batch_signals(ai_client, batch, channel_name, batch_id, model_type, gemini_model, language)
-        all_pain_results.append(result)
+        batch_args.append((batch, batch_id))
+    
+    print(f"   🔹 Processing {len(batch_args)} batches in parallel...")
+    
+    def process_pain_batch(args):
+        b_comments, b_id = args
+        print(f"   🔹 Batch {b_id}: Analyzing {len(b_comments)} comments...")
+        return extract_batch_signals(ai_client, b_comments, channel_name, b_id, model_type, gemini_model, language)
+    
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(process_pain_batch, arg): arg for arg in batch_args}
+        for future in as_completed(futures):
+            try:
+                result = future.result()
+                if result:
+                    all_pain_results.append(result)
+            except Exception as e:
+                print(f"   ⚠️ Batch analysis failed: {e}")
     
     # Cluster pain points
     print(f"\n📉 PHASE 2B: Clustering Pain Points...")
@@ -847,7 +907,11 @@ OUTPUT JSON:
             'pain_points_found': len(pain_points),
             'true_gaps': len(true_gaps),
             'under_explained': len(under_explained),
-            'saturated': len(saturated)
+            'saturated': len(saturated),
+            'sentiment_positive': sum(1 for c in high_signal_comments if c.get('sentiment') == 'POSITIVE'),
+            'sentiment_confusion': sum(1 for c in high_signal_comments if c.get('category') == 'confusion'),
+            'sentiment_inquiry': sum(1 for c in high_signal_comments if c.get('category') == 'inquiry'),
+            'sentiment_success': sum(1 for c in high_signal_comments if c.get('category') == 'success'),
         },
         'verified_gaps': verified_gaps,
         'opportunities': final_result.get('opportunities', []),
@@ -945,24 +1009,32 @@ def run_premium_analysis(
         
         # Analyze thumbnails from recent videos
         ctr_results = []
-        for v in videos_data[:5]:  # Top 5 videos
-            video_info = v.get('video_info', {})
+        
+        def process_ctr(video):
+            video_info = video.get('video_info', {})
             thumbnail_url = video_info.get('thumbnail_url') or f"https://img.youtube.com/vi/{video_info.get('video_id', '')}/maxresdefault.jpg"
             
             try:
                 features = thumbnail_extractor.extract_from_url(thumbnail_url)
                 prediction = ctr_predictor.predict(features.to_dict(), video_info.get('title', ''))
-                ctr_results.append({
+                return {
                     'video_title': video_info.get('title', ''),
                     'predicted_ctr': prediction.predicted_ctr,
                     'confidence': prediction.confidence,
                     'positive_factors': prediction.top_positive_factors[:3],
                     'negative_factors': prediction.top_negative_factors[:3],
                     'suggestions': prediction.improvement_suggestions[:3]
-                })
+                }
             except Exception as e:
                 print(f"      ⚠️ CTR analysis failed for video: {e}")
-                continue
+                return None
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(process_ctr, v) for v in videos_data[:5]]
+            for future in as_completed(futures):
+                res = future.result()
+                if res:
+                    ctr_results.append(res)
         
         if ctr_results:
             avg_ctr = sum(r['predicted_ctr'] for r in ctr_results) / len(ctr_results)
@@ -1151,17 +1223,24 @@ def run_premium_analysis(
         competitor_insights = []
         cache_hits = 0
         
+        competitor_insights = []
+        cache_hits = 0
+        to_analyze = []
+        
+        # Check cache first (fast, synchronous)
         for comp_id in discovered[:limits['competitors']]:
+            cached_data = cache.get(comp_id) if cache else None
+            if cached_data:
+                competitor_insights.append(cached_data)
+                cache_hits += 1
+            else:
+                to_analyze.append(comp_id)
+        
+        if to_analyze:
+             print(f"      Parallel analyzing {len(to_analyze)} competitors...")
+        
+        def process_competitor(comp_id):
             try:
-                # Check cache first
-                cached_data = cache.get(comp_id) if cache else None
-                
-                if cached_data:
-                    competitor_insights.append(cached_data)
-                    cache_hits += 1
-                    continue
-                
-                # Cache miss - fetch fresh data
                 insight = competitor_analyzer.analyze_competitor(comp_id, video_limit=10)
                 insight_data = {
                     'channel_name': insight.channel_name,
@@ -1172,15 +1251,21 @@ def run_premium_analysis(
                     'top_formats': insight.top_formats[:3],
                     'posting_days': insight.posting_day_pattern[:3]
                 }
-                competitor_insights.append(insight_data)
-                
-                # Save to cache for next time
                 if cache:
                     cache.set(comp_id, insight_data)
-                    
+                return insight_data
             except Exception as e:
-                print(f"      ⚠️ Competitor analysis failed: {e}")
-                continue
+                print(f"      ⚠️ Competitor analysis failed for {comp_id}: {e}")
+                return None
+
+        # Execute parallel analysis for non-cached
+        if to_analyze:
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [executor.submit(process_competitor, cid) for cid in to_analyze]
+                for future in as_completed(futures):
+                    res = future.result()
+                    if res:
+                        competitor_insights.append(res)
         
         premium_data['competitor_intel'] = {
             'competitors_tracked': len(competitor_insights),
@@ -1243,7 +1328,8 @@ def run_premium_analysis(
                 'best_performing': result.best_performing_cluster,
                 'underperforming': result.underperforming_clusters,
                 'gap_opportunities': result.gap_opportunities,
-                'recommendations': result.recommendations[:3]
+                'recommendations': result.recommendations[:3],
+                'format_diversity': result.format_diversity
             }
             print(f"      ✓ Found {len(result.clusters)} content clusters")
         except Exception as e:

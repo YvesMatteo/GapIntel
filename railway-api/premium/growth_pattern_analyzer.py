@@ -45,6 +45,7 @@ class GrowthPatternResult:
     growth_trajectory: str  # accelerating, stable, declining
     views_growth_rate: float  # % change over period
     optimal_upload_frequency: str
+    consistency_impact: str # Impact description based on research
     recommendations: List[str]
     
     def to_dict(self) -> Dict:
@@ -114,6 +115,9 @@ class GrowthPatternAnalyzer:
         # 6. Determine optimal frequency
         optimal_freq = self._determine_optimal_frequency(sorted_videos)
         
+        # 7. Determine research impact
+        impact = self._determine_impact(consistency, avg_days)
+        
         # Generate recommendations
         recommendations = self._generate_recommendations(
             consistency, series_boost, trajectory, avg_days, len(series_list)
@@ -128,7 +132,9 @@ class GrowthPatternAnalyzer:
             series_performance_boost=round(series_boost, 1),
             growth_trajectory=trajectory,
             views_growth_rate=round(growth_rate, 1),
+            views_growth_rate=round(growth_rate, 1),
             optimal_upload_frequency=optimal_freq,
+            consistency_impact=impact,
             recommendations=recommendations
         )
     
@@ -366,6 +372,21 @@ class GrowthPatternAnalyzer:
         
         return best_freq or "weekly"
     
+    def _determine_impact(self, consistency: float, avg_days: float) -> str:
+        """Determine growth impact based on consistency research."""
+        if consistency < 45:
+            return "Sporadic uploads linked to 60% lower growth"
+        
+        # Consistent
+        if 6 <= avg_days <= 8: # Weekly
+            return "Consistent weekly uploads linked to 156% higher growth"
+        elif 12 <= avg_days <= 16: # Bi-weekly
+            return "Consistent bi-weekly schedule linked to 89% higher growth"
+        elif avg_days <= 2: # Daily
+            return "High frequency can trigger 200%+ faster growth if quality maintained"
+        else:
+             return "Consistent schedule builds audience habit"
+    
     def _generate_recommendations(self, consistency: float, series_boost: float,
                                     trajectory: str, avg_days: float,
                                     series_count: int) -> List[str]:
@@ -405,6 +426,7 @@ class GrowthPatternAnalyzer:
             growth_trajectory='unknown',
             views_growth_rate=0,
             optimal_upload_frequency='unknown',
+            consistency_impact="Not enough data",
             recommendations=["Not enough data for growth pattern analysis"]
         )
 

@@ -288,16 +288,27 @@ class HookAnalyzer:
         
         results = []
         skipped = 0
-        for i, video in enumerate(videos):
-            print(f"🎣 Analyzing hook {i+1}/{len(videos)}: {video.get('title', '')[:50]}...")
+        
+        # Helper for parallel execution
+        def process_one(idx, video):
+            print(f"🎣 Analyzing hook {idx+1}/{len(videos)}: {video.get('title', '')[:50]}...")
+            return self.analyze_single_video(video, avg_views)
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(process_one, i, v): i for i, v in enumerate(videos)}
             
-            # Use caption-based analysis only
-            result = self.analyze_single_video(video, avg_views)
-            
-            if result:
-                results.append(result)
-            else:
-                skipped += 1
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result:
+                        results.append(result)
+                    else:
+                        skipped += 1
+                except Exception as e:
+                    print(f"   ⚠️ Hook analysis error: {e}")
+                    skipped += 1
         
         if skipped > 0:
             print(f"   ℹ️ Skipped {skipped} videos (no captions available)")

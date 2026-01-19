@@ -6,6 +6,18 @@ Predicts viral potential of video ideas based on channel history and content pat
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 import numpy as np
+import os
+
+# Try to import supervised model
+try:
+    # Try absolute import (works when run from root)
+    from premium.ml_models.supervised_viral_predictor import SupervisedViralPredictor
+except ImportError:
+    try:
+        # Try relative import
+        from .supervised_viral_predictor import SupervisedViralPredictor
+    except ImportError:
+        SupervisedViralPredictor = None
 
 @dataclass
 class ViralPrediction:
@@ -24,12 +36,23 @@ class ViralPredictor:
             'timing': 0.1,
             'format_fit': 0.1
         }
+        
+        # Initialize supervised model if available
+        self.supervised_model = None
+        if SupervisedViralPredictor:
+            try:
+                self.supervised_model = SupervisedViralPredictor()
+                if not self.supervised_model.model:
+                    self.supervised_model = None # Model file not found/loaded
+            except Exception as e:
+                print(f"⚠️ Could not initialize supervised viral predictor: {e}")
 
     def predict(self, 
                 title: str, 
                 hook_text: str,
                 topic: str,
-                channel_history: List[Dict]) -> ViralPrediction:
+                channel_history: List[Dict],
+                thumbnail_features: Optional[Dict] = None) -> ViralPrediction:
         """
         Predict viral potential of a video idea.
         
@@ -38,23 +61,65 @@ class ViralPredictor:
             hook_text: Proposed hook script
             topic: Video topic/category
             channel_history: List of past videos with view counts
+            thumbnail_features: Optional dictionary of thumbnail features
             
         Returns:
             ViralPrediction object
         """
-        # Baselines - use defaults if no history
+        # Calculate baselines from history
         if not channel_history:
-            # Use baseline metrics for a typical video
             avg_views = 10000
             median_views = 5000
             max_views = 50000
         else:
-            # Calculate baselines from history
             views = [v.get('view_count', 0) for v in channel_history]
             avg_views = np.mean(views) if views else 10000
             median_views = np.median(views) if views else 5000
             max_views = max(views) if views else 50000
 
+        # === SUPERVISED MODEL PATH ===
+        if self.supervised_model:
+            try:
+                result = self.supervised_model.predict(
+                    title=title,
+                    channel_median_views=median_views,
+                    thumbnail_features=thumbnail_features
+                )
+                
+                if result:
+                    # Combine with heuristic hook analysis (since supervised model might not use hook yet)
+                    hook_score = self._analyze_hook(hook_text)
+                    
+                    # Adjust probability slightly based on hook (hybrid approach)
+                    # If hook is terrible, penalize. If great, boost.
+                    # This retains some domain knowledge while using the ML core.
+                    final_prob = result.viral_probability
+                    if hook_score < 0.4:
+                        final_prob *= 0.8
+                    elif hook_score > 0.8:
+                        final_prob = min(0.98, final_prob * 1.1)
+                        
+                    # Generate tips (hybrid)
+                    tips = []
+                    if result.predicted_ratio < 1.0:
+                        tips.append("Model predicts below-average performance based on title/thumbnail.")
+                    if hook_score < 0.6:
+                         tips.append("Hook needs more urgency or curiosity gap.")
+                         
+                    return ViralPrediction(
+                        predicted_views=result.predicted_views,
+                        viral_probability=final_prob,
+                        confidence_score=result.confidence_score,
+                        factors={
+                            'ml_score': result.predicted_ratio, 
+                            'hook_heuristic': hook_score
+                        },
+                        tips=tips
+                    )
+            except Exception as e:
+                print(f"⚠️ Supervised prediction failed, falling back to heuristics: {e}")
+
+        # === HEURISTIC FALLBACK ===
         
         # 1. Analyze Title Power
         title_score = self._analyze_title(title, channel_history)
@@ -77,10 +142,6 @@ class ViralPredictor:
         viral_prob = min(max(raw_score, 0), 0.95)
         
         # Predict views (conservative estimate based on prob)
-        # If prob > 0.8, predict near max_views
-        # If prob ~ 0.5, predict near avg_views
-        # If prob < 0.3, predict near median_views
-        
         if viral_prob > 0.8:
             base = max_views
             multiplier = 0.8 + (viral_prob - 0.8) # 0.8 to 0.95

@@ -96,8 +96,83 @@ class ModelTrainingPipeline:
         
         # 2. Train Views Velocity Predictor
         results['views_predictor'] = self._train_views_model(video_data)
+
+        # 3. Train Viral Supervised Predictor
+        results['viral_predictor'] = self._train_viral_model(video_data, thumbnail_features)
         
         return results
+    
+    def _train_viral_model(self, 
+                           video_data: pd.DataFrame,
+                           thumbnail_features: pd.DataFrame) -> TrainingResult:
+        """Train Supervised Viral Predictor."""
+        import time
+        start_time = time.time()
+        
+        try:
+            # Import here to avoid circular dependencies
+            try:
+                from premium.ml_models.supervised_viral_predictor import SupervisedViralPredictor
+            except ImportError:
+                from .supervised_viral_predictor import SupervisedViralPredictor
+
+            # Prepare data
+            # Merge with thumbnail features
+            if thumbnail_features is not None and len(thumbnail_features) > 0:
+                df = video_data.merge(
+                    thumbnail_features, 
+                    on='video_id', 
+                    how='left' # Left join to keep all videos even without thumb features
+                )
+            else:
+                df = video_data.copy()
+
+            # Ensure we have required columns
+            if 'title' not in df.columns:
+                 return TrainingResult(
+                    model_name='viral_predictor',
+                    success=False,
+                    metrics={},
+                    training_samples=len(df),
+                    training_time_seconds=0,
+                    model_path='',
+                    error='Missing title column'
+                )
+
+            # Train
+            predictor = SupervisedViralPredictor()
+            metrics = predictor.train(df)
+            
+            if 'error' in metrics:
+                 return TrainingResult(
+                    model_name='viral_predictor',
+                    success=False,
+                    metrics={},
+                    training_samples=len(df),
+                    training_time_seconds=time.time() - start_time,
+                    model_path='',
+                    error=metrics['error']
+                )
+
+            return TrainingResult(
+                model_name='viral_predictor',
+                success=True,
+                metrics=metrics,
+                training_samples=len(df),
+                training_time_seconds=round(time.time() - start_time, 2),
+                model_path=os.path.join(self.MODELS_DIR, 'viral_supervised_xgb.joblib')
+            )
+            
+        except Exception as e:
+            return TrainingResult(
+                model_name='viral_predictor',
+                success=False,
+                metrics={},
+                training_samples=0,
+                training_time_seconds=time.time() - start_time,
+                model_path='',
+                error=str(e)
+            )
     
     def _train_ctr_model(self, 
                          video_data: pd.DataFrame,
@@ -188,7 +263,7 @@ class ModelTrainingPipeline:
             r2 = 1 - (np.sum((y_test - y_pred) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2))
             
             # Save model
-            model_path = os.path.join(self.MODELS_DIR, 'ctr_predictor.joblib')
+            model_path = os.path.join(self.MODELS_DIR, 'ctr_global.joblib')
             joblib.dump({
                 'model': model,
                 'scaler': scaler,
@@ -344,7 +419,7 @@ class ModelTrainingPipeline:
         """Get info about currently trained models."""
         models = {}
         
-        for model_file in ['ctr_predictor.joblib', 'views_predictor.joblib']:
+        for model_file in ['ctr_global.joblib', 'views_predictor.joblib', 'viral_supervised_xgb.joblib']:
             path = os.path.join(self.MODELS_DIR, model_file)
             if os.path.exists(path):
                 try:

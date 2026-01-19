@@ -367,6 +367,27 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     # Extract video ID
     video_id = extract_video_id(url)
     
+    # Check Cache
+    cache_dir = temp_dir.parent / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{video_id}.json"
+    
+    if cache_file.exists():
+        try:
+            if verbose:
+                print(f"\n📦 Loading from cache: {video_id}")
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cached_data = json.load(f)
+            
+            # Basic validation
+            if cached_data.get('video_info') and cached_data.get('transcript') is not None:
+                if verbose:
+                     print(f"   ✓ Cache hit! Skipping fetch.")
+                return cached_data
+        except Exception as e:
+            if verbose:
+                print(f"   ⚠️ Cache read failed: {e}")
+    
     if verbose:
         print(f"\n📹 Processing: {video_id}")
     
@@ -457,12 +478,22 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
             print(f"   ⚠️ Embedding pre-computation failed: {e}")
     
     # Return structured data
-    return {
+    result = {
         'video_info': video_info,
         'transcript': transcription['text'],
         'transcript_segments': transcription['segments'],
         'comments': comments,
     }
+    
+    # Save to cache
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False) # indent=2? Save space for cache
+    except Exception as e:
+        if verbose:
+            print(f"   ⚠️ Failed to write cache: {e}")
+            
+    return result
 
 
 # ============================================================

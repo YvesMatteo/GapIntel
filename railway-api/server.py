@@ -9,7 +9,7 @@ import json
 import time
 import threading
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
@@ -86,10 +86,9 @@ rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 class JobQueue:
     """Thread-safe job queue with concurrent job limiting."""
-    def __init__(self, max_concurrent: int = 1):
         self.max_concurrent = max_concurrent
         self.active_jobs = 0
-        self.queue = []
+        self.queue = deque()
         self._lock = threading.Lock()
         self._worker_running = False
     
@@ -113,7 +112,7 @@ class JobQueue:
             job = None
             with self._lock:
                 if self.queue and self.active_jobs < self.max_concurrent:
-                    job = self.queue.pop(0)
+                    job = self.queue.popleft()
                     self.active_jobs += 1
                 elif not self.queue:
                     self._worker_running = False

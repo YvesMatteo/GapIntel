@@ -57,6 +57,9 @@ class ContentCluster:
     example_titles: List[str]
     # Enhanced: Full video examples with metadata
     example_videos: List[Dict] = None  # [{video_id, title, views, thumbnail_url}]
+    # Saturation Score
+    saturation_score: float = 0.0
+    saturation_label: str = "Unknown"
     
     def __post_init__(self):
         if self.example_videos is None:
@@ -77,15 +80,20 @@ class ClusteringResult:
     recommendations: List[str]
     best_performing_cluster: str
     underperforming_clusters: List[str]
+    underperforming_clusters: List[str]
     gap_opportunities: List[str]
+    format_diversity: Dict = None # {score: float, unique_formats: int, breakdown: List[Dict]}
     
-    def to_dict(self) -> Dict:
+    def __post_init__(self):
+        if self.format_diversity is None:
+            self.format_diversity = {}
         return {
             'clusters': [c.to_dict() for c in self.clusters],
             'recommendations': self.recommendations,
             'best_performing_cluster': self.best_performing_cluster,
             'underperforming_clusters': self.underperforming_clusters,
-            'gap_opportunities': self.gap_opportunities
+            'gap_opportunities': self.gap_opportunities,
+            'format_diversity': self.format_diversity
         }
 
 
@@ -112,7 +120,10 @@ class ContentClusteringEngine:
         'comparison': ['vs', 'versus', 'compared', 'battle', 'which is better'],
         'challenge': ['challenge', 'i tried', 'for 24 hours', 'experiment'],
         'story': ['storytime', 'story time', 'what happened', 'my experience'],
-        'educational': ['explained', 'why', 'science', 'how', 'the truth about']
+        'educational': ['explained', 'why', 'science', 'how', 'the truth about'],
+        'interview': ['interview', 'podcast', 'chat with', 'guest', 'conversation'],
+        'case_study': ['case study', 'analysis', 'deep dive', 'breakdown', 'history of'],
+        'shorts': ['#shorts', 'short']
     }
     
     def __init__(self, use_embeddings: bool = True):
@@ -216,6 +227,22 @@ class ContentClusteringEngine:
             cluster = self._analyze_cluster(cluster_id, cluster_videos)
             clusters.append(cluster)
         
+        # Calculate Saturation Scores
+        total_videos = len(videos)
+        avg_videos_per_cluster = total_videos / max(1, len(clusters))
+        
+        for c in clusters:
+            c.saturation_score = round(c.video_count / max(1, avg_videos_per_cluster), 2)
+            
+            if c.saturation_score > 2.0:
+                c.saturation_label = "Over-covered"
+            elif c.saturation_score >= 0.8:
+                c.saturation_label = "Well-balanced"
+            elif c.saturation_score >= 0.3:
+                c.saturation_label = "Light coverage"
+            else:
+                c.saturation_label = "Minimal coverage"
+        
         # Sort by performance
         clusters.sort(key=lambda c: c.performance_score, reverse=True)
         
@@ -225,12 +252,20 @@ class ContentClusteringEngine:
         underperforming = [c.name for c in clusters if c.performance_score < 0.5]
         gaps = self._identify_gaps(videos, clusters)
         
+        # Calculate Format Diversity
+        format_diversity = self._calculate_format_diversity(videos)
+        
+        # Add diversity recommendation
+        if format_diversity['score'] < 0.3:
+            recommendations.append(f"Format diversity is low ({format_diversity['unique_formats']} formats). Try experimenting with new formats like {gaps[0] if gaps else 'Interviews'}.")
+        
         return ClusteringResult(
             clusters=clusters,
             recommendations=recommendations,
             best_performing_cluster=best,
             underperforming_clusters=underperforming,
-            gap_opportunities=gaps
+            gap_opportunities=gaps,
+            format_diversity=format_diversity
         )
     
     def _cluster_with_embeddings(self, videos: List[Dict], 
@@ -358,6 +393,12 @@ class ContentClusteringEngine:
                 'engagement_rate': v.get('engagement_rate', 0),
             })
         
+        # Calculate Saturation Score
+        # Formula: Videos_Per_Cluster / Avg_Videos_Per_Cluster
+        # But since we don't have global avg here, we use a simpler heuristic for now or pass context later.
+        # Ideally, this should be calculated in cluster_channel_content using the full list of clusters.
+        # For now, we will placeholder it here and update it in cluster_channel_content.
+        
         return ContentCluster(
             id=cluster_id,
             name=name,
@@ -374,6 +415,8 @@ class ContentClusteringEngine:
             },
             example_titles=[v.get('title', '')[:50] for v in sorted_videos[:3]],
             example_videos=example_videos,
+            saturation_score=0.0, # Calculated in parent
+            saturation_label="TBD"
         )
     
     def _find_common_elements(self, videos: List[Dict]) -> List[str]:
@@ -460,6 +503,38 @@ class ContentClusteringEngine:
         
         return gaps[:3]
     
+    def _calculate_format_diversity(self, videos: List[Dict]) -> Dict:
+        """Calculate format diversity index."""
+        format_counts = Counter()
+        
+        for v in videos:
+            title = v.get('title', '').lower()
+            matched = False
+            for fmt, keywords in self.FORMAT_PATTERNS.items():
+                if any(kw in title for kw in keywords):
+                    format_counts[fmt] += 1
+                    matched = True
+                    break
+            if not matched:
+                format_counts['other'] += 1
+                
+        # Calculate diversity score (0-1) based on unique formats used (>2 videos)
+        total_formats = len(self.FORMAT_PATTERNS)
+        used_formats = sum(1 for count in format_counts.values() if count >= 2)
+        diversity_score = min(1.0, used_formats / 5) # Cap at 5 formats for max score
+        
+        breakdown = [
+            {'name': fmt, 'count': count, 'pct': round((count / len(videos)) * 100, 1)}
+            for fmt, count in format_counts.most_common(5)
+        ]
+        
+        return {
+            'score': round(diversity_score, 2),
+            'unique_formats': used_formats,
+            'breakdown': breakdown,
+            'primary_format': format_counts.most_common(1)[0][0] if format_counts else "Unknown"
+        }
+
     def _empty_result(self) -> ClusteringResult:
         """Return empty result when no data."""
         return ClusteringResult(
@@ -467,7 +542,8 @@ class ContentClusteringEngine:
             recommendations=["Not enough videos for clustering analysis"],
             best_performing_cluster="N/A",
             underperforming_clusters=[],
-            gap_opportunities=[]
+            gap_opportunities=[],
+            format_diversity={}
         )
 
 
