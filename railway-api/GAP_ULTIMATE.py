@@ -208,6 +208,17 @@ def parse_duration(duration_str: str) -> int:
     return hours * 3600 + minutes * 60 + seconds
 
 
+def count_questions(comments: list) -> int:
+    """Count comments that are questions."""
+    question_starts = ('how', 'what', 'why', 'when', 'where', 'who', 'can', 'could', 'should', 'would', 'is', 'are', 'do', 'does')
+    count = 0
+    for c in comments:
+        text = c.get('text', '').lower().strip()
+        if '?' in text or text.startswith(question_starts):
+            count += 1
+    return count
+
+
 def filter_high_signal_comments(comments: list) -> list:
     """
     PHASE 1: Signal-to-Noise Pre-Filter (Python only, no AI cost).
@@ -661,6 +672,7 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     
     # Apply signal filter
     print(f"\n📊 PHASE 1: Signal-to-Noise Filter...")
+    total_question_comments = count_questions(all_comments)
     high_signal_comments = filter_high_signal_comments(all_comments)
     
     if not high_signal_comments:
@@ -830,6 +842,7 @@ OUTPUT JSON:
     return {
         'pipeline_stats': {
             'raw_comments': total_raw_comments,
+            'question_count': total_question_comments,
             'high_signal_comments': len(high_signal_comments),
             'pain_points_found': len(pain_points),
             'true_gaps': len(true_gaps),

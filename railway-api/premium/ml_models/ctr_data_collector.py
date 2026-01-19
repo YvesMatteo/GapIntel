@@ -30,15 +30,23 @@ import numpy as np
 import requests
 
 # Local imports
+# Local imports
 try:
-    from .youtube_analytics_oauth import YouTubeAnalyticsOAuth
-    from .youtube_analytics_fetcher import YouTubeAnalyticsFetcher
-    from .thumbnail_extractor import ThumbnailFeatureExtractor
+    # Try absolute import (works when run from root)
+    from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+    from premium.youtube_analytics_fetcher import YouTubeAnalyticsFetcher
+    from premium.thumbnail_extractor import ThumbnailFeatureExtractor
 except ImportError:
-    from youtube_analytics_oauth import YouTubeAnalyticsOAuth
-    from youtube_analytics_fetcher import YouTubeAnalyticsFetcher
-    # Fallback if thumbnail extractor not available
-    ThumbnailFeatureExtractor = None
+    # Try parent relative import (works when package)
+    try:
+        from ..youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        from ..youtube_analytics_fetcher import YouTubeAnalyticsFetcher
+        from ..thumbnail_extractor import ThumbnailFeatureExtractor
+    except ImportError:
+        # Fallback (legacy/local run)
+        from youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        from youtube_analytics_fetcher import YouTubeAnalyticsFetcher
+        ThumbnailFeatureExtractor = None
 
 
 @dataclass
