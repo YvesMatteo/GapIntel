@@ -14,6 +14,8 @@ from dataclasses import dataclass, asdict
 from collections import Counter
 import re
 import warnings
+import os
+import json
 
 warnings.filterwarnings('ignore')
 
@@ -25,6 +27,13 @@ try:
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
+
+# Supabase imports
+try:
+    from supabase import create_client, Client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
 
 # Sentence transformers (optional)
 try:
@@ -109,12 +118,73 @@ class ContentClusteringEngine:
     def __init__(self, use_embeddings: bool = True):
         self.use_embeddings = use_embeddings and TRANSFORMERS_AVAILABLE
         self.model = None
+        self.supabase: Optional[Client] = None
         
+        # Initialize Supabase
+        if SUPABASE_AVAILABLE:
+            url = os.getenv("SUPABASE_URL")
+            key = os.getenv("SUPABASE_SERVICE_KEY")
+            if url and key:
+                self.supabase = create_client(url, key)
+
         if self.use_embeddings:
             try:
                 self.model = SentenceTransformer('all-MiniLM-L6-v2')
             except:
                 self.use_embeddings = False
+
+    def _get_cached_embeddings(self, video_ids: List[str]) -> Dict[str, List[float]]:
+        """Retrieve embeddings from Supabase cache."""
+        if not self.supabase or not video_ids:
+            return {}
+        
+        try:
+            # Supabase doesn't support "IN" query easily on all clients, 
+            # but we can try to fetch them. For now, fetch all matching IDs.
+            # Using filter('video_id', 'in', video_ids) if supported or individual queries
+            # For simplicity in this env, we'll try the 'in' filter which is standard PostgREST
+            
+            response = self.supabase.table("video_embeddings")\
+                .select("video_id, embedding")\
+                .in_("video_id", video_ids)\
+                .execute()
+                
+            cache = {}
+            if response.data:
+                for row in response.data:
+                    # Convert valid JSON string or list back to numpy/list
+                    emb = row.get('embedding')
+                    if isinstance(emb, str):
+                        emb = json.loads(emb)
+                    cache[row['video_id']] = emb
+            return cache
+        except Exception as e:
+            print(f"⚠️ Cache lookup failed: {e}")
+            return {}
+
+    def _cache_embeddings(self, embeddings_map: Dict[str, List[float]]):
+        """Store new embeddings in Supabase."""
+        if not self.supabase or not embeddings_map:
+            return
+            
+        try:
+            data = []
+            for vid, emb in embeddings_map.items():
+                data.append({
+                    "video_id": vid,
+                    "embedding": emb, # pgvector handles list -> vector
+                    "model_version": "all-MiniLM-L6-v2"
+                })
+            
+            # Upsert in batches of 50
+            batch_size = 50
+            data_list = list(data)
+            for i in range(0, len(data_list), batch_size):
+                batch = data_list[i:i+batch_size]
+                self.supabase.table("video_embeddings").upsert(batch).execute()
+                
+        except Exception as e:
+            print(f"⚠️ Cache update failed: {e}")
     
     def cluster_channel_content(self, videos: List[Dict], 
                                  n_clusters: int = 5) -> ClusteringResult:
@@ -166,9 +236,42 @@ class ContentClusteringEngine:
     def _cluster_with_embeddings(self, videos: List[Dict], 
                                   n_clusters: int) -> Dict[int, List[Dict]]:
         """Cluster using sentence embeddings."""
-        # Get embeddings for titles
-        titles = [v.get('title', '') for v in videos]
-        embeddings = self.model.encode(titles)
+        # Get video IDs
+        video_ids = [v.get('video_id', f"unknown_{i}") for i, v in enumerate(videos)]
+        
+        # 1. Check cache
+        cached_map = self._get_cached_embeddings(video_ids)
+        
+        # 2. Identify missing
+        missing_indices = []
+        missing_texts = []
+        final_embeddings = np.zeros((len(videos), 384)) # 384-d for MiniLM
+        
+        for i, vid in enumerate(video_ids):
+            if vid in cached_map:
+                final_embeddings[i] = cached_map[vid]
+            else:
+                missing_indices.append(i)
+                # Combine title + description for better context
+                text = videos[i].get('title', '')
+                if videos[i].get('description'):
+                    text += " " + videos[i].get('description', '')[:200]
+                missing_texts.append(text)
+        
+        # 3. Compute missing
+        if missing_texts:
+            print(f"   Generating embeddings for {len(missing_texts)} new videos...")
+            new_embeddings = self.model.encode(missing_texts)
+            
+            # 4. Update cache and final array
+            to_cache = {}
+            for idx, emb in zip(missing_indices, new_embeddings):
+                final_embeddings[idx] = emb
+                to_cache[video_ids[idx]] = emb.tolist()
+            
+            self._cache_embeddings(to_cache)
+        
+        embeddings = final_embeddings
         
         # Reduce dimensionality if needed
         if embeddings.shape[1] > 50:

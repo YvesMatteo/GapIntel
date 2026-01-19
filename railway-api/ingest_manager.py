@@ -51,6 +51,19 @@ except ImportError:
     CAPTIONS_AVAILABLE = False
     print("⚠️ youtube-transcript-api not available, smart transcription disabled")
 
+# Import ContentClusteringEngine for embedding pre-computation
+try:
+    # Handle both relative (module) and absolute imports
+    try:
+        from premium.ml_models.content_clusterer import ContentClusteringEngine
+    except ImportError:
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from premium.ml_models.content_clusterer import ContentClusteringEngine
+    CLUSTERING_AVAILABLE = True
+except ImportError:
+    CLUSTERING_AVAILABLE = False
+    print("⚠️ ContentClusteringEngine not available, embeddings will not be pre-computed")
+
 
 # Whisper model cache removed
 _whisper_model_name = None
@@ -417,6 +430,31 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     word_count = len(transcription['text'].split())
     if verbose:
         print(f"   ✓ {word_count} words in transcript")
+    
+    # Step 3: Pre-compute Embeddings (Async-ish)
+    if CLUSTERING_AVAILABLE and video_info:
+        if verbose:
+            print(f"   🧠 Pre-computing semantic embeddings...")
+        try:
+            # Initialize engine (this handles DB connection)
+            engine = ContentClusteringEngine(use_embeddings=True)
+            
+            # Prepare video data (needs video_id, title)
+            # Add description to metadata if possible for richer embeddings
+            v_data = {
+                'video_id': video_id,
+                'title': video_info.get('title', ''),
+                'description': video_info.get('description', '')
+            }
+            
+            # This triggers check_cache -> compute -> cache_embeddings
+            # We call it on a single video list
+            engine._cluster_with_embeddings([v_data], n_clusters=1)
+            
+            if verbose:
+                print(f"   ✓ Embeddings cached in Supabase")
+        except Exception as e:
+            print(f"   ⚠️ Embedding pre-computation failed: {e}")
     
     # Return structured data
     return {

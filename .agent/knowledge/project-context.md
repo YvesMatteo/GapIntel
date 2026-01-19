@@ -22,9 +22,19 @@ GAP Intel is a modern SaaS platform designed to identify content gaps for YouTub
 
 ---
 
+
 ## Critical Knowledge & Fixes
 
+### 🌟 Project Rules & Guidelines
+**Read this first:** [Project Rules](file:///Users/yvesromano/AiRAG/.agent/knowledge/project-rules.md) - Contains coding standards, Do's/Don'ts, and troubleshooting tips.
+
+### 🛠️ Common Workflows
+- **Backend Issues?** See [Troubleshoot Backend](file:///Users/yvesromano/AiRAG/.agent/workflows/troubleshoot-backend.md)
+- **Database Maintenance?** See [Manage Database](file:///Users/yvesromano/AiRAG/.agent/workflows/manage-database.md)
+
 ### Railway Execution
+
+
 - Railway has aggressive caching for `.py` files. To force updates, the main script was renamed to `GAP_ULTIMATE.py`. If argument errors persist, consider renaming again.
 
 ### Supabase Integration

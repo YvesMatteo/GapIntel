@@ -1,0 +1,137 @@
+Starting Container
+  @validator('access_key')
+  @validator('video_count')
+/app/server.py:204: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('email')
+/app/server.py:210: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+/app/server.py:185: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('channel_name')
+/app/server.py:196: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+🔧 Starting GAP Intel API v2.0.0 (Security Hardened)
+   CORS: 4 origins
+   Rate Limit: 10/min
+   Max Concurrent Jobs: 5
+   API Auth: Enabled
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.2:39180 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.3:54662 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:34250 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.3:54662 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.5:30702 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.5:30702 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.6:46834 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.5:30702 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.5:30702 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.6:46834 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:34252 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:34258 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.7:24964 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.8:56752 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.7:24964 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:34258 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:34258 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.7:24964 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.7:24964 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.10:38196 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.8:47468 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.8:47468 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.6:20616 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.8:47468 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.9:58434 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.11:21420 - "GET /api/youtube-analytics/authorize?user_id=027b4af8-bbf1-42a2-b0fc-41888048a013&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 200 OK
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.6:57580 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/ctr-model/stats HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 401 Unauthorized
+❌ Auth Failed! Expected: 74616...57493, Received: di41K...0RBg=
+❌ Full Received Key Length: 44, Expected: 36
+INFO:     100.64.0.4:26886 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 401 Unauthorized
+Stopping Container
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+👋 Shutting down...

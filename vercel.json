@@ -1,6 +1,0 @@
-{
-    "buildCommand": "cd gap-intel-website && npm run build",
-    "installCommand": "cd gap-intel-website && npm install",
-    "framework": "nextjs",
-    "outputDirectory": "gap-intel-website/.next"
-}
