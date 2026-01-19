@@ -2157,6 +2157,51 @@ async def predict_video(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/premium/train-models")
+async def train_ml_models(
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Trigger re-training of all ML models.
+    """
+    try:
+        from premium.ml_models.training_pipeline import ModelTrainingPipeline
+        from premium.ml_models.ctr_data_collector import CTRDataCollector
+        import threading
+        
+        def run_training():
+            try:
+                print("🧠 Manual training triggered via API...")
+                collector = CTRDataCollector()
+                pipeline = ModelTrainingPipeline()
+                
+                # Prepare data
+                df = collector.prepare_training_dataset(min_impressions=50)
+                
+                if df.empty:
+                    print("⚠️ No training data available for API-triggered training.")
+                    return
+                
+                # Train all
+                pipeline.train_all_models(df)
+                print("✅ API-triggered training completed successfully.")
+            except Exception as e:
+                print(f"❌ API-triggered training failed: {e}")
+
+        # Run in background to avoid timeout
+        thread = threading.Thread(target=run_training)
+        thread.daemon = True
+        thread.start()
+        
+        return {
+            "status": "success",
+            "message": "Training started in background"
+        }
+    except Exception as e:
+        print(f"❌ Training trigger failure: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def periodic_stuck_job_checker():
     """
     Background thread that periodically checks for stuck jobs.

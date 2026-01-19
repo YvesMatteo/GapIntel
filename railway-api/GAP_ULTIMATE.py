@@ -307,8 +307,9 @@ def get_trend_data(keywords: list) -> dict:
     for i in range(0, len(valid_keywords), batch_size):
         batch_kws = valid_keywords[i:i+batch_size]
         try:
-            # Reduced wait time due to batching
-            time.sleep(1)
+            # Reduced wait time due to batching (0.5s is usually safe for small batches)
+            if i > 0:
+                time.sleep(0.5)
             pytrends.build_payload(batch_kws, timeframe='today 3-m')
             data = pytrends.interest_over_time()
             
@@ -607,7 +608,8 @@ def verify_gaps_against_content(client, pain_points: list, transcripts: list, mo
     # Prepare transcript summaries
     transcript_text = ""
     for t in transcripts:
-        transcript_text += f"\n--- VIDEO: {t['title']} ---\n{t['transcript_excerpt'][:2000]}\n"
+        # Reduced context size for verification to save tokens while keeping signal
+        transcript_text += f"\n--- VIDEO: {t['title']} ---\n{t['transcript_excerpt'][:1500]}\n"
     
     prompt = f"""You are verifying content gaps for a YouTube creator.
 
@@ -1869,6 +1871,14 @@ Examples:
         
         videos_data = []
         
+        # Tier-based comment limits (Quick Win Phase 2)
+        COMMENT_LIMITS = {
+            'starter': 150,
+            'pro': 300,
+            'enterprise': 500
+        }
+        comment_limit = COMMENT_LIMITS.get(args.tier, 500)
+        
         # Split videos: first 5 get full processing, rest get comments-only
         videos_to_transcribe = videos[:TRANSCRIBE_COUNT]
         videos_comments_only = videos[TRANSCRIBE_COUNT:]
@@ -1888,7 +1898,8 @@ Examples:
                         video['url'], 
                         youtube_api_key, 
                         model_name=args.model,
-                        verbose=False
+                        verbose=False,
+                        max_comments=comment_limit
                     )
                     return idx, result, None
                 except Exception as e:
@@ -1918,7 +1929,7 @@ Examples:
                 idx, video = video_tuple
                 try:
                     video_id = video.get('video_id') or extract_video_id(video['url'])
-                    comments = fetch_all_comments(video_id, youtube_api_key, max_comments=200)
+                    comments = fetch_all_comments(video_id, youtube_api_key, max_comments=comment_limit)
                     # Create minimal video data structure (no transcript) with full metadata
                     result = {
                         'video_info': {

@@ -100,6 +100,25 @@ def sanitize_filename(title: str) -> str:
     return sanitized[:100]
 
 
+def clear_temp_data(temp_dir: Path = None):
+    """Clean up temporary audio and data files."""
+    if temp_dir is None:
+        script_dir = Path(__file__).parent.resolve()
+        temp_dir = script_dir / "data" / ".temp"
+    
+    if temp_dir.exists() and temp_dir.is_dir():
+        import shutil
+        print(f"   🧹 Clearing temporary data in {temp_dir}...")
+        for item in temp_dir.iterdir():
+            try:
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            except Exception as e:
+                print(f"      ⚠️ Failed to delete {item.name}: {e}")
+
+
 def fetch_all_comments(video_id: str, api_key: str, max_comments: int = 500) -> list[dict]:
     """
     Fetch ALL comments from a YouTube video (no filtering).
@@ -338,7 +357,7 @@ def fetch_captions(video_id: str) -> dict:
 
 
 def process_video(url: str, api_key: str, model_name: str = "tiny", 
-                  temp_dir: Path = None, verbose: bool = True) -> dict:
+                  temp_dir: Path = None, verbose: bool = True, max_comments: int = 200) -> dict:
     """
     Process a single YouTube video: download, transcribe, fetch comments.
     
@@ -444,7 +463,7 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     # Step 2: Fetch comments
     if verbose:
         print(f"   💬 Fetching comments...")
-    comments = fetch_all_comments(video_id, api_key, max_comments=200)
+    comments = fetch_all_comments(video_id, api_key, max_comments=max_comments)
     if verbose:
         print(f"   ✓ {len(comments)} comments")
     
