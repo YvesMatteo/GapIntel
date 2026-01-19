@@ -78,20 +78,36 @@ class TokenEncryption:
                 self.fernet = Fernet(self.key.encode() if isinstance(self.key, str) else self.key)
             except Exception as e:
                 print(f"⚠️ Invalid encryption key: {e}")
+        else:
+            print("⚠️ Encryption disabled (missing module or key). Using Base64 fallback.")
     
     def encrypt(self, data: str) -> str:
         """Encrypt a string."""
         if self.fernet:
             return self.fernet.encrypt(data.encode()).decode()
         # Fallback: base64 encode (NOT secure, for dev only)
-        return base64.b64encode(data.encode()).decode()
+        # Add simpler fallback prefix to distinguish
+        return "b64:" + base64.b64encode(data.encode()).decode()
     
     def decrypt(self, encrypted: str) -> str:
         """Decrypt a string."""
         if self.fernet:
-            return self.fernet.decrypt(encrypted.encode()).decode()
+            try:
+                return self.fernet.decrypt(encrypted.encode()).decode()
+            except Exception:
+                # Try fallback if decryption fails
+                pass
+                
         # Fallback: base64 decode
-        return base64.b64decode(encrypted.encode()).decode()
+        clean_data = encrypted
+        if encrypted.startswith("b64:"):
+            clean_data = encrypted[4:]
+            
+        try:
+             return base64.b64decode(clean_data.encode()).decode()
+        except Exception as e:
+            print(f"❌ Decryption failed: {e}")
+            return ""
 
 
 class YouTubeAnalyticsOAuth:
