@@ -172,7 +172,7 @@ class YouTubeAnalyticsOAuth:
         state_data = json.dumps({
             'user_id': user_id,
             'redirect_uri': redirect_uri,
-            'expires': (datetime.now() + timedelta(minutes=10)).isoformat(),
+            'expires': (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
             'nonce': secrets.token_hex(8)  # Randomness
         })
         
@@ -202,9 +202,13 @@ class YouTubeAnalyticsOAuth:
             decrypted = self.encryptor.decrypt(state)
             data = json.loads(decrypted)
             
-            # Check expiration
-            expires = datetime.fromisoformat(data['expires'])
-            if datetime.now() > expires:
+            # Check expiration - ensure timezone-aware comparison
+            expires_str = data['expires']
+            expires = datetime.fromisoformat(expires_str)
+            # Make timezone-aware if not already
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires:
                 print("❌ State token expired")
                 return None
             
@@ -247,9 +251,9 @@ class YouTubeAnalyticsOAuth:
             print(f"❌ Token exchange failed: {e}")
             return None
         
-        # Calculate expiration
+        # Calculate expiration (use UTC-aware datetime)
         expires_in = tokens.get('expires_in', 3600)
-        expires_at = datetime.now() + timedelta(seconds=expires_in)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         
         # Get channel ID
         channel_id = self._get_channel_id(tokens['access_token'])
@@ -350,7 +354,7 @@ class YouTubeAnalyticsOAuth:
             'refresh_token_encrypted': self.encryptor.encrypt(tokens.refresh_token),
             'expires_at': tokens.expires_at.isoformat(),
             'scopes': tokens.scopes,
-            'updated_at': datetime.now().isoformat()
+            'updated_at': datetime.now(timezone.utc).isoformat()
         }
         
         try:
