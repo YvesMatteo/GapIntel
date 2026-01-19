@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
@@ -45,9 +45,34 @@ const FeatureCard = ({ icon: Icon, title, description, color }: any) => (
     </motion.div>
 );
 
-export default function ConnectAnalyticsPage() {
-    const { user, loading: authLoading } = useAuth();
+// Component that uses useSearchParams - must be wrapped in Suspense
+function SearchParamsHandler({
+    setSuccessMessage,
+    setError
+}: {
+    setSuccessMessage: (msg: string | null) => void;
+    setError: (msg: string | null) => void;
+}) {
     const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const status = searchParams.get("status");
+        const message = searchParams.get("message");
+
+        if (status === "success") {
+            setSuccessMessage("YouTube Analytics connected successfully!");
+            window.history.replaceState({}, "", "/dashboard/connect-analytics");
+        } else if (status === "error") {
+            setError(message || "Failed to connect YouTube Analytics");
+            window.history.replaceState({}, "", "/dashboard/connect-analytics");
+        }
+    }, [searchParams, setSuccessMessage, setError]);
+
+    return null;
+}
+
+function ConnectAnalyticsContent() {
+    const { user, loading: authLoading } = useAuth();
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
     const [modelStats, setModelStats] = useState<ModelStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -58,20 +83,6 @@ export default function ConnectAnalyticsPage() {
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Check for callback status from URL params
-    useEffect(() => {
-        const status = searchParams.get("status");
-        const message = searchParams.get("message");
-
-        if (status === "success") {
-            setSuccessMessage("YouTube Analytics connected successfully!");
-            // Clear URL params
-            window.history.replaceState({}, "", "/dashboard/connect-analytics");
-        } else if (status === "error") {
-            setError(message || "Failed to connect YouTube Analytics");
-            window.history.replaceState({}, "", "/dashboard/connect-analytics");
-        }
-    }, [searchParams]);
 
     const fetchStatus = async () => {
         if (!user) return;
@@ -540,5 +551,28 @@ export default function ConnectAnalyticsPage() {
                 </div>
             </main>
         </div>
+    );
+}
+
+// Default export with Suspense wrapper for useSearchParams
+export default function ConnectAnalyticsPage() {
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#FAFAFA]">
+                <Navbar />
+                <div className="pt-32 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                </div>
+            </div>
+        }>
+            <SearchParamsHandler
+                setSuccessMessage={setSuccessMessage}
+                setError={setError}
+            />
+            <ConnectAnalyticsContent />
+        </Suspense>
     );
 }
