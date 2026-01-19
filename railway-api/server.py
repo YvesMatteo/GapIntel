@@ -561,9 +561,8 @@ async def lifespan(app: FastAPI):
     print(f"   Max Concurrent Jobs: {MAX_CONCURRENT_JOBS}")
     print(f"   API Auth: {'Enabled' if API_SECRET_KEY else 'Disabled (dev mode)'}")
     
-    # Recover any stuck jobs from database
-    print("🔍 Checking for stuck jobs...")
-    recover_stuck_jobs()
+    # Do not run blocking code here!
+    # recover_stuck_jobs() is handled by on_startup thread
     
     yield
     print("👋 Shutting down...")
@@ -2066,6 +2065,16 @@ async def on_startup():
     """Run recovery tasks on startup and start periodic checker."""
     # Start periodic stuck job checker in background
     threading.Thread(target=periodic_stuck_job_checker, daemon=True).start()
+    
+    # Run immediate recovery in background thread to avoid blocking startup
+    def safe_recovery():
+        try:
+             print("🔍 Running initial stuck job recovery (background)...")
+             recover_stuck_jobs()
+        except Exception as e:
+             print(f"⚠️ Initial recovery failed: {e}")
+             
+    threading.Thread(target=safe_recovery, daemon=True).start()
 
 
 if __name__ == "__main__":
