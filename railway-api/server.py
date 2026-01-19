@@ -257,8 +257,18 @@ def create_analysis_record(access_key: str, channel_name: str, email: str) -> bo
         return False
 
 
-def update_analysis_status(access_key: str, status: str, result: dict = None):
-    """Update analysis status in user_reports table via REST API."""
+def update_analysis_status(access_key: str, status: str, result: dict = None, 
+                           progress: int = None, phase: str = None):
+    """
+    Update analysis status in user_reports table via REST API.
+    
+    Args:
+        access_key: Report access key
+        status: Status string (queued, processing, completed, failed)
+        result: Optional result data for completed analyses
+        progress: Optional progress percentage (0-100)
+        phase: Optional current phase description
+    """
     if not SUPABASE_URL or not SUPABASE_KEY:
         return
 
@@ -273,17 +283,27 @@ def update_analysis_status(access_key: str, status: str, result: dict = None):
     # Map status to 'user_reports' schema
     payload = {"status": status}
     
+    # Add progress tracking fields if provided
+    if progress is not None:
+        payload["progress_percentage"] = progress
+    if phase is not None:
+        payload["current_phase"] = phase
+    
     if result:
         payload["report_data"] = result
         if status == "completed":
             payload["updated_at"] = datetime.utcnow().isoformat()
+            payload["progress_percentage"] = 100
+            payload["current_phase"] = "Complete"
             
     try:
         resp = requests.patch(url, headers=headers, json=payload)
         if resp.status_code >= 400:
             print(f"⚠️ Supabase update failed: {resp.text}")
         else:
-            print(f"✅ Supabase status updated to {status}")
+            phase_info = f" ({phase})" if phase else ""
+            progress_info = f" {progress}%" if progress is not None else ""
+            print(f"✅ Supabase status: {status}{progress_info}{phase_info}")
     except Exception as e:
         print(f"⚠️ Supabase request error: {e}")
 
@@ -345,7 +365,7 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
     print(f"🚀 Starting analysis for @{channel_name} (key: {access_key}) videos: {video_count} tier: {tier} shorts: {include_shorts} lang: {language}")
     
     try:
-        update_analysis_status(access_key, "processing")
+        update_analysis_status(access_key, "processing", progress=10, phase="Initializing")
         
         import sys
         cmd_list = [
@@ -1629,14 +1649,16 @@ async def cluster_channel_content(
 ):
     """
     Cluster videos by topic/format to find winning formulas.
+    Now uses semantic embeddings (all-MiniLM-L6-v2) for better clustering.
     
     Request body:
     {
         "videos": [
-            {"title": "...", "view_count": 10000, "engagement_rate": 5.0},
+            {"video_id": "abc", "title": "...", "view_count": 10000, "engagement_rate": 5.0},
             ...
         ],
-        "n_clusters": 5
+        "n_clusters": 5,
+        "use_embeddings": true  // Optional, defaults to true
     }
     """
     client_ip = req.client.host if req.client else "unknown"
@@ -1647,23 +1669,98 @@ async def cluster_channel_content(
         body = await req.json()
         videos = body.get("videos", [])
         n_clusters = body.get("n_clusters", 5)
+        use_embeddings = body.get("use_embeddings", True)  # Default to True now
         
         if not videos or len(videos) < 3:
             raise HTTPException(status_code=400, detail="At least 3 videos required")
         
         from premium.ml_models.content_clusterer import ContentClusteringEngine
         
-        engine = ContentClusteringEngine(use_embeddings=False)
+        engine = ContentClusteringEngine(use_embeddings=use_embeddings)
         result = engine.cluster_channel_content(videos, n_clusters)
         
         return {
             "status": "success",
+            "embeddings_used": engine.use_embeddings,
             "clustering": result.to_dict()
         }
     except HTTPException:
         raise
     except Exception as e:
         print(f"❌ Content clustering error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# 📊 DATA COLLECTION OPT-IN ENDPOINTS
+# ============================================
+
+@app.get("/api/user/data-settings")
+async def get_data_settings(
+    user_id: str,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Get user's data collection settings.
+    """
+    try:
+        from premium.ml_models.views_data_collector import ViewsDataCollector
+        
+        collector = ViewsDataCollector()
+        opt_in = collector.check_opt_in(user_id)
+        
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "data_collection_opt_in": opt_in
+        }
+    except Exception as e:
+        print(f"❌ Data settings error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/user/data-settings")
+async def update_data_settings(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Update user's data collection settings (opt-in/out).
+    
+    Request body:
+    {
+        "user_id": "user-uuid",
+        "channel_id": "UC...",
+        "opt_in": true
+    }
+    """
+    try:
+        body = await req.json()
+        user_id = body.get("user_id")
+        channel_id = body.get("channel_id")
+        opt_in = body.get("opt_in", False)
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        from premium.ml_models.views_data_collector import ViewsDataCollector
+        
+        collector = ViewsDataCollector()
+        success = collector.set_opt_in(user_id, channel_id, opt_in)
+        
+        if success:
+            return {
+                "status": "success",
+                "user_id": user_id,
+                "data_collection_opt_in": opt_in,
+                "message": "Data collection enabled" if opt_in else "Data collection disabled"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update settings")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Data settings update error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

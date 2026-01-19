@@ -570,27 +570,19 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
     }
 
     if (analysis.status === "pending" || analysis.status === "processing") {
+        // Import dynamically for client component
+        const RealtimeStatus = (await import("@/components/RealtimeStatus")).default;
+
         return (
             <main className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="text-center max-w-md mx-auto px-6">
-                    <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 p-12">
-                        <div className="relative w-20 h-20 mx-auto mb-8">
-                            <div className="w-full h-full border-4 border-slate-100 rounded-full animate-pulse"></div>
-                            <div className="absolute top-0 left-0 w-full h-full border-4 border-t-blue-500 rounded-full animate-spin"></div>
-                        </div>
-                        <h1 className="text-3xl font-serif font-medium text-slate-900 mb-4">Analyzing Content</h1>
-                        <p className="text-slate-500 mb-8">
-                            Our AI is watching videos, reading comments, and finding gaps for <strong className="text-slate-900">@{analysis.channel_name}</strong>.
-                        </p>
-                        <div className="bg-slate-50 rounded-2xl p-4 mb-6">
-                            <span className="text-sm font-medium text-slate-700 uppercase tracking-wider">
-                                Status: {analysis.status === "pending" ? "Queued" : "Processing"}
-                            </span>
-                        </div>
-                        <Link href={`/report/${key}`} className="inline-block bg-white border border-slate-200 text-slate-900 px-6 py-3 rounded-full font-medium hover:bg-slate-50 transition shadow-sm">
-                            Refresh Status
-                        </Link>
-                    </div>
+                    <RealtimeStatus
+                        accessKey={key}
+                        channelName={analysis.channel_name}
+                        initialStatus={analysis.status}
+                        initialProgress={(analysis as unknown as { progress_percentage?: number }).progress_percentage || 0}
+                        initialPhase={(analysis as unknown as { current_phase?: string }).current_phase || "Queued"}
+                    />
                 </div>
             </main>
         );

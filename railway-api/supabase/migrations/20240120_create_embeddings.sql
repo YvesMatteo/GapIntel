@@ -1,5 +1,5 @@
 -- Enable the pgvector extension to work with embedding vectors
-create extension if not exist vector;
+create extension if not exists vector;
 
 -- Create a table to store video embeddings
 create table if not exists video_embeddings (

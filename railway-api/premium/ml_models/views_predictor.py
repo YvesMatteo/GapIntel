@@ -35,6 +35,9 @@ class ViewsPrediction:
     compared_to_channel_avg: str
     confidence: float
     factors: List[Dict]
+    # Confidence intervals (new)
+    confidence_interval_7d: Optional[Dict] = None  # {'lower': int, 'upper': int, 'level': float}
+    confidence_interval_30d: Optional[Dict] = None
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -60,7 +63,10 @@ class ViewsVelocityPredictor:
     
     def __init__(self, model_path: Optional[str] = None):
         self.model = None
+        self.model_lower = None  # Quantile model for lower bound
+        self.model_upper = None  # Quantile model for upper bound
         self.scaler = None
+        self.feature_cols = None
         self.channel_avg_7d = 10000  # Default
         self.channel_avg_30d = 25000  # Default
         
@@ -196,58 +202,155 @@ class ViewsVelocityPredictor:
         )
     
     def _predict_with_model(self, early_metrics: Dict) -> ViewsPrediction:
-        """ML model-based prediction (when trained)."""
+        """ML model-based prediction with confidence intervals."""
         # Prepare features
-        features = [
-            early_metrics.get('views_1h', 0),
-            early_metrics.get('views_6h', 0),
-            early_metrics.get('views_24h', 0),
-            early_metrics.get('likes_24h', 0),
-            early_metrics.get('comments_24h', 0),
-            early_metrics.get('subscriber_count', 0)
-        ]
+        features = []
+        if self.feature_cols:
+            for col in self.feature_cols:
+                features.append(early_metrics.get(col, 0))
+        else:
+            features = [
+                early_metrics.get('views_1h', 0),
+                early_metrics.get('views_6h', 0),
+                early_metrics.get('views_24h', 0),
+                early_metrics.get('likes_24h', 0),
+                early_metrics.get('comments_24h', 0),
+                early_metrics.get('subscriber_count', 0)
+            ]
         
         X = np.array(features).reshape(1, -1)
         if self.scaler:
             X = self.scaler.transform(X)
         
+        # Point prediction
         prediction = self.model.predict(X)[0]
+        predicted_7d = int(np.exp(prediction))
         
-        # Model returns log-transformed views
-        predicted_7d = int(np.exp(prediction[0]))
-        predicted_30d = int(np.exp(prediction[1]))
+        # Confidence intervals (if quantile models available)
+        ci_7d = None
+        ci_30d = None
+        if self.model_lower and self.model_upper:
+            lower = int(np.exp(self.model_lower.predict(X)[0]))
+            upper = int(np.exp(self.model_upper.predict(X)[0]))
+            ci_7d = {'lower': lower, 'upper': upper, 'level': 0.8}
+        
+        # Estimate 30d from 7d (typical ratio)
+        predicted_30d = int(predicted_7d * 2.5)
+        if ci_7d:
+            ci_30d = {'lower': int(ci_7d['lower'] * 2.5), 'upper': int(ci_7d['upper'] * 2.5), 'level': 0.8}
+        
+        # Determine trajectory type from velocity
+        views_24h = early_metrics.get('views_24h', 0)
+        trajectory_type = 'steady_growth'
+        if views_24h > 0 and predicted_7d / views_24h > 10:
+            trajectory_type = 'viral'
+        elif views_24h > 0 and predicted_7d / views_24h < 3:
+            trajectory_type = 'spike_decay'
         
         return ViewsPrediction(
             predicted_7d_views=predicted_7d,
             predicted_30d_views=predicted_30d,
-            viral_probability=0.5,  # Would need separate model
-            trajectory_type='steady_growth',
-            compared_to_channel_avg="N/A",
-            confidence=0.8,
-            factors=[]
+            viral_probability=min(1.0, predicted_7d / 1000000),
+            trajectory_type=trajectory_type,
+            compared_to_channel_avg=self._compare_to_avg(predicted_7d),
+            confidence=0.85,
+            factors=[{'factor': 'ML model prediction', 'impact': 'High'}],
+            confidence_interval_7d=ci_7d,
+            confidence_interval_30d=ci_30d
         )
     
-    def train(self, training_data, target_7d_col: str, target_30d_col: str):
-        """Train the prediction model."""
+    def _compare_to_avg(self, predicted_7d: int) -> str:
+        """Compare prediction to channel average."""
+        if predicted_7d > self.channel_avg_7d * 1.5:
+            return f"+{int((predicted_7d / self.channel_avg_7d - 1) * 100)}% above average"
+        elif predicted_7d < self.channel_avg_7d * 0.5:
+            return f"{int((1 - predicted_7d / self.channel_avg_7d) * 100)}% below average"
+        return "Within normal range"
+    
+    def train(self, training_data: List[Dict]):
+        """
+        Train the prediction models including quantile regression for confidence intervals.
+        
+        Args:
+            training_data: List of dicts with views_1h, views_6h, views_24h, 
+                          likes_24h, comments_24h, subscriber_count, final_views_7d
+        """
         if not ML_AVAILABLE:
             raise RuntimeError("ML dependencies not available")
         
-        # Training implementation would go here
-        pass
+        import pandas as pd
+        
+        df = pd.DataFrame(training_data)
+        
+        # Feature columns
+        self.feature_cols = ['views_1h', 'views_6h', 'views_24h', 'likes_24h', 'comments_24h']
+        if 'subscriber_count_at_upload' in df.columns:
+            self.feature_cols.append('subscriber_count_at_upload')
+        
+        X = df[self.feature_cols].fillna(0)
+        y = np.log1p(df['final_views_7d'].fillna(0))
+        
+        # Scale features
+        from sklearn.preprocessing import StandardScaler
+        self.scaler = StandardScaler()
+        X_scaled = self.scaler.fit_transform(X)
+        
+        # Train main model (point estimate)
+        self.model = xgb.XGBRegressor(
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.1,
+            random_state=42
+        )
+        self.model.fit(X_scaled, y)
+        
+        # Train quantile models for 80% confidence interval
+        # Lower bound (10th percentile)
+        self.model_lower = xgb.XGBRegressor(
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.1,
+            random_state=42,
+            objective='reg:quantileerror',
+            quantile_alpha=0.1
+        )
+        self.model_lower.fit(X_scaled, y)
+        
+        # Upper bound (90th percentile)
+        self.model_upper = xgb.XGBRegressor(
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.1,
+            random_state=42,
+            objective='reg:quantileerror', 
+            quantile_alpha=0.9
+        )
+        self.model_upper.fit(X_scaled, y)
+        
+        print(f"✓ Trained views predictor on {len(df)} samples")
     
     def save_model(self, path: str):
-        """Save trained model."""
+        """Save trained models."""
         if not ML_AVAILABLE:
             raise RuntimeError("ML dependencies not available")
-        joblib.dump({'model': self.model, 'scaler': self.scaler}, path)
+        joblib.dump({
+            'model': self.model,
+            'model_lower': self.model_lower,
+            'model_upper': self.model_upper,
+            'scaler': self.scaler,
+            'feature_cols': self.feature_cols
+        }, path)
     
     def load_model(self, path: str):
-        """Load trained model."""
+        """Load trained models."""
         if not ML_AVAILABLE:
             raise RuntimeError("ML dependencies not available")
         data = joblib.load(path)
         self.model = data['model']
+        self.model_lower = data.get('model_lower')
+        self.model_upper = data.get('model_upper')
         self.scaler = data.get('scaler')
+        self.feature_cols = data.get('feature_cols')
 
 
 # === Quick test ===

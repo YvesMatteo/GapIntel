@@ -17,7 +17,7 @@ import json
 import base64
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 import requests
@@ -53,7 +53,13 @@ class OAuthTokens:
     
     def is_expired(self) -> bool:
         """Check if access token is expired (with 5 min buffer)."""
-        return datetime.now() >= (self.expires_at - timedelta(minutes=5))
+        # Use UTC-aware datetime for comparison
+        now = datetime.now(timezone.utc)
+        # Make expires_at timezone-aware if it isn't
+        expires = self.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return now >= (expires - timedelta(minutes=5))
     
     def to_dict(self) -> Dict:
         return {
@@ -398,7 +404,7 @@ class YouTubeAnalyticsOAuth:
                 new_access_token = self.refresh_access_token(tokens.refresh_token)
                 if new_access_token:
                     tokens.access_token = new_access_token
-                    tokens.expires_at = datetime.now() + timedelta(hours=1)
+                    tokens.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
                     self._store_tokens(user_id, tokens)
                 else:
                     return None  # Refresh failed

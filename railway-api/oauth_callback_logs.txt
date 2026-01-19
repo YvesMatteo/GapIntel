@@ -1,0 +1,76 @@
+Starting Container
+/app/server.py:185: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('channel_name')
+/app/server.py:196: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('access_key')
+/app/server.py:204: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('email')
+/app/server.py:210: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  @validator('video_count')
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+🔧 Starting GAP Intel API v2.0.0 (Security Hardened)
+   CORS: 4 origins
+   Rate Limit: 10/min
+   Max Concurrent Jobs: 5
+   API Auth: Enabled
+INFO:     100.64.0.2:16860 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.3:32552 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.4:27394 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.4:27394 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.4:27394 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.2:16860 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.4:27394 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.4:27394 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.5:32518 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.6:60274 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.7:45862 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.6:60274 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.6:60274 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+❌ Token exchange failed: 401 Client Error: Unauthorized for url: https://oauth2.googleapis.com/token
+INFO:     100.64.0.7:17826 - "GET /api/youtube-analytics/callback?code=4%2F0ASc3gC12kcFE-iXBo67axfty3DJH5nr1lN2T3SuEi0dan4QrK6-3Y5xfMvTsbMwlsqlbww&state=gAAAAABpbpzvTgNeRocbYkYEyamASyrHWhYn0d4jXkNJQXVSTAA4aIRoOSn-L2qfWgy3yfxc1c3ZWMr2M4PKVOh2aYNQPbdWR0MmugGpH8NJe7QTYcypgtpAFUqBzjT4zUCkcr-zffesNIwvaq18aw90Xivd-bgGkld_Z1wB8JSnA515xhjxy2GWPAFpqU_1keYrhZM5q30cF8pE7sV7k0MBUowbbbGGEkTHGNMa9oKyxAnZhRUSsApOQ3GdxWq4AWdqJIAH3CLnXL9q8gzGnJpdo7TrdmOq3DQJAl4WlJtaIIsL1g-vGFShM4-nnqQCbXgOZWT0cRXElirKDjirWaPHj0t4A_Pp8Q%3D%3D HTTP/1.1" 200 OK
+INFO:     100.64.0.8:20262 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.9:50386 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.10:16178 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.9:50386 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.10:16178 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.10:16178 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.9:50386 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.10:16178 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.8:50072 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.5:14506 - "GET /api/youtube-analytics/authorize?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f&redirect_uri=https%3A%2F%2Fgapintel.online%2Fapi%2Fyoutube-analytics%2Fcallback HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.5:14506 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.6:62888 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.5:14506 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+✅ OAuth Configured with Client ID: 48556...t.com
+❌ Token exchange failed: 401 Client Error: Unauthorized for url: https://oauth2.googleapis.com/token
+INFO:     100.64.0.7:24734 - "GET /api/youtube-analytics/callback?code=4%2F0ASc3gC2IkgxF1ooW5k9Cx7T8HNe-njzZKnzvdDAToqDGlBLGem54AUU0A0RAux_xM5cVhg&state=gAAAAABpbp7KD_YXfWO5PB_tRDP53iH4248_STiknYtrAHioBDhENHeCtcpuWT80-x7XJgWNNvhMDA622mI8UL5tinxf8mk1gRPuYTAB2vAxsN3Kr7dRK0wZZQdW0Q-XkCCzkRvUlzAzExglcmidSg2BvvEsdPvcF7OEi5OHeUZ6YmLspFrEAk1hU7GYR05o7Xn05Rz9cdUS-j0XCisGEhZxLRLo3WxEakitb6Wl9fiD0M-I1vh5GLtz_rHG1oeReI53LtsHGhu9NAHYuzFtIuJifCfTFp2pih7WIOeVsz6b2cAy8WfXWCVf1nHkDvQ6e9TVYHx3hSqSkD5RxE-IdBjEZ2EOR0XKbA%3D%3D HTTP/1.1" 200 OK
+INFO:     100.64.0.7:24734 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.9:13072 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.7:24734 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.7:24734 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+INFO:     100.64.0.9:13072 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+INFO:     100.64.0.7:24734 - "GET /api/ctr-model/stats HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.7:24734 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK
+✅ OAuth Configured with Client ID: 48556...t.com
+INFO:     100.64.0.7:24734 - "GET /api/youtube-analytics/status?user_id=fb22f070-45c4-4bb4-9acf-5ce86072a34f HTTP/1.1" 200 OK

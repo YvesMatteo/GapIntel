@@ -44,6 +44,8 @@ from premium.data_collector import YouTubeDataCollector
 from premium.hook_analyzer import HookAnalyzer
 from premium.color_ml_analyzer import ColorMLAnalyzer
 from premium.visual_report_generator import VisualReportGenerator
+from premium.satisfaction_analyzer import SatisfactionAnalyzer
+from premium.growth_pattern_analyzer import GrowthPatternAnalyzer
 
 # Language instructions for AI prompts
 LANGUAGE_INSTRUCTIONS = {
@@ -872,6 +874,8 @@ def run_premium_analysis(
         'hook_analysis': None,
         'color_insights': None,
         'visual_charts': None,
+        'satisfaction_signals': None,  # Skill 4
+        'growth_patterns': None,        # Skill 6
     }
     
     # Tier limits - Enhanced with video counts
@@ -1426,6 +1430,68 @@ def run_premium_analysis(
         print(f"      ✓ Generated {len(charts)} visual charts")
     except Exception as e:
         print(f"   ⚠️ Visual Chart Generation failed: {e}")
+    
+    # =========================================================
+    # 10. SATISFACTION SIGNALS - Skill 4 (All Tiers)
+    # =========================================================
+    try:
+        print("   😊 Analyzing Satisfaction Signals...")
+        satisfaction_analyzer = SatisfactionAnalyzer()
+        
+        # Get average engagement rate for benchmark
+        avg_engagement = 5.0  # Default
+        if videos_data:
+            engagement_rates = [v.get('engagement_rate', 0) for v in videos_data if v.get('engagement_rate')]
+            if engagement_rates:
+                avg_engagement = sum(engagement_rates) / len(engagement_rates)
+        
+        satisfaction_result = satisfaction_analyzer.analyze_satisfaction(
+            videos_data, 
+            channel_engagement_rate=avg_engagement
+        )
+        
+        premium_data['satisfaction_signals'] = {
+            'satisfaction_index': satisfaction_result.satisfaction_index,
+            'engagement_quality': satisfaction_result.engagement_quality_score,
+            'retention_proxy': satisfaction_result.retention_proxy_score,
+            'implementation_success': satisfaction_result.implementation_success_score,
+            'success_comments': satisfaction_result.success_comment_count,
+            'confusion_signals': satisfaction_result.confusion_signal_count,
+            'return_viewer_ratio': satisfaction_result.return_viewer_ratio,
+            'clarity_score': satisfaction_result.clarity_score,
+            'top_success': satisfaction_result.top_success_comments[:3],
+            'top_confusion': satisfaction_result.top_confusion_comments[:3],
+            'recommendations': satisfaction_result.recommendations
+        }
+        print(f"      ✓ Satisfaction Index: {satisfaction_result.satisfaction_index}")
+    except Exception as e:
+        print(f"   ⚠️ Satisfaction Analysis failed: {e}")
+    
+    # =========================================================
+    # 11. GROWTH PATTERNS - Skill 6 (Pro+ Tiers)
+    # =========================================================
+    if limits.get('views_forecast'):  # Reuse views_forecast tier check
+        try:
+            print("   📈 Analyzing Growth Patterns...")
+            growth_analyzer = GrowthPatternAnalyzer()
+            
+            growth_result = growth_analyzer.analyze_growth_patterns(videos_data)
+            
+            premium_data['growth_patterns'] = {
+                'consistency_index': growth_result.consistency_index,
+                'avg_days_between_uploads': growth_result.avg_days_between_uploads,
+                'upload_variance': growth_result.upload_variance,
+                'current_streak': growth_result.upload_streak_current,
+                'series_detected': [s.to_dict() for s in growth_result.series_detected],
+                'series_performance_boost': growth_result.series_performance_boost,
+                'growth_trajectory': growth_result.growth_trajectory,
+                'views_growth_rate': growth_result.views_growth_rate,
+                'optimal_frequency': growth_result.optimal_upload_frequency,
+                'recommendations': growth_result.recommendations
+            }
+            print(f"      ✓ Consistency: {growth_result.consistency_index}, Trajectory: {growth_result.growth_trajectory}")
+        except Exception as e:
+            print(f"   ⚠️ Growth Pattern Analysis failed: {e}")
     
     print("   ✅ Premium Analysis Complete!")
     return premium_data
