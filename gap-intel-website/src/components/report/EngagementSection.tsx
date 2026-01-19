@@ -74,15 +74,17 @@ export function EngagementSection({ metrics }: EngagementSectionProps) {
                 <MetricCard
                     label="Comment-to-View Ratio"
                     value={`${metrics.cvr.toFixed(2)}%`}
-                    benchmark={`${metrics.cvrBenchmark}: 1-2%`}
+                    benchmark={`${(metrics as unknown as { cvrBenchmarkLabel?: string }).cvrBenchmarkLabel || metrics.cvrBenchmark}: ${(metrics as unknown as { cvrBenchmarkRange?: string }).cvrBenchmarkRange || '1-2%'}`}
                     status={getCvrStatus(metrics.cvr, metrics.cvrBenchmark)}
                     icon={<MessageCircle className="w-5 h-5" />}
                     color="blue"
-                    description="Higher CVR indicates more engaging content that prompts viewers to comment"
+                    description={`${(metrics as unknown as { cvrVsBenchmark?: number }).cvrVsBenchmark !== undefined
+                        ? `${(metrics as unknown as { cvrVsBenchmark: number }).cvrVsBenchmark > 0 ? '+' : ''}${(metrics as unknown as { cvrVsBenchmark: number }).cvrVsBenchmark}% vs benchmark. `
+                        : ''}Higher CVR indicates more engaging content`}
                 />
 
                 <MetricCard
-                    label="Question Density"
+                    label="Audience Engagement Depth"
                     value={`${metrics.questionDensity.toFixed(1)}%`}
                     benchmark="High quality: 30-40%"
                     status={getQuestionStatus(metrics.questionDensity)}

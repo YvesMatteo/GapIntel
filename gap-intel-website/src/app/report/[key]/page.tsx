@@ -8,6 +8,8 @@ import { EngagementSection } from "@/components/report/EngagementSection";
 import { ContentLandscapeSection } from "@/components/report/ContentLandscapeSection";
 import { SeoSection } from "@/components/report/SeoSection";
 import { GrowthDriversSection } from "@/components/report/GrowthDriversSection";
+import { SatisfactionSection } from "@/components/report/SatisfactionSection";
+import { GrowthPatternsSection } from "@/components/report/GrowthPatternsSection";
 
 // Initialize Supabase client for server component
 const supabase = createClient(
@@ -71,6 +73,11 @@ interface AnalysisResult {
         true_gaps: number;
         under_explained: number;
         saturated: number;
+        question_count?: number;
+        sentiment_positive?: number;
+        sentiment_confusion?: number;
+        sentiment_inquiry?: number;
+        sentiment_success?: number;
     };
     // Premium Analysis Data
     premium?: {
@@ -134,11 +141,19 @@ interface AnalysisResult {
                 common_elements: string[];
                 best_performer: Record<string, unknown>;
                 example_titles: string[];
+                saturation_score?: number;
+                saturation_label?: string;
             }>;
             best_performing: string;
             underperforming: string[];
             gap_opportunities: string[];
             recommendations: string[];
+            format_diversity?: {
+                score: number;
+                unique_formats: number;
+                breakdown: Array<{ name: string; count: number; pct: number }>;
+                primary_format: string;
+            };
         };
         publish_times?: {
             best_days: string[];
@@ -167,6 +182,38 @@ interface AnalysisResult {
             color_temperature?: { chart_type: string; title: string; svg_data_uri: string };
             top_colors?: { chart_type: string; title: string; svg_data_uri: string };
             ctr_gauge?: { chart_type: string; title: string; svg_data_uri: string };
+        };
+        satisfaction_signals?: {
+            satisfaction_index: number;
+            engagement_quality: number;
+            retention_proxy: number;
+            implementation_success: number;
+            success_comments: number;
+            confusion_signals: number;
+            return_viewer_ratio: number;
+            clarity_score: number;
+            top_success?: string[];
+            top_confusion?: string[];
+            recommendations?: string[];
+        };
+        growth_patterns?: {
+            consistency_index: number;
+            avg_days_between_uploads: number;
+            upload_variance: number;
+            current_streak: number;
+            series_detected: Array<{
+                name: string;
+                video_count: number;
+                avg_views: number;
+                avg_engagement: number;
+                performance_vs_standalone: number;
+            }>;
+            series_performance_boost: number;
+            growth_trajectory: string;
+            views_growth_rate: number;
+            optimal_frequency: string;
+            consistency_impact?: string;
+            recommendations?: string[];
         };
     };
 }
@@ -245,18 +292,74 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
     };
 }
 
+// CVR Benchmarks by content category
+const CVR_BENCHMARKS: Record<string, { low: number; high: number; top: number; label: string }> = {
+    educational: { low: 1.0, high: 2.0, top: 3.5, label: 'Educational' },
+    tutorial: { low: 0.5, high: 1.0, top: 2.5, label: 'Tutorials' },
+    entertainment: { low: 0.1, high: 0.5, top: 1.5, label: 'Entertainment' },
+    news: { low: 0.3, high: 0.8, top: 1.5, label: 'News/Commentary' },
+    gaming: { low: 0.2, high: 0.6, top: 1.2, label: 'Gaming' },
+    vlog: { low: 0.15, high: 0.4, top: 1.0, label: 'Vlog' },
+    review: { low: 0.3, high: 0.7, top: 1.5, label: 'Reviews' },
+};
+
+// Detect content category from video titles
+function detectContentCategory(videos: Array<{ title: string }>): string {
+    if (!videos || videos.length === 0) return 'educational';
+
+    const titleText = videos.map(v => v.title.toLowerCase()).join(' ');
+
+    // Category detection patterns
+    const patterns: Record<string, RegExp[]> = {
+        tutorial: [/how to/i, /tutorial/i, /guide/i, /learn/i, /step by step/i, /beginner/i, /course/i],
+        gaming: [/gameplay/i, /let's play/i, /walkthrough/i, /playthrough/i, /gaming/i, /stream/i],
+        entertainment: [/funny/i, /compilation/i, /challenge/i, /prank/i, /react/i, /try not to/i],
+        news: [/news/i, /update/i, /breaking/i, /opinion/i, /commentary/i, /analysis/i],
+        vlog: [/vlog/i, /day in/i, /life of/i, /grwm/i, /routine/i],
+        review: [/review/i, /unboxing/i, /first look/i, /hands on/i, /worth it/i],
+        educational: [/explained/i, /why/i, /science/i, /history/i, /lesson/i, /understand/i],
+    };
+
+    // Count matches per category
+    const scores: Record<string, number> = {};
+    for (const [category, regexes] of Object.entries(patterns)) {
+        scores[category] = regexes.filter(r => r.test(titleText)).length;
+    }
+
+    // Return highest scoring category
+    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    return sorted[0][1] > 0 ? sorted[0][0] : 'educational';
+}
+
 // Helper function to calculate engagement metrics from existing data
 function calculateEngagementMetrics(result: AnalysisResult, totalViews: number = 100000) {
     const rawComments = result.pipeline_stats?.raw_comments || result.pipeline?.rawComments || 0;
     const painPoints = result.pipeline_stats?.pain_points_found || 0;
     const highSignal = result.pipeline_stats?.high_signal_comments || 0;
 
+    // Detect content category
+    const videos = result.videos_analyzed || [];
+    const category = detectContentCategory(videos);
+    const benchmark = CVR_BENCHMARKS[category] || CVR_BENCHMARKS.educational;
+
     // Calculate CVR (using estimated views based on comment count typical ratio)
     const estimatedViews = totalViews > 0 ? totalViews : Math.max(rawComments * 100, 10000);
     const cvr = (rawComments / estimatedViews) * 100;
 
-    // Calculate Question Density (high signal comments as proxy for questions)
-    const questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25; // Multiply by 3 as pain points are subset
+    // Calculate CVR vs benchmark
+    const benchmarkMid = (benchmark.low + benchmark.high) / 2;
+    const cvrVsBenchmark = benchmarkMid > 0 ? ((cvr - benchmarkMid) / benchmarkMid) * 100 : 0;
+
+    // Calculate Question Density
+    const questionCount = (result.pipeline_stats as any)?.question_count;
+    let questionDensity = 0;
+
+    if (questionCount !== undefined) {
+        questionDensity = rawComments > 0 ? (questionCount / rawComments) * 100 : 0;
+    } else {
+        // Fallback: proxy using pain points
+        questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25;
+    }
 
     // Estimate other metrics from available data
     const depthScore = Math.min(1, (highSignal / Math.max(rawComments, 1)) * 2);
@@ -270,7 +373,11 @@ function calculateEngagementMetrics(result: AnalysisResult, totalViews: number =
 
     return {
         cvr: Math.min(5, cvr),
-        cvrBenchmark: 'educational',
+        cvrBenchmark: category,
+        cvrBenchmarkLabel: benchmark.label,
+        cvrBenchmarkRange: `${benchmark.low}-${benchmark.high}%`,
+        cvrVsBenchmark: Math.round(cvrVsBenchmark),
+        cvrStatus: cvr >= benchmark.high ? 'above' : cvr >= benchmark.low ? 'at' : 'below',
         questionDensity: Math.min(50, questionDensity),
         depthScore: Math.min(1, Math.max(0.1, depthScore)),
         repeatScore: Math.min(35, repeatScore),
@@ -329,18 +436,50 @@ function calculateContentLandscape(result: AnalysisResult) {
     });
 
     // Estimate format diversity
-    const formats = [
-        { name: 'Long-form', count: Math.max(1, Math.floor(videos.length * 0.7)), icon: '📹' },
-        { name: 'Tutorial', count: Math.max(1, Math.floor(videos.length * 0.4)), icon: '📚' },
-        { name: 'Discussion', count: Math.max(1, Math.floor(videos.length * 0.2)), icon: '💬' },
-    ];
+    let formats: Array<{ name: string; count: number; icon: string }> = [];
+
+    if (result.premium?.content_clusters?.format_diversity?.breakdown) {
+        formats = result.premium.content_clusters.format_diversity.breakdown.map((f: any) => {
+            const icons: Record<string, string> = {
+                'tutorial': '📚', 'listicle': '📋', 'review': '⭐', 'reaction': '😲',
+                'vlog': '📹', 'news': '📰', 'comparison': '⚖️', 'challenge': '🏆',
+                'story': '📖', 'educational': '🎓', 'interview': '🎙️', 'case_study': '🔎',
+                'shorts': '📱', 'other': '📁'
+            };
+            return {
+                name: f.name.charAt(0).toUpperCase() + f.name.slice(1),
+                count: f.count,
+                icon: icons[f.name] || '📁'
+            };
+        });
+    } else {
+        formats = [
+            { name: 'Long-form', count: Math.max(1, Math.floor(videos.length * 0.7)), icon: '📹' },
+            { name: 'Tutorial', count: Math.max(1, Math.floor(videos.length * 0.4)), icon: '📚' },
+            { name: 'Discussion', count: Math.max(1, Math.floor(videos.length * 0.2)), icon: '💬' },
+        ];
+    }
 
     // Estimate upload consistency (would need dates for real calculation)
-    const uploadConsistency = {
-        score: 65 + Math.random() * 20, // Placeholder - would calculate from dates
-        avgDaysBetween: 7 + Math.floor(Math.random() * 7),
+    let uploadConsistency = {
+        score: 65,
+        avgDaysBetween: 7,
         pattern: 'weekly',
     };
+
+    if (result.premium?.growth_patterns) {
+        uploadConsistency = {
+            score: result.premium.growth_patterns.consistency_index,
+            avgDaysBetween: result.premium.growth_patterns.avg_days_between_uploads,
+            pattern: result.premium.growth_patterns.optimal_frequency || 'weekly'
+        };
+    } else {
+        uploadConsistency = {
+            score: 65 + Math.random() * 20, // Placeholder
+            avgDaysBetween: 7 + Math.floor(Math.random() * 7),
+            pattern: 'weekly',
+        };
+    }
 
     return {
         topicCoverage: Math.min(85, 40 + topics.length * 5),
@@ -719,6 +858,30 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                                 {/* Growth Drivers Section */}
                                 <GrowthDriversSection data={growthDrivers} />
+
+                                {/* Satisfaction Signals Section (Skill 4) */}
+                                {analysis.report_data?.premium?.satisfaction_signals && (
+                                    <>
+                                        <div className="flex items-center gap-4 pt-8">
+                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Viewer Satisfaction</h2>
+                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                        </div>
+                                        <SatisfactionSection data={analysis.report_data.premium.satisfaction_signals} />
+                                    </>
+                                )}
+
+                                {/* Growth Patterns Section (Skill 6) */}
+                                {analysis.report_data?.premium?.growth_patterns && (
+                                    <>
+                                        <div className="flex items-center gap-4 pt-8">
+                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Growth Patterns</h2>
+                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                        </div>
+                                        <GrowthPatternsSection data={analysis.report_data.premium.growth_patterns} />
+                                    </>
+                                )}
 
                                 {/* Content Gaps Divider */}
                                 <div className="flex items-center gap-4 pt-8">

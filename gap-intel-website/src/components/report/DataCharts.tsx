@@ -114,19 +114,25 @@ export function TopicBarChart({ topics }: TopicBarChartProps) {
                 return (
                     <div key={i} className="group">
                         <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-slate-700 truncate max-w-[60%]">
+                            <span className="text-sm font-medium text-slate-700 truncate max-w-[50%]">
                                 {topic.name}
                             </span>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs font-medium ${config.textColor}`}>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.color} bg-opacity-10 ${config.textColor}`}>
+                                    {topic.saturation.toFixed(1)} sat.
+                                </span>
+                                <span className="text-xs text-slate-500">
                                     {topic.videoCount} videos
                                 </span>
                             </div>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
+                            {/* Target zone marker (0.8 - 2.0) */}
+                            <div className="absolute top-0 bottom-0 left-[20%] right-[30%] bg-green-500/10 border-x border-green-500/20" title="Balanced Zone" />
+
                             <div
                                 className={`h-full ${config.color} rounded-full transition-all group-hover:opacity-80`}
-                                style={{ width: `${width}%` }}
+                                style={{ width: `${Math.min(100, (topic.saturation / 3) * 100)}%` }}
                             />
                         </div>
                     </div>

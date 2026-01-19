@@ -53,7 +53,6 @@ export default function RealtimeStatus({
                     filter: `access_key=eq.${accessKey}`,
                 },
                 (payload) => {
-                    console.log("Realtime update:", payload.new);
                     const newData = payload.new as {
                         status: string;
                         progress_percentage?: number;
@@ -78,7 +77,6 @@ export default function RealtimeStatus({
             )
             .subscribe((status) => {
                 setIsConnected(status === "SUBSCRIBED");
-                console.log("Supabase Realtime status:", status);
             });
 
         return () => {
