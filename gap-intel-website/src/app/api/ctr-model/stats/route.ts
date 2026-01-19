@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const RAILWAY_API_URL = process.env.RAILWAY_API_URL || "https://renewed-comfort-production.up.railway.app";
+const RAILWAY_API_URL = process.env.RAILWAY_API_URL || "https://thriving-presence-production-ca4a.up.railway.app";
 const API_SECRET_KEY = process.env.API_SECRET_KEY || "";
 
 /**
