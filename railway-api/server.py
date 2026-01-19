@@ -37,7 +37,7 @@ from email_service import (
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-API_SECRET_KEY = os.environ.get("API_SECRET_KEY", "")  # Shared secret with frontend
+API_SECRET_KEY = os.environ.get("API_SECRET_KEY", "").strip().strip('"').strip("'")  # Shared secret with frontend
 MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "5"))
 
 # Allowed origins (restrict CORS)
@@ -153,7 +153,15 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
         print("⚠️ API_SECRET_KEY not set - skipping authentication")
         return True
     
-    if api_key != API_SECRET_KEY:
+    # Strip potential quotes from header too
+    clean_key = api_key.strip().strip('"').strip("'") if api_key else ""
+    
+    if clean_key != API_SECRET_KEY:
+        # Debugging Auth failure
+        expected = f"{API_SECRET_KEY[:5]}...{API_SECRET_KEY[-5:]}" if API_SECRET_KEY else "None"
+        received = f"{clean_key[:5]}...{clean_key[-5:]}" if clean_key else "None"
+        print(f"❌ Auth Failed! Expected: {expected}, Received: {received}")
+        print(f"❌ Full Received Key Length: {len(clean_key)}, Expected: {len(API_SECRET_KEY)}")
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return True
 
