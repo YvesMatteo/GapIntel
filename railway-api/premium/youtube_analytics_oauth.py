@@ -123,7 +123,7 @@ class YouTubeAnalyticsOAuth:
         self.client_id = client_id or os.getenv('GOOGLE_CLIENT_ID')
         self.client_secret = client_secret or os.getenv('GOOGLE_CLIENT_SECRET')
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
-        self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        self.supabase_key = supabase_key or os.getenv('SUPABASE_SERVICE_ROLE_KEY') or os.getenv('SUPABASE_SERVICE_KEY')
         
         self.encryptor = TokenEncryption()
         self._state_cache = {}  # In production, use Redis or similar
