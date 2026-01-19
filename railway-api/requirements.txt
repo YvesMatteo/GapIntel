@@ -25,4 +25,4 @@ easyocr>=1.7.0
 mediapipe>=0.10.0
 stripe
 youtube-transcript-api
-cryptography
+
