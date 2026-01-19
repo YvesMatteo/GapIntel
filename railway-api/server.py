@@ -775,10 +775,8 @@ async def youtube_analytics_callback(
     - code: Authorization code from Google
     - state: State token for validation
     
-    Redirects to dashboard with success/error status.
+    Returns JSON status. Frontend proxy handles redirect.
     """
-    from fastapi.responses import RedirectResponse
-    
     try:
         from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
         oauth = YouTubeAnalyticsOAuth()
@@ -786,19 +784,21 @@ async def youtube_analytics_callback(
         tokens = oauth.handle_callback(code, state)
         
         if tokens:
-            # Redirect to dashboard with success
-            return RedirectResponse(
-                url="https://gapintel.online/dashboard/connect-analytics?status=success"
-            )
+            return {
+                "status": "success", 
+                "message": "Connected successfully"
+            }
         else:
-            return RedirectResponse(
-                url="https://gapintel.online/dashboard/connect-analytics?status=error&message=auth_failed"
-            )
+            return {
+                "status": "error", 
+                "message": "Token exchange failed"
+            }
     except Exception as e:
         print(f"❌ YouTube Analytics callback error: {e}")
-        return RedirectResponse(
-            url=f"https://gapintel.online/dashboard/connect-analytics?status=error&message={str(e)}"
-        )
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.delete("/api/youtube-analytics/disconnect")

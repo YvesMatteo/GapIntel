@@ -142,15 +142,16 @@ class YouTubeAnalyticsOAuth:
         Returns:
             Tuple of (authorization_url, state_token)
         """
-        # Generate secure state token
-        state = secrets.token_urlsafe(32)
-        
-        # Store state -> user_id mapping (expires in 10 minutes)
-        self._state_cache[state] = {
+        # Create stateless state token containing user_id and redirect_uri
+        state_data = json.dumps({
             'user_id': user_id,
             'redirect_uri': redirect_uri,
-            'expires': datetime.now() + timedelta(minutes=10)
-        }
+            'expires': (datetime.now() + timedelta(minutes=10)).isoformat(),
+            'nonce': secrets.token_hex(8)  # Randomness
+        })
+        
+        # Encrypt state so it can't be tampered with
+        state = self.encryptor.encrypt(state_data)
         
         # Build authorization URL
         params = {
@@ -170,19 +171,21 @@ class YouTubeAnalyticsOAuth:
     
     def validate_state(self, state: str) -> Optional[Dict]:
         """Validate state token and return associated data."""
-        if state not in self._state_cache:
+        try:
+            # Decrypt state
+            decrypted = self.encryptor.decrypt(state)
+            data = json.loads(decrypted)
+            
+            # Check expiration
+            expires = datetime.fromisoformat(data['expires'])
+            if datetime.now() > expires:
+                print("❌ State token expired")
+                return None
+            
+            return data
+        except Exception as e:
+            print(f"❌ Invalid state token: {e}")
             return None
-        
-        data = self._state_cache[state]
-        
-        # Check expiration
-        if datetime.now() > data['expires']:
-            del self._state_cache[state]
-            return None
-        
-        # Remove from cache (one-time use)
-        del self._state_cache[state]
-        return data
     
     def handle_callback(self, code: str, state: str) -> Optional[OAuthTokens]:
         """
@@ -195,7 +198,7 @@ class YouTubeAnalyticsOAuth:
         Returns:
             OAuthTokens if successful, None if failed
         """
-        # Validate state
+        # Validate state (stateless)
         state_data = self.validate_state(state)
         if not state_data:
             print("❌ Invalid or expired state token")
