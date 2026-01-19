@@ -956,7 +956,18 @@ async def youtube_analytics_collect(
         raise
     except Exception as e:
         print(f"❌ CTR data collection error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return error format that frontend expects instead of 500
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "result": {
+                "errors": [str(e)],
+                "videos_processed": 0,
+                "videos_collected": 0,
+                "status": "failed"
+            }
+        }
 
 
 @app.get("/api/ctr-model/stats")
