@@ -95,10 +95,16 @@ class YouTubeAnalyticsFetcher:
                 return None
             
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            if 'error' in data:
+                print(f"❌ API Error: {data['error']}")
+                return None
+            return data
             
         except requests.RequestException as e:
             print(f"❌ API request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"   Response: {e.response.text}")
             return None
     
     def fetch_video_ctr(self, 
@@ -233,7 +239,9 @@ class YouTubeAnalyticsFetcher:
         data = self._make_request(params)
         
         if not data or not data.get('rows'):
-            print("⚠️ No video data returned from Analytics API")
+            print(f"⚠️ No video data returned from Analytics API for channel {channel_id}")
+            if data and 'error' in data:
+                print(f"   API Error: {data['error']}")
             return pd.DataFrame()
         
         # Process rows into DataFrame

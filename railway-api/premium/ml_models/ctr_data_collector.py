@@ -142,11 +142,13 @@ class CTRDataCollector:
         )
         
         if ctr_df.empty:
+            msg = "No video data found. Please ensure you have public videos and Analytics permissions."
+            print(f"❌ {msg}")
             return CollectionResult(
                 channel_id=channel_id,
                 videos_processed=0,
                 videos_collected=0,
-                errors=["No CTR data returned from YouTube Analytics"],
+                errors=[msg],
                 duration_seconds=time.time() - start_time,
                 status='failed'
             )
