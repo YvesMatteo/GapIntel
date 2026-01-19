@@ -259,27 +259,99 @@ def get_trend_data(keywords: list) -> dict:
 
 def fetch_competitor_videos(youtube, competitors: list) -> dict:
     """
-    Fetch top recent video titles from competitor channels to analyze supply.
+    Fetch comprehensive metrics from competitor channels to analyze supply and performance.
+    
+    Returns:
+        Dict keyed by competitor name with:
+        - videos: List of recent video details
+        - subscriber_count: Total subs
+        - metrics: Aggregated stats (CVR, Format Mix, Avg Views)
     """
     comp_data = {}
-    print("\n⚔️ Analyzing Competitors...")
+    print("\n⚔️ Analyzing Competitors (Deep Dive)...")
     
     for comp in competitors:
         try:
-            cid, title = get_channel_id(youtube, comp)
-            print(f"   • Fetching: {title} ({comp})")
+            # 1. Get Channel Details (ID + Subs)
+            handle_clean = comp.lstrip('@')
+            search_resp = youtube.search().list(part='snippet', q=f"@{handle_clean}", type='channel', maxResults=1).execute()
             
-            # get uploads playlist
-            ch_resp = youtube.channels().list(id=cid, part='contentDetails').execute()
-            uploads_id = ch_resp['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+            if not search_resp.get('items'):
+                print(f"   ⚠️ Competitor not found: {comp}")
+                continue
+                
+            channel_id = search_resp['items'][0]['snippet']['channelId']
+            channel_title = search_resp['items'][0]['snippet']['channelTitle']
             
-            # get last 15 videos
-            gov_resp = youtube.playlistItems().list(
-                playlistId=uploads_id, part='snippet', maxResults=25
+            # Fetch subs count
+            chan_stats_resp = youtube.channels().list(part='statistics,contentDetails', id=channel_id).execute()
+            stats = chan_stats_resp['items'][0]['statistics']
+            subs_count = int(stats.get('subscriberCount', 0))
+            uploads_id = chan_stats_resp['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+            
+            print(f"   • Fetching: {channel_title} ({subs_count:,} subs)")
+            
+            # 2. Get Last 20 Videos
+            playlist_items = youtube.playlistItems().list(
+                playlistId=uploads_id, part='snippet', maxResults=20
             ).execute()
             
-            titles = [item['snippet']['title'] for item in gov_resp['items']]
-            comp_data[title] = titles
+            video_ids = [item['snippet']['resourceId']['videoId'] for item in playlist_items['items']]
+            
+            # 3. Get Video Statistics & Duration
+            vid_metrics = []
+            if video_ids:
+                vid_resp = youtube.videos().list(
+                    part='statistics,contentDetails,snippet',
+                    id=','.join(video_ids)
+                ).execute()
+                
+                for v in vid_resp['items']:
+                    views = int(v['statistics'].get('viewCount', 0))
+                    duration_sec = parse_duration(v['contentDetails']['duration'])
+                    
+                    # Estimate Question Density (Simple heuristic without fetching comments to save quota)
+                    # Channels with high comment/view ratios often have high interaction/questions
+                    comment_count = int(v['statistics'].get('commentCount', 0))
+                    q_density_score = (comment_count / views * 1000) if views > 0 else 0
+                    
+                    vid_metrics.append({
+                        'title': v['snippet']['title'],
+                        'video_id': v['id'],
+                        'views': views,
+                        'duration_seconds': duration_sec,
+                        'published_at': v['snippet']['publishedAt'],
+                        'cvr_proxy': (views / subs_count * 100) if subs_count > 0 else 0,
+                        'comment_count': comment_count,
+                        'question_density_score': round(q_density_score, 2)
+                    })
+            
+            # 4. Aggregate Metrics
+            if vid_metrics:
+                avg_views = sum(v['views'] for v in vid_metrics) / len(vid_metrics)
+                avg_cvr = sum(v['cvr_proxy'] for v in vid_metrics) / len(vid_metrics)
+                
+                # Format Mix
+                shorts = len([v for v in vid_metrics if v['duration_seconds'] <= 60])
+                long_form = len([v for v in vid_metrics if v['duration_seconds'] > 60])
+                avg_duration = sum(v['duration_seconds'] for v in vid_metrics) / len(vid_metrics)
+                
+                comp_data[channel_title] = {
+                    "meta": {
+                        "subscriber_count": subs_count,
+                        "handle": comp,
+                        "channel_id": channel_id
+                    },
+                    "metrics": {
+                        "avg_views": int(avg_views),
+                        "avg_cvr_proxy": round(avg_cvr, 2),
+                        "avg_duration_sec": int(avg_duration),
+                        "shorts_count": shorts,
+                        "long_form_count": long_form,
+                        "format_mix": "Hybrid" if (shorts > 0 and long_form > 0) else ("Shorts" if shorts > long_form else "Long-form")
+                    },
+                    "recent_videos": vid_metrics
+                }
             
         except Exception as e:
             print(f"   ⚠️ Failed to analyze competitor {comp}: {e}")
@@ -606,8 +678,14 @@ We have VERIFIED CONTENT GAPS (these are NOT hallucinated - they were cross-refe
 
 {gap_text}
 
-COMPETITOR DATA:
+COMPETITOR DATA (Use this to score 'competitor_influence'):
 {json.dumps(competitors_data, indent=2)}
+
+NOTE on Competitor Metrics:
+- 'cvr_proxy': (Views / Subs) %. High CVR (>10%) means their audience LOVES this topic.
+- 'question_density_score': Higher means more audience questions/engagement.
+- 'format_mix': Shows if they use Shorts vs Long-form.
+
 
 TASK: For each verified gap, generate 3 viral title ideas and score the INFLUENCE of each data source.
 
@@ -671,7 +749,8 @@ OUTPUT JSON:
         'verified_gaps': verified_gaps,
         'opportunities': final_result.get('opportunities', []),
         'top_opportunity': final_result.get('top_opportunity', {}),
-        'competitors_analyzed': list(competitors_data.keys()) if competitors_data else []
+        'competitors_analyzed': list(competitors_data.keys()) if competitors_data else [],
+        'competitor_metrics': competitors_data  # Save full rich data for dashboard
     }
 
 
@@ -788,8 +867,23 @@ def generate_report(output_path: Path, channel_name: str, videos_data: list, ana
         if competitors:
             f.write("---\n\n")
             f.write("## ⚔️ Competitors Analyzed\n\n")
-            for comp in competitors:
-                f.write(f"- {comp}\n")
+            f.write("---\n\n")
+            f.write("## ⚔️ Competitors Analyzed\n\n")
+            
+            # Check if we have rich metrics
+            comp_metrics = analysis.get('competitor_metrics', {})
+            
+            if comp_metrics:
+                f.write("| Competitor | Subs | Avg Views | CVR Proxy | Format Mix |\n")
+                f.write("|------------|------|-----------|-----------|------------|\n")
+                for name, data in comp_metrics.items():
+                    metrics = data.get('metrics', {})
+                    meta = data.get('meta', {})
+                    subs = meta.get('subscriber_count', 0)
+                    f.write(f"| {name} | {subs:,} | {metrics.get('avg_views', 0):,} | {metrics.get('avg_cvr_proxy', 0)}% | {metrics.get('format_mix', 'N/A')} |\n")
+            else:
+                for comp in competitors:
+                    f.write(f"- {comp}\n")
         
         if is_sample:
             f.write("\n---\n")
@@ -939,6 +1033,11 @@ Examples:
         with open(json_output_path, 'w', encoding='utf-8') as f:
             json.dump(analysis, f, indent=2)
         print(f"📊 Dashboard data saved to: {json_output_path}")
+
+        # IMPORTANT: Print JSON to stdout for server.py to capture
+        print("\n___JSON_START___")
+        print(json.dumps(analysis))
+        print("___JSON_END___\n")
 
         # Step 6: Generate report
         

@@ -40,6 +40,14 @@ function ViralPredictorContent() {
     const [audienceSize, setAudienceSize] = useState<keyof typeof AUDIENCE_BENCHMARKS>("medium");
     const [topic, setTopic] = useState("General");
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [isMLPredicting, setIsMLPredicting] = useState(false);
+    const [mlPrediction, setMLPrediction] = useState<{
+        predicted_views: number;
+        viral_probability: number;
+        confidence: number;
+        factors: Record<string, number>;
+        tips: string[];
+    } | null>(null);
 
     const searchParams = useSearchParams();
     const accessKey = searchParams.get("key");
@@ -51,6 +59,42 @@ function ViralPredictorContent() {
         () => predictViewRange(analysis.overallScore, audienceSize, analysis.ctrBoost),
         [analysis.overallScore, audienceSize, analysis.ctrBoost]
     );
+
+    // Backend ML Prediction
+    useEffect(() => {
+        const fetchMLPrediction = async () => {
+            if (!title || title.length < 5) {
+                setMLPrediction(null);
+                return;
+            }
+
+            setIsMLPredicting(true);
+            try {
+                const response = await fetch('https://thriving-presence-production-ca4a.up.railway.app/api/predict-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        hook,
+                        topic,
+                        access_key: accessKey
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setMLPrediction(data);
+                }
+            } catch (err) {
+                console.error("ML Prediction failed:", err);
+            } finally {
+                setIsMLPredicting(false);
+            }
+        };
+
+        const timer = setTimeout(fetchMLPrediction, 1000); // Debounce
+        return () => clearTimeout(timer);
+    }, [title, hook, topic, accessKey]);
 
     const handleCopyTitle = (altTitle: string, index: number) => {
         navigator.clipboard.writeText(altTitle);
@@ -131,10 +175,10 @@ function ViralPredictorContent() {
                                             Video Title
                                         </label>
                                         <span className={`text-xs font-medium ${title.length >= 50 && title.length <= 60
-                                                ? 'text-green-600'
-                                                : title.length > 70
-                                                    ? 'text-red-600'
-                                                    : 'text-slate-400'
+                                            ? 'text-green-600'
+                                            : title.length > 70
+                                                ? 'text-red-600'
+                                                : 'text-slate-400'
                                             }`}>
                                             {title.length}/60 chars
                                             {title.length >= 50 && title.length <= 60 && ' ✓'}
@@ -254,9 +298,12 @@ function ViralPredictorContent() {
 
                                     <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
                                         <div className="text-center md:text-left">
-                                            <p className="text-white/80 text-sm font-medium uppercase tracking-wider mb-2">
-                                                Viral Potential Score
-                                            </p>
+                                            <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+                                                <p className="text-white/80 text-sm font-medium uppercase tracking-wider">
+                                                    Heuristic Viral Score
+                                                </p>
+                                                <Info className="w-3 h-3 text-white/50 cursor-help" />
+                                            </div>
                                             <div className="flex items-baseline gap-2 justify-center md:justify-start">
                                                 <span className="text-7xl font-bold">{analysis.overallScore}</span>
                                                 <span className="text-3xl text-white/60">/100</span>
@@ -266,17 +313,59 @@ function ViralPredictorContent() {
                                             </p>
                                         </div>
 
-                                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <TrendingUp className="w-5 h-5" />
-                                                <span className="font-medium">Predicted Views</span>
+                                        <div className="space-y-4">
+                                            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <TrendingUp className="w-5 h-5" />
+                                                    <span className="font-medium">Standard Prediction</span>
+                                                </div>
+                                                <div className="text-3xl font-bold mb-1">
+                                                    {viewPrediction.display}
+                                                </div>
+                                                <p className="text-sm text-white/70">
+                                                    Based on {AUDIENCE_BENCHMARKS[audienceSize].label}
+                                                </p>
                                             </div>
-                                            <div className="text-3xl font-bold mb-1">
-                                                {viewPrediction.display}
+
+                                            {/* ML Prediction Overlay/Card */}
+                                            <div className={`transition-all duration-500 rounded-2xl p-6 border ${mlPrediction ? 'bg-white/20 border-white/40 shadow-lg scale-105' : 'bg-white/5 border-white/10 opacity-60'
+                                                }`}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Zap className={`w-5 h-5 ${mlPrediction ? 'text-yellow-300 animate-pulse' : 'text-white/40'}`} />
+                                                        <span className="font-bold text-white">Scientific ML Analysis</span>
+                                                    </div>
+                                                    {isMLPredicting && (
+                                                        <RefreshCw className="w-4 h-4 text-white/60 animate-spin" />
+                                                    )}
+                                                </div>
+
+                                                {mlPrediction ? (
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <div className="text-2xl font-bold">
+                                                                {(mlPrediction.viral_probability * 100).toFixed(0)}%
+                                                            </div>
+                                                            <p className="text-[10px] text-white/70 uppercase font-bold">Viral Prob.</p>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-2xl font-bold text-green-300">
+                                                                {mlPrediction.predicted_views > 1000000
+                                                                    ? `${(mlPrediction.predicted_views / 1000000).toFixed(1)}M`
+                                                                    : mlPrediction.predicted_views > 1000
+                                                                        ? `${(mlPrediction.predicted_views / 1000).toFixed(1)}K`
+                                                                        : mlPrediction.predicted_views
+                                                                }
+                                                            </div>
+                                                            <p className="text-[10px] text-white/70 uppercase font-bold">ML Pred. Views</p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-white/60">
+                                                        {isMLPredicting ? 'AI is analyzing your title...' : 'Enter title for data-driven prediction'}
+                                                    </p>
+                                                )}
                                             </div>
-                                            <p className="text-sm text-white/70">
-                                                Based on {AUDIENCE_BENCHMARKS[audienceSize].label}
-                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -313,7 +402,7 @@ function ViralPredictorContent() {
                                         <div className="text-2xl mb-2">📏</div>
                                         <p className="text-sm text-slate-500 mb-1">Title Length</p>
                                         <div className={`text-2xl font-bold ${analysis.lengthStatus === 'optimal' ? 'text-green-600' :
-                                                analysis.lengthStatus === 'truncated' ? 'text-red-600' : 'text-yellow-600'
+                                            analysis.lengthStatus === 'truncated' ? 'text-red-600' : 'text-yellow-600'
                                             }`}>
                                             {analysis.lengthValue} chars
                                         </div>

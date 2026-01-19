@@ -33,7 +33,7 @@ export default function CompetitorIntelligencePage() {
         if (!accessKey) return;
 
         // Fetch report status/result to get competitor data
-        fetch(`https://gap-intel-api-production.up.railway.app/status/${accessKey}`)
+        fetch(`https://thriving-presence-production-ca4a.up.railway.app/status/${accessKey}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data.status === "completed" && data.report_data?.competitor_metrics) {
