@@ -81,7 +81,8 @@ class YouTubeAnalyticsFetcher:
             response = requests.get(
                 YOUTUBE_ANALYTICS_API,
                 headers=self.headers,
-                params=params
+                params=params,
+                timeout=30
             )
             
             if response.status_code == 401:

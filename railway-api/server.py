@@ -630,7 +630,7 @@ async def root():
     return {
         "status": "healthy",
         "service": "GAP Intel Analysis API",
-        "version": "2.0.0"
+        "version": "2.0.1"
     }
 
 # Worker Heartbeat (to detect frozen threads)

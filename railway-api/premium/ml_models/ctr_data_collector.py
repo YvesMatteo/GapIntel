@@ -238,7 +238,7 @@ class CTRDataCollector:
         }
         
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
             
@@ -322,7 +322,8 @@ class CTRDataCollector:
             response = requests.post(
                 f"{self.supabase_url}/rest/v1/ctr_training_data",
                 headers=headers,
-                json=record
+                json=record,
+                timeout=10
             )
             return response.status_code in [200, 201]
         except Exception as e:
@@ -355,7 +356,8 @@ class CTRDataCollector:
             requests.post(
                 f"{self.supabase_url}/rest/v1/ctr_collection_log",
                 headers=headers,
-                json=log_data
+                json=log_data,
+                timeout=5
             )
         except:
             pass
@@ -392,7 +394,8 @@ class CTRDataCollector:
                     'select': '*',
                     'order': 'fetch_date.desc',
                     'limit': max_samples
-                }
+                },
+                timeout=30
             )
             response.raise_for_status()
             data = response.json()
@@ -443,7 +446,8 @@ class CTRDataCollector:
             response = requests.post(
                 f"{self.supabase_url}/rest/v1/rpc/get_training_data_stats",
                 headers={**headers, 'Content-Type': 'application/json'},
-                json={}
+                json={},
+                timeout=10
             )
             
             if response.status_code == 200:
@@ -458,7 +462,8 @@ class CTRDataCollector:
                 params={
                     'select': 'video_id,channel_id,ctr_actual,impressions,fetch_date',
                     'impressions': 'gte.1000'
-                }
+                },
+                timeout=10
             )
             
             if response.status_code == 200:

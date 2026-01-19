@@ -360,7 +360,8 @@ class YouTubeAnalyticsOAuth:
             # First, delete all existing tokens for this user (to avoid duplicates)
             delete_response = requests.delete(
                 f"{self.supabase_url}/rest/v1/youtube_analytics_tokens?user_id=eq.{user_id}",
-                headers=headers
+                headers=headers,
+                timeout=10
             )
             print(f"🗑️ Cleaned up old tokens for user {user_id[:8]}...: {delete_response.status_code}")
             
@@ -368,7 +369,8 @@ class YouTubeAnalyticsOAuth:
             response = requests.post(
                 f"{self.supabase_url}/rest/v1/youtube_analytics_tokens",
                 headers=headers,
-                json=data
+                json=data,
+                timeout=10
             )
             print(f"✅ Stored token for user {user_id[:8]}...: {response.status_code}")
             return response.status_code in [200, 201]
@@ -401,7 +403,8 @@ class YouTubeAnalyticsOAuth:
                     'select': '*',
                     'order': 'updated_at.desc',
                     'limit': '1'
-                }
+                },
+                timeout=10
             )
             response.raise_for_status()
             data = response.json()
