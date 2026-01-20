@@ -282,7 +282,7 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             engagement: gap.engagement_score || 0,
             verification: gap.transcript_evidence || "",
             reasoning: gap.reasoning || "",
-            reasoning: gap.reasoning || "",
+
             suggestedTitles: gap.title_suggestions || [],
             mlViralScore: gap.ml_viral_probability,
         })),

@@ -1,5 +1,0 @@
-Vercel CLI 50.4.5
-Retrieving project…
-The vercel.json file should be inside of the provided root directory.
-Deploying yvesmatro-1672s-projects/gap-intel-website
-Error: File does not exist: "gap-intel-website/.next/server/pages/404.html"
