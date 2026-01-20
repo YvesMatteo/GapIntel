@@ -20,6 +20,7 @@ interface Report {
     channel_handle: string;
     channel_thumbnail?: string;
     status: "pending" | "processing" | "completed" | "failed";
+    progress_percentage?: number;
     created_at: string;
     folder_id: string | null;
 }
@@ -146,6 +147,18 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!authLoading) fetchData();
     }, [user, authLoading]);
+
+    // Polling for processing reports
+    useEffect(() => {
+        const hasProcessing = reports.some(r => r.status === 'processing' || r.status === 'pending');
+        if (!hasProcessing) return;
+
+        const interval = setInterval(() => {
+            fetchData();
+        }, 10000); // Polling every 10 seconds
+
+        return () => clearInterval(interval);
+    }, [reports]);
 
     // Computed properties
     const filteredReports = selectedFolder
@@ -543,6 +556,7 @@ export default function DashboardPage() {
                                                                             'bg-slate-50 text-slate-600 border-slate-100'
                                                                     }`}>
                                                                     {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                                                                    {report.status === 'processing' && report.progress_percentage ? ` ${report.progress_percentage}%` : ''}
                                                                 </span>
                                                                 <span className="flex items-center gap-1">
                                                                     <Clock className="w-3 h-3" />
