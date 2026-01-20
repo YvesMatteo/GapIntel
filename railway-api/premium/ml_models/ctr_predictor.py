@@ -49,6 +49,9 @@ class CTRPrediction:
     top_negative_factors: List[Dict]
     improvement_suggestions: List[str]
     model_type: str = 'rule_based'  # 'channel_specific', 'global', or 'rule_based'
+    is_heuristic: bool = True  # True if using rule-based fallback, False if using trained ML model
+    methodology_note: str = ''  # Transparency note about how prediction was made
+    confidence_interval: Optional[Dict] = None  # {'lower': float, 'upper': float}
     
     def to_dict(self) -> Dict:
         return {
@@ -58,7 +61,10 @@ class CTRPrediction:
             'top_positive_factors': self.top_positive_factors,
             'top_negative_factors': self.top_negative_factors,
             'improvement_suggestions': self.improvement_suggestions,
-            'model_type': self.model_type
+            'model_type': self.model_type,
+            'is_heuristic': self.is_heuristic,
+            'methodology_note': self.methodology_note,
+            'confidence_interval': self.confidence_interval
         }
 
 
@@ -113,6 +119,7 @@ class CTRPredictor:
         self.channel_avg_ctr = 5.0  # Default average CTR
         self.model_type = 'rule_based'
         self.feature_columns = None
+        self.model_std = None  # Standard deviation of residuals for confidence
         
         # Create models directory if it doesn't exist
         os.makedirs(MODELS_DIR, exist_ok=True)
@@ -229,9 +236,14 @@ class CTRPredictor:
         mae = mean_absolute_error(y_test, predictions)
         r2 = r2_score(y_test, predictions)
         
+        # Calculate residual standard deviation for confidence intervals
+        residuals = y_test.values - predictions
+        self.model_std = float(np.std(residuals))
+        
         print(f"📊 Model Performance:")
         print(f"   MAE: {mae:.4f}")
         print(f"   R²: {r2:.4f}")
+        print(f"   Residual Std: {self.model_std:.4f}")
         
         # Store feature importances
         self.feature_importances = dict(zip(feature_cols, self.model.feature_importances_))
@@ -239,7 +251,7 @@ class CTRPredictor:
         # Calculate channel average
         self.channel_avg_ctr = float(y.mean())
         
-        return {'mae': mae, 'r2': r2}
+        return {'mae': mae, 'r2': r2, 'model_std': self.model_std}
     
     def predict(self, thumbnail_features: Dict, title: str) -> CTRPrediction:
         """
@@ -266,11 +278,24 @@ class CTRPredictor:
         # Predict
         predicted_ctr = float(self.model.predict(X)[0])
         
-        # Calculate confidence (based on feature completeness)
-        feature_completeness = sum(1 for v in thumbnail_features.values() if v) / len(thumbnail_features)
-        confidence = 0.5 + (feature_completeness * 0.5)
+        # Calculate confidence using model uncertainty
+        # Use standard deviation of training residuals to estimate prediction uncertainty
+        if self.model_std:
+            # Confidence based on how close prediction is to training distribution
+            z_score = abs(predicted_ctr - self.channel_avg_ctr) / max(self.model_std, 0.1)
+            confidence = max(0.4, min(0.95, 0.95 - z_score * 0.1))
+            # Also calculate confidence interval
+            confidence_interval = {
+                'lower': max(0, predicted_ctr - 1.96 * self.model_std),
+                'upper': predicted_ctr + 1.96 * self.model_std
+            }
+        else:
+            # Fallback: feature completeness
+            feature_completeness = sum(1 for v in thumbnail_features.values() if v) / max(len(thumbnail_features), 1)
+            confidence = 0.5 + (feature_completeness * 0.35)
+            confidence_interval = None
         
-        # Analyze factors
+        # Analyze factors using actual model feature importances
         positive_factors, negative_factors = self._analyze_factors(thumbnail_features, title)
         
         # Generate suggestions
@@ -283,7 +308,10 @@ class CTRPredictor:
             top_positive_factors=positive_factors[:3],
             top_negative_factors=negative_factors[:3],
             improvement_suggestions=suggestions[:5],
-            model_type=self.model_type
+            model_type=self.model_type,
+            is_heuristic=False,
+            methodology_note=f'Predicted using trained {self.model_type} ML model with {len(self.feature_importances or {})} features.',
+            confidence_interval=confidence_interval
         )
     
     def _rule_based_prediction(self, thumbnail_features: Dict, title: str) -> CTRPrediction:
@@ -356,11 +384,15 @@ class CTRPredictor:
         
         return CTRPrediction(
             predicted_ctr=max(1, min(15, base_ctr)),
-            confidence=0.6,  # Lower confidence for rule-based
+            confidence=0.5,  # Lower confidence for rule-based (reduced from 0.6)
             ctr_vs_channel_avg=base_ctr - self.channel_avg_ctr,
             top_positive_factors=positive[:3],
             top_negative_factors=negative[:3],
-            improvement_suggestions=suggestions[:5]
+            improvement_suggestions=suggestions[:5],
+            model_type='rule_based',
+            is_heuristic=True,
+            methodology_note='Estimated using heuristic rules (no trained ML model available). Values are based on industry best practices, not channel-specific data.',
+            confidence_interval=None  # No confidence interval for heuristic predictions
         )
     
     def _analyze_factors(self, thumbnail_features: Dict, title: str) -> Tuple[List[Dict], List[Dict]]:
@@ -434,7 +466,8 @@ class CTRPredictor:
             'model': self.model,
             'scaler': self.scaler,
             'feature_importances': self.feature_importances,
-            'channel_avg_ctr': self.channel_avg_ctr
+            'channel_avg_ctr': self.channel_avg_ctr,
+            'model_std': self.model_std
         }
         joblib.dump(model_data, path)
         print(f"💾 Model saved to {path}")
@@ -449,7 +482,8 @@ class CTRPredictor:
         self.scaler = model_data['scaler']
         self.feature_importances = model_data['feature_importances']
         self.channel_avg_ctr = model_data.get('channel_avg_ctr', 5.0)
-        print(f"📂 Model loaded from {path}")
+        self.model_std = model_data.get('model_std')  # May be None for older models
+        print(f"📂 Model loaded from {path} (std: {self.model_std or 'N/A'})")
 
 
 class CTRModelTrainer:

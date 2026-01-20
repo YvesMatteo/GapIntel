@@ -26,16 +26,12 @@ class ViralPrediction:
     confidence_score: float   # 0-1
     factors: Dict[str, float] # Contribution of each factor
     tips: List[str]
+    is_heuristic: bool = False # Whether prediction used fallback logic
 
 class ViralPredictor:
     def __init__(self):
-        self.weights = {
-            'topic_relevance': 0.3,
-            'title_power': 0.25,
-            'hook_strength': 0.25,
-            'timing': 0.1,
-            'format_fit': 0.1
-        }
+        # Weights removed - we now strictly prefer the supervised model
+        self.weights = None
         
         # Initialize supervised model if available
         self.supervised_model = None
@@ -52,7 +48,7 @@ class ViralPredictor:
                 hook_text: str,
                 topic: str,
                 channel_history: List[Dict],
-                thumbnail_features: Optional[Dict] = None) -> ViralPrediction:
+                thumbnail_features: Optional[Dict] = None) -> 'ViralPrediction':
         """
         Predict viral potential of a video idea.
         
@@ -87,19 +83,15 @@ class ViralPredictor:
                 )
                 
                 if result:
-                    # Combine with heuristic hook analysis (since supervised model might not use hook yet)
+                    # Combine with heuristic hook analysis
                     hook_score = self._analyze_hook(hook_text)
                     
-                    # Adjust probability slightly based on hook (hybrid approach)
-                    # If hook is terrible, penalize. If great, boost.
-                    # This retains some domain knowledge while using the ML core.
                     final_prob = result.viral_probability
                     if hook_score < 0.4:
                         final_prob *= 0.8
                     elif hook_score > 0.8:
                         final_prob = min(0.98, final_prob * 1.1)
                         
-                    # Generate tips (hybrid)
                     tips = []
                     if result.predicted_ratio < 1.0:
                         tips.append("Model predicts below-average performance based on title/thumbnail.")
@@ -114,7 +106,8 @@ class ViralPredictor:
                             'ml_score': result.predicted_ratio, 
                             'hook_heuristic': hook_score
                         },
-                        tips=tips
+                        tips=tips,
+                        is_heuristic=False
                     )
             except Exception as e:
                 print(f"⚠️ Supervised prediction failed, falling back to heuristics: {e}")
@@ -127,30 +120,29 @@ class ViralPredictor:
         # 2. Analyze Topic Relevance
         topic_score = self._analyze_topic(topic, channel_history)
         
-        # 3. Analyze Hook Strength (heuristic)
+        # 3. Analyze Hook Strength
         hook_score = self._analyze_hook(hook_text)
         
         # Calculate viral probability
         raw_score = (
-            title_score * self.weights['title_power'] +
-            topic_score * self.weights['topic_relevance'] +
-            hook_score * self.weights['hook_strength'] +
-            0.5 * self.weights['timing'] +  # Placeholder
-            0.5 * self.weights['format_fit']  # Placeholder
+            title_score * 0.3 +
+            topic_score * 0.3 +
+            hook_score * 0.2 +
+            0.5 * 0.2  # Timing/Format placeholder
         )
         
         viral_prob = min(max(raw_score, 0), 0.95)
         
-        # Predict views (conservative estimate based on prob)
+        # Predict views
         if viral_prob > 0.8:
             base = max_views
-            multiplier = 0.8 + (viral_prob - 0.8) # 0.8 to 0.95
+            multiplier = 0.8 + (viral_prob - 0.8)
         elif viral_prob > 0.5:
             base = avg_views
-            multiplier = 1.0 + (viral_prob - 0.5) # 1.0 to 1.3
+            multiplier = 1.0 + (viral_prob - 0.5)
         else:
             base = median_views
-            multiplier = 0.5 + viral_prob # 0.5 to 0.8
+            multiplier = 0.5 + viral_prob
             
         predicted_views = int(base * multiplier)
         
@@ -166,13 +158,14 @@ class ViralPredictor:
         return ViralPrediction(
             predicted_views=predicted_views,
             viral_probability=round(viral_prob, 2),
-            confidence_score=0.75, # Static for heuristic model
+            confidence_score=0.4, # Low confidence for heuristic
             factors={
                 'title': round(title_score, 2),
                 'topic': round(topic_score, 2),
                 'hook': round(hook_score, 2)
             },
-            tips=tips
+            tips=tips,
+            is_heuristic=True
         )
         
     def _analyze_title(self, title: str, history: List[Dict]) -> float:
@@ -209,7 +202,52 @@ class ViralPredictor:
         return min(score, 1.0)
 
     def _analyze_topic(self, topic: str, history: List[Dict]) -> float:
-        return 0.7 # Placeholder
+        """
+        Analyze topic relevance based on channel history.
+        
+        Returns a score 0-1 based on how well similar topics performed historically.
+        - 0.5 = neutral (no history or topic not found)
+        - >0.5 = similar topics performed above channel average
+        - <0.5 = similar topics performed below channel average
+        """
+        if not history or not topic:
+            return 0.5  # Neutral when no data
+        
+        topic_lower = topic.lower()
+        topic_words = set(topic_lower.split())
+        
+        # Find videos with overlapping topic words
+        matching_videos = []
+        for vid in history:
+            title = vid.get('title', '').lower()
+            title_words = set(title.split())
+            # Check for word overlap
+            overlap = len(topic_words & title_words)
+            if overlap >= 1:  # At least one word matches
+                matching_videos.append(vid)
+        
+        if not matching_videos:
+            return 0.5  # Unknown topic
+        
+        # Calculate performance of matching videos vs channel average
+        channel_views = [v.get('view_count', 0) for v in history if v.get('view_count', 0) > 0]
+        matching_views = [v.get('view_count', 0) for v in matching_videos if v.get('view_count', 0) > 0]
+        
+        if not channel_views or not matching_views:
+            return 0.5
+        
+        channel_avg = sum(channel_views) / len(channel_views)
+        matching_avg = sum(matching_views) / len(matching_views)
+        
+        # Score: ratio of matching avg to channel avg, normalized to 0-1
+        # ratio of 1.0 = 0.5, ratio of 2.0 = 0.75, ratio of 0.5 = 0.25
+        if channel_avg > 0:
+            ratio = matching_avg / channel_avg
+            score = 0.25 + (min(ratio, 3.0) / 3.0) * 0.5  # Clamp to 0.25-0.75
+        else:
+            score = 0.5
+        
+        return round(min(1.0, max(0.0, score)), 2)
 
     def _analyze_hook(self, hook: str) -> float:
         score = 0.5

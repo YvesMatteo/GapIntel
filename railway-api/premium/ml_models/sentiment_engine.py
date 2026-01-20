@@ -13,6 +13,8 @@ except ImportError:
 
 import re
 from collections import Counter
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -30,20 +32,75 @@ class SentimentEngine:
     
     def __init__(self):
         self.pipeline = None
+        self.embedding_pipeline = None
+        self.prototypes = {}
+        self.prototype_embeddings = {}
+        
         if TRANSFORMERS_AVAILABLE:
             try:
-                # Load a lightweight, fast sentiment model
+                # 1. Sentiment Model (Fine-tuned SST-2)
                 self.pipeline = pipeline(
                     "sentiment-analysis", 
                     model="distilbert-base-uncased-finetuned-sst-2-english",
-                    device=-1 # CPU by default, change to 0 for GPU if available
+                    device=-1
                 )
                 logger.info("✅ DistilBERT Sentiment Model loaded successfully")
+                
+                # 2. Embedding Model for Categorization (Feature Extraction)
+                # Use base DistilBERT for better semantic representations
+                self.embedding_pipeline = pipeline(
+                    "feature-extraction", 
+                    model="distilbert-base-uncased",
+                    tokenizer="distilbert-base-uncased",
+                    device=-1
+                )
+                self._initialize_prototypes()
+                logger.info("✅ DistilBERT Embedding Model loaded for categorization")
+                
             except Exception as e:
-                logger.error(f"❌ Failed to load DistilBERT: {e}")
+                logger.error(f"❌ Failed to load Transformers models: {e}")
                 self.pipeline = None
+                self.embedding_pipeline = None
         else:
             logger.warning("⚠️ Transformers library not found. Falling back to pure heuristics.")
+
+    def _initialize_prototypes(self):
+        """Initialize and embed prototype sentences for zero-shot categorization."""
+        self.prototypes = {
+            'success': [
+                "I tried this method and it worked perfectly",
+                "I saw great results after implementing this",
+                "This strategy helped me grow my channel",
+                "Thanks for the tutorial, I did it"
+            ],
+            'confusion': [
+                "I am confused about this part",
+                "I don't understand how to do this",
+                "This is not working for me",
+                "I'm stuck and need help",
+                "Can you clarify this step?"
+            ],
+            'inquiry': [
+                "How do I do this?",
+                "Can you make a video about X?",
+                "What camera do you use?",
+                "Do you have any tips for beginners?",
+                "Question about the process"
+            ]
+        }
+        
+        # Pre-compute embeddings for prototypes
+        if self.embedding_pipeline:
+            for category, sentences in self.prototypes.items():
+                embeddings = []
+                for sent in sentences:
+                    emb = self._get_embedding(sent)
+                    if emb is not None:
+                        embeddings.append(emb)
+                
+                if embeddings:
+                    # Store mean embedding for the category
+                    self.prototype_embeddings[category] = np.mean(embeddings, axis=0)
 
     def analyze_batch(self, comments: List[Dict]) -> List[Dict]:
         """
@@ -90,10 +147,49 @@ class SentimentEngine:
             
         return enhanced_comments
 
+    def _get_embedding(self, text: str) -> np.ndarray:
+        """Get pooled embedding for text."""
+        try:
+            # Output is list of lists: [batch_size, seq_len, hidden_dim]
+            # Batch size is 1. We want mean over seq_len.
+            outputs = self.embedding_pipeline(text[:512])
+            token_embeddings = np.array(outputs[0]) # (seq_len, 768)
+            # Mean pooling
+            return np.mean(token_embeddings, axis=0)
+        except Exception:
+            return None
+
     def _classify_category(self, text: str, base_sentiment: str) -> str:
-        """Classify comment into GapIntel specific categories."""
+        """Classify comment using embeddings (scientific) or regex (fallback)."""
         text_lower = text.lower()
         
+        # 1. Scientific Classification (Embedding Similarity)
+        if self.embedding_pipeline and self.prototype_embeddings:
+            try:
+                # Get text embedding
+                text_emb = self._get_embedding(text)
+                if text_emb is not None:
+                    # Calculate similarity to each category prototype
+                    scores = {}
+                    for category, proto_emb in self.prototype_embeddings.items():
+                        # Cosine similarity
+                        sim = cosine_similarity([text_emb], [proto_emb])[0][0]
+                        scores[category] = sim
+                    
+                    # Get best match
+                    best_category = max(scores, key=scores.get)
+                    best_score = scores[best_category]
+                    
+                    # Threshold for valid classification (e.g. > 0.6 similarity)
+                    # Note: DistilBERT raw embeddings aren't always cosine-optimized like S-BERT
+                    # But often suffice for gross categorization.
+                    # We accept if significantly better than others or high absolute
+                    if best_score > 0.75: 
+                         return best_category
+            except Exception as e:
+                logger.debug(f"Embedding classification failed: {e}")
+        
+        # 2. Heuristic Fallback (Regex)
         # 1. Implementation Success (High Value)
         success_patterns = [
             r"i tried this", r"worked for me", r"saw results", r"just did this",

@@ -29,7 +29,7 @@ export function ChannelHealthSection({ health, channelName, topInsight }: Channe
     ];
 
     return (
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-[32px] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-[32px] p-6 md:p-12 text-white relative overflow-hidden shadow-2xl">
             {/* Background decorations */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-3xl rounded-full -ml-16 -mb-16 pointer-events-none" />
@@ -58,7 +58,7 @@ export function ChannelHealthSection({ health, channelName, topInsight }: Channe
                     {/* Component Breakdown */}
                     <div className="space-y-6">
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Score Breakdown</h3>
-                        <div className="grid grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                             {components.map((comp, i) => (
                                 <MiniGauge key={i} label={comp.label} score={comp.score} />
                             ))}

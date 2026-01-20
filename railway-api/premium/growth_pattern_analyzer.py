@@ -132,7 +132,6 @@ class GrowthPatternAnalyzer:
             series_performance_boost=round(series_boost, 1),
             growth_trajectory=trajectory,
             views_growth_rate=round(growth_rate, 1),
-            views_growth_rate=round(growth_rate, 1),
             optimal_upload_frequency=optimal_freq,
             consistency_impact=impact,
             recommendations=recommendations

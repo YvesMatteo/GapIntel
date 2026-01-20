@@ -36,6 +36,7 @@ from ingest_manager import process_video
 # Import premium analysis modules
 from premium.ml_models.ctr_predictor import CTRPredictor
 from premium.ml_models.views_predictor import ViewsVelocityPredictor
+from premium.ml_models.viral_predictor import ViralPredictor
 from premium.ml_models.content_clusterer import ContentClusteringEngine
 from premium.thumbnail_optimizer import ThumbnailOptimizer
 from premium.thumbnail_extractor import ThumbnailFeatureExtractor
@@ -48,6 +49,7 @@ from premium.visual_report_generator import VisualReportGenerator
 from premium.satisfaction_analyzer import SatisfactionAnalyzer
 from premium.growth_pattern_analyzer import GrowthPatternAnalyzer
 from premium.ml_models.sentiment_engine import SentimentEngine
+from premium.market_intelligence import MarketIntelligence
 
 # Language instructions for AI prompts
 LANGUAGE_INSTRUCTIONS = {
@@ -283,68 +285,8 @@ def filter_high_signal_comments(comments: list) -> list:
     return filtered
 
 
-def get_trend_data(keywords: list) -> dict:
-    """
-    Check Google Trends interest (0-100) for given key phrases.
-    Batches requests to prevent 429 errors and improve speed.
-    """
-    trend_results = {}
-    pytrends = TrendReq(hl='en-US', tz=360)
-    
-    print("\n📈 Checking Google Trends data...")
-    
-    # Filter valid keywords and remove duplicates
-    valid_keywords = []
-    seen = set()
-    for kw in keywords:
-        clean_kw = re.sub(r'[^\w\s]', '', kw).strip()
-        if clean_kw and clean_kw not in seen:
-            valid_keywords.append(clean_kw)
-            seen.add(clean_kw)
-    
-    # Batch into groups of 5
-    batch_size = 5
-    for i in range(0, len(valid_keywords), batch_size):
-        batch_kws = valid_keywords[i:i+batch_size]
-        try:
-            # Reduced wait time due to batching (0.5s is usually safe for small batches)
-            if i > 0:
-                time.sleep(0.5)
-            pytrends.build_payload(batch_kws, timeframe='today 3-m')
-            data = pytrends.interest_over_time()
-            
-            if not data.empty:
-                # Process each keyword in the batch
-                recent_data = data.tail(4)
-                for kw in batch_kws:
-                    if kw in recent_data:
-                        score = int(recent_data[kw].mean())
-                        # Determine trajectory
-                        slope = "STABLE"
-                        if len(recent_data) >= 2:
-                            start, end = recent_data[kw].iloc[0], recent_data[kw].iloc[-1]
-                            if end > start * 1.2: slope = "RISING"
-                            elif end < start * 0.8: slope = "FALLING"
-                        
-                        trend_results[kw] = {"score": score, "trajectory": slope}
-                        print(f"   • {kw}: {score} ({slope})")
-                    else:
-                        trend_results[kw] = {"score": 0, "trajectory": "UNKNOWN"}
-            else:
-                 for kw in batch_kws:
-                    trend_results[kw] = {"score": 0, "trajectory": "UNKNOWN"}
-        except Exception as e:
-            print(f"   ⚠️ Trend batch failed for {batch_kws}: {e}")
-            for kw in batch_kws:
-                trend_results[kw] = {"score": 0, "trajectory": "ERROR"}
+# get_trend_data removed - replaced by MarketIntelligence module
 
-    # Map back to original keywords
-    final_results = {}
-    for kw in keywords:
-        clean = re.sub(r'[^\w\s]', '', kw).strip()
-        final_results[kw] = trend_results.get(clean, {"score": 0, "trajectory": "UNKNOWN"})
-            
-    return final_results
 
 
 def fetch_competitor_videos(youtube, competitors: list) -> dict:
@@ -782,23 +724,44 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     print(f"   ✓ Saturated (already covered): {len(saturated)}")
     
     # =========================================================
-    # PHASE 3.5: GOOGLE TRENDS CHECK
+    # PHASE 3.5: GOOGLE TRENDS CHECK (ENHANCED)
     # =========================================================
     actionable_gaps = true_gaps + under_explained
     
     if actionable_gaps:
-        print(f"\n📈 PHASE 3.5: Checking Google Trends for {len(actionable_gaps)} opportunities...")
+        print(f"\n📈 PHASE 3.5: Checking Market Trends for {len(actionable_gaps)} opportunities...")
+        
+        # Initialize Market Intelligence
+        market_intel = MarketIntelligence()
         
         # Get keywords from gaps
-        trend_keywords = [g.get('topic_keyword', '')[:50] for g in actionable_gaps[:10]]  # Top 10 only
-        trends_data = get_trend_data(trend_keywords)
+        trend_keywords = [g.get('topic_keyword', '')[:50] for g in actionable_gaps[:12]]  # Check top 12
+        trends_data = market_intel.analyze_market_trends(trend_keywords)
         
         # Enrich gaps with trend data
         for gap in actionable_gaps:
-            kw = gap.get('topic_keyword', '')[:50]
+            kw = gap.get('topic_keyword', '')
+            # Find matching trend result (handle clean vs original)
+            # The market_intel module returns results keyed by original keyword if possible
             trend_info = trends_data.get(kw, {})
+            
+            if not trend_info:
+                # Fallback to fuzzy match
+                for t_kw, t_data in trends_data.items():
+                    if t_kw in kw or kw in t_kw:
+                        trend_info = t_data
+                        break
+            
+            # Enrich gap object
+
             gap['trend_score'] = trend_info.get('score', 0)
             gap['trend_trajectory'] = trend_info.get('trajectory', 'UNKNOWN')
+            
+            # Check for Opportunity Alert
+            alert = market_intel.check_opportunity_alert(gap, trend_info)
+            if alert:
+                gap['opportunity_alert'] = alert
+                print(f"      🚨 OPPORTUNITY ALERT: {alert['topic']} is {trend_info.get('trajectory')}!")
         
         print(f"   ✓ Trends data added for {len(trends_data)} topics")
     
@@ -899,6 +862,56 @@ OUTPUT JSON:
         final_result = {"opportunities": [], "top_opportunity": {}}
     
     # =========================================================
+    # PHASE 4.5: ML VALIDATION OF OPPORTUNITIES
+    # =========================================================
+    # Scientifically validate LLM titles with ML Viral Predictor
+    if final_result.get('opportunities'):
+        try:
+             print(f"   🤖 Validating opportunities with ML Viral Predictor...")
+             viral_predictor = ViralPredictor()
+             
+             # Extract history for baseline
+             history = [{'view_count': v.get('views', 0)} for v in processed_videos]
+             
+             for opp in final_result['opportunities']:
+                 titles = opp.get('viral_titles', [])
+                 if not titles and opp.get('best_title'):
+                     titles = [opp.get('best_title')]
+                 
+                 best_prob = 0
+                 best_forecast = 0
+                 
+                 for t in titles:
+                     # Predict
+                     p = viral_predictor.predict(
+                         title=t,
+                         hook_text=opp.get('hook_idea', ''), 
+                         topic=opp.get('topic_keyword', ''),
+                         channel_history=history
+                     )
+                     if p.viral_probability > best_prob:
+                         best_prob = p.viral_probability
+                         best_forecast = p.predicted_views
+                
+                 opp['ml_viral_probability'] = round(best_prob, 2)
+                 opp['ml_predicted_views'] = best_forecast
+                 
+                 # Add to influence scores
+                 if 'influence_scores' not in opp:
+                     opp['influence_scores'] = {}
+                 opp['influence_scores']['ml_confidence'] = int(best_prob * 100)
+                 
+                 # Update overall score (Blend 60% LLM / 40% ML)
+                 current_score = opp['influence_scores'].get('overall_score', 50)
+                 new_score = int((current_score * 0.6) + (best_prob * 100 * 0.4))
+                 opp['influence_scores']['overall_score'] = new_score
+                 
+             print(f"   ✓ Scored {len(final_result['opportunities'])} opportunities with ML models")
+             
+        except Exception as e:
+            print(f"   ⚠️ ML Validation failed: {e}")
+
+    # =========================================================
     # RETURN STRUCTURED DATA
     # =========================================================
     return {
@@ -918,7 +931,8 @@ OUTPUT JSON:
         'verified_gaps': verified_gaps,
         'opportunities': final_result.get('opportunities', []),
         'top_opportunity': final_result.get('top_opportunity', {}),
-        'competitors_analyzed': list(competitors_data.keys()) if competitors_data else []
+        'competitors_analyzed': list(competitors_data.keys()) if competitors_data else [],
+        'market_alerts': [g['opportunity_alert'] for g in actionable_gaps if g.get('opportunity_alert')]
     }
 
 
@@ -1132,47 +1146,24 @@ def run_premium_analysis(
                     except:
                         days_old = 30
                 
-                # Calculate actual velocity from historical data
-                views_per_day = view_count / days_old if days_old > 0 else 0
+                # Use ML Predictor for forecasting (Scientific Method)
+                # Initialize predictor (can be moved outside loop for optimization)
+                views_predictor = ViewsVelocityPredictor()
                 
-                # Project future views based on actual performance curve
-                # YouTube videos typically get 60% of lifetime views in first week
-                if days_old < 7:
-                    # Video is still young - project based on current velocity
-                    predicted_7d = int(views_per_day * 7)
-                    predicted_30d = int(predicted_7d + (views_per_day * 0.4 * 23))  # Decay factor
-                elif days_old < 30:
-                    # Video is in growth phase
-                    predicted_7d = view_count  # Already past 7 days
-                    remaining_days = 30 - days_old
-                    predicted_30d = int(view_count + (views_per_day * 0.3 * remaining_days))
-                else:
-                    # Video is mature - use actual counts
-                    predicted_7d = view_count
-                    predicted_30d = view_count
+                prediction = views_predictor.predict_from_current_state(
+                    current_views=view_count,
+                    days_since_upload=days_old,
+                    channel_avg_views=channel_avg_views
+                )
+                
+                predicted_7d = prediction.predicted_7d_views
+                predicted_30d = prediction.predicted_30d_views
+                viral_prob = prediction.viral_probability
+                trajectory = prediction.trajectory_type
                 
                 # Ensure minimum values for display
                 predicted_7d = max(predicted_7d, 100)
                 predicted_30d = max(predicted_30d, 100)
-                
-                # Calculate viral probability based on performance vs channel average
-                if channel_avg_views > 0 and view_count > 0:
-                    performance_ratio = view_count / channel_avg_views
-                    if performance_ratio > 2.0:
-                        viral_prob = min(0.9, 0.3 + (performance_ratio - 2) * 0.2)
-                        trajectory = 'viral'
-                    elif performance_ratio > 1.5:
-                        viral_prob = 0.2
-                        trajectory = 'steady_growth'
-                    elif performance_ratio > 1.0:
-                        viral_prob = 0.1
-                        trajectory = 'steady_growth'
-                    else:
-                        viral_prob = 0.05
-                        trajectory = 'slow_burn'
-                else:
-                    viral_prob = 0.05
-                    trajectory = 'slow_burn'
                 
                 # Compare to channel average
                 if view_count > channel_avg_views * 1.2:

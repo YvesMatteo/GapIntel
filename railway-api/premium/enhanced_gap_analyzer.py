@@ -14,6 +14,13 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import re
+try:
+    from premium.ml_models.viral_predictor import ViralPredictor
+    from premium.ml_models.ctr_predictor import CTRPredictor
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    print("⚠️ ML models not available in EnhancedGapAnalyzer")
 
 
 @dataclass
@@ -71,6 +78,17 @@ class EnhancedGapAnalyzer:
     def __init__(self, data_collector=None, content_clusterer=None):
         self.data_collector = data_collector
         self.content_clusterer = content_clusterer
+        
+        # Initialize ML predictors
+        self.viral_predictor = None
+        self.ctr_predictor = None
+        
+        if ML_AVAILABLE:
+            try:
+                self.viral_predictor = ViralPredictor()
+                self.ctr_predictor = CTRPredictor()
+            except Exception as e:
+                print(f"⚠️ Failed to init gap analyzer ML: {e}")
     
     def analyze_comprehensive_gaps(self,
                                     channel_videos: List[Dict],
@@ -119,7 +137,7 @@ class EnhancedGapAnalyzer:
         gap_sources['search_demand'] = self._generate_search_gaps(channel_videos)
         
         # Prioritize all opportunities
-        all_opportunities = self._prioritize_opportunities(gap_sources)
+        all_opportunities = self._prioritize_opportunities(gap_sources, channel_videos)
         
         # Categorize
         quick_wins = self._identify_quick_wins(all_opportunities)
@@ -283,26 +301,70 @@ class EnhancedGapAnalyzer:
         
         return gaps[:3]
     
-    def _prioritize_opportunities(self, gap_sources: Dict) -> List[GapOpportunity]:
-        """Combine and prioritize all gap opportunities."""
+    def _prioritize_opportunities(self, gap_sources: Dict, channel_videos: List[Dict] = None) -> List[GapOpportunity]:
+        """Combine and prioritize all gap opportunities using ML scoring."""
         all_gaps = []
+        
+        # Calculate channel stats for relative scoring
+        avg_views = 10000
+        if channel_videos:
+             avg_views = sum(v.get('view_count', 0) for v in channel_videos) / max(1, len(channel_videos))
         
         for source, gaps in gap_sources.items():
             for gap in gaps:
+                topic = gap.get('topic', 'Unknown')
+                
+                # Scientific: Predict performance if ML available
+                ml_score = 0.5
+                viral_prob = 0.0
+                pred_views = 0
+                
+                if self.viral_predictor and channel_videos:
+                    # Simulate a video for this topic to check potential
+                    # We assume a "how to" or "guide" format for the title to test topic strength
+                    test_title = f"{topic} Guide" if len(topic.split()) < 4 else topic
+                    
+                    try:
+                        pred = self.viral_predictor.predict(
+                            title=test_title, 
+                            hook_text="", # Neutral hook
+                            topic=topic,
+                            channel_history=channel_videos
+                        )
+                        pred_views = pred.predicted_views
+                        viral_prob = pred.viral_probability
+                        # ML Score: Ratio of predicted / average (normalized)
+                        ratio = pred_views / max(avg_views, 1)
+                        ml_score = min(0.95, max(0.1, ratio / 3.0)) # 3x avg = 1.0 score roughly
+                    except:
+                        pass
+                
+                # Base score from source (still kept as signal)
+                source_score = gap.get('score', 50)
+                
+                # Final Opportunity Score: Weighted blend
+                # 60% ML prediction (if available), 40% Source Signal (mentions, search vol, etc)
+                if self.viral_predictor:
+                    final_score = int((ml_score * 100 * 0.6) + (source_score * 0.4))
+                else:
+                    final_score = int(source_score)
+                
                 # Create opportunity object
                 opportunity = GapOpportunity(
-                    topic=gap.get('topic', 'Unknown'),
-                    opportunity_score=gap.get('score', 50),
+                    topic=topic,
+                    opportunity_score=final_score,
                     source=source,
                     demand_signals={
-                        'score': gap.get('score', 50),
+                        'source_score': source_score,
                         'mentions': gap.get('mentions', 0),
                         'competitor_coverage': gap.get('competitor_videos', 0),
                         'search_volume': gap.get('search_volume', 'unknown')
                     },
                     estimated_performance={
-                        'view_range': [10000, 50000],  # Placeholder
-                        'ctr_estimate': 5.5
+                        'predicted_views': pred_views if pred_views > 0 else None,
+                        'viral_probability': round(viral_prob, 2),
+                        'view_range': [int(pred_views * 0.8), int(pred_views * 1.5)] if pred_views > 0 else None,
+                        'ctr_estimate': None # Could use CTR predictor similarly if we had a thumbnail
                     },
                     execution_guidance={
                         'video_format': self._suggest_format(gap),

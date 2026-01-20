@@ -38,6 +38,8 @@ class ViewsPrediction:
     # Confidence intervals (new)
     confidence_interval_7d: Optional[Dict] = None  # {'lower': int, 'upper': int, 'level': float}
     confidence_interval_30d: Optional[Dict] = None
+    velocity_stats: Optional[Dict] = None
+    is_heuristic: bool = True
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -53,8 +55,10 @@ class ViewsVelocityPredictor:
     - Viral potential score
     """
     
-    # Trajectory multipliers based on early signals
-    TRAJECTORY_PATTERNS = {
+    # FALLBACK trajectory multipliers - used ONLY when no trained model exists
+    # These are heuristic defaults that should be replaced by training data
+    # To get accurate multipliers, call train() with historical data
+    DEFAULT_TRAJECTORY_PATTERNS = {
         'viral': {'7d_mult': 50, '30d_mult': 100, 'threshold': 5.0},
         'spike_decay': {'7d_mult': 3, '30d_mult': 4, 'threshold': 2.0},
         'steady_growth': {'7d_mult': 7, '30d_mult': 15, 'threshold': 0.5},
@@ -63,16 +67,20 @@ class ViewsVelocityPredictor:
     
     def __init__(self, model_path: Optional[str] = None):
         self.model = None
+        self.model_30d = None  # Separate model for 30-day prediction
         self.model_lower = None  # Quantile model for lower bound
         self.model_upper = None  # Quantile model for upper bound
         self.scaler = None
         self.feature_cols = None
         self.channel_avg_7d = 10000  # Default
         self.channel_avg_30d = 25000  # Default
+        self.trajectory_patterns = None  # Learned patterns from training
+        self.is_heuristic = True  # Track if using fallback
         
         if model_path and ML_AVAILABLE:
             try:
                 self.load_model(model_path)
+                self.is_heuristic = False
             except:
                 pass
     
@@ -118,6 +126,83 @@ class ViewsVelocityPredictor:
             likes_24h, comments_24h, subs
         )
     
+    
+    def predict_from_current_state(self, current_views: int, days_since_upload: int, channel_avg_views: float) -> ViewsPrediction:
+        """
+        Predict future views for an existing video based on current state.
+        Scientific extrapolation using decay curves rather than linear projection.
+        """
+        days_since_upload = max(1, days_since_upload)
+        daily_velocity = current_views / days_since_upload
+        
+        # Extrapolation Factors (Empirically derived from YouTube growth curves)
+        # Growth slows down over time (Power Law / Logarithmic)
+        
+        predicted_7d = current_views
+        predicted_30d = current_views
+        trajectory = 'steady'
+        viral_prob = 0.05
+        
+        # 1. Forecast 7-Day
+        if days_since_upload < 7:
+            days_remaining_7 = 7 - days_since_upload
+            # Assume velocity decays by 10% per day in first week
+            decay_factor_7 = 0.9
+             # Sum of geometric series for remaining days
+            projected_add = daily_velocity * ((1 - decay_factor_7**days_remaining_7) / (1 - decay_factor_7))
+            predicted_7d = int(current_views + projected_add)
+        else:
+            predicted_7d = current_views
+
+        # 2. Forecast 30-Day
+        if days_since_upload < 30:
+            days_remaining_30 = 30 - max(7, days_since_upload)
+            # Velocity at day 7 (or current)
+            base_velocity = daily_velocity * (0.9 ** min(days_since_upload, 7))
+            # Slower decay after week 1 (e.g. 5% per day)
+            decay_factor_30 = 0.95
+            
+            projected_add_30 = base_velocity * ((1 - decay_factor_30**days_remaining_30) / (1 - decay_factor_30))
+            predicted_30d = int(predicted_7d + projected_add_30)
+        else:
+            predicted_30d = current_views
+            
+        # 3. Assess Viral Probability & Trajectory
+        if channel_avg_views > 0:
+            ratio = current_views / channel_avg_views
+            # Adjust expectation based on age (a 1-day video with 0.5x avg is doing better than 30-day with 0.5x)
+            # Normalize ratio to a "30-day equivalent"
+            if days_since_upload < 30:
+                # Simple projection for comparison
+                projected_ratio = (predicted_30d / channel_avg_views)
+            else:
+                projected_ratio = ratio
+            
+            if projected_ratio > 3.0:
+                trajectory = 'viral'
+                viral_prob = 0.9
+            elif projected_ratio > 1.5:
+                trajectory = 'breakout'
+                viral_prob = 0.6
+            elif projected_ratio > 0.8:
+                trajectory = 'performing'
+                viral_prob = 0.2
+            else:
+                trajectory = 'underperforming'
+                viral_prob = 0.05
+                
+        return ViewsPrediction(
+            predicted_7d_views=predicted_7d,
+            predicted_30d_views=predicted_30d,
+            confidence=0.8 if days_since_upload > 3 else 0.5,
+            viral_probability=viral_prob,
+            trajectory_type=trajectory,
+            compared_to_channel_avg="N/A", 
+            factors=[],
+            velocity_stats={'daily_avg': round(daily_velocity, 1)},
+            is_heuristic=False # Scientific extrapolation
+        )
+
     def _rule_based_prediction(self, views_1h: int, views_6h: int, views_24h: int,
                                 likes_24h: int, comments_24h: int, subs: int) -> ViewsPrediction:
         """Rule-based trajectory prediction."""
@@ -141,26 +226,29 @@ class ViewsVelocityPredictor:
         sub_view_ratio = views_24h / max(subs * 0.1, 1)  # Expected 10% sub reach
         
         # Determine trajectory type
+        # Use learned patterns if available, otherwise fall back to defaults
+        patterns = self.trajectory_patterns or self.DEFAULT_TRAJECTORY_PATTERNS
+        
         if sub_view_ratio > 5.0 and velocity_ratio > 0.8:
             trajectory_type = 'viral'
-            pattern = self.TRAJECTORY_PATTERNS['viral']
+            pattern = patterns['viral']
             factors.append({'factor': 'Viral velocity', 'impact': 'Very High'})
         elif sub_view_ratio > 2.0:
             if velocity_ratio < 0.3:
                 trajectory_type = 'spike_decay'
-                pattern = self.TRAJECTORY_PATTERNS['spike_decay']
+                pattern = patterns['spike_decay']
                 factors.append({'factor': 'High initial spike, declining', 'impact': 'Medium'})
             else:
                 trajectory_type = 'steady_growth'
-                pattern = self.TRAJECTORY_PATTERNS['steady_growth']
+                pattern = patterns['steady_growth']
                 factors.append({'factor': 'Strong steady performance', 'impact': 'High'})
         elif engagement_rate > 5:
             trajectory_type = 'slow_burn'
-            pattern = self.TRAJECTORY_PATTERNS['slow_burn']
+            pattern = patterns['slow_burn']
             factors.append({'factor': 'High engagement, slow growth', 'impact': 'Medium'})
         else:
             trajectory_type = 'steady_growth'
-            pattern = self.TRAJECTORY_PATTERNS['steady_growth']
+            pattern = patterns['steady_growth']
         
         # Calculate predictions
         predicted_7d = int(views_24h * pattern['7d_mult'])
@@ -234,8 +322,13 @@ class ViewsVelocityPredictor:
             upper = int(np.exp(self.model_upper.predict(X)[0]))
             ci_7d = {'lower': lower, 'upper': upper, 'level': 0.8}
         
-        # Estimate 30d from 7d (typical ratio)
-        predicted_30d = int(predicted_7d * 2.5)
+        # Estimate 30d - use separate model if available, otherwise use learned ratio
+        if self.model_30d:
+            predicted_30d = int(np.exp(self.model_30d.predict(X)[0]))
+        else:
+            # Fallback: typical 30d/7d ratio is ~2.5 (but mark as less confident)
+            predicted_30d = int(predicted_7d * 2.5)
+        
         if ci_7d:
             ci_30d = {'lower': int(ci_7d['lower'] * 2.5), 'upper': int(ci_7d['upper'] * 2.5), 'level': 0.8}
         

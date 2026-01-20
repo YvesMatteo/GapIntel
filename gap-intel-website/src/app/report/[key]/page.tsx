@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle, Sparkles, Target, Zap, Users, Layers, FileText } from "lucide-react";
 import ReportActions from "@/components/ReportActions";
+import ReportHeader from "@/components/ReportHeader";
 import { ChannelHealthSection } from "@/components/report/ChannelHealthSection";
 import { EngagementSection } from "@/components/report/EngagementSection";
 import { ContentLandscapeSection } from "@/components/report/ContentLandscapeSection";
@@ -53,6 +54,7 @@ interface AnalysisResult {
         transcript_evidence: string;
         reasoning: string;
         title_suggestions: string[];
+        ml_viral_probability?: number;
     }>;
     already_covered?: Array<{
         topic: string;
@@ -280,7 +282,9 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             engagement: gap.engagement_score || 0,
             verification: gap.transcript_evidence || "",
             reasoning: gap.reasoning || "",
+            reasoning: gap.reasoning || "",
             suggestedTitles: gap.title_suggestions || [],
+            mlViralScore: gap.ml_viral_probability,
         })),
         alreadyCovered: result.already_covered || [],
         videosAnalyzedList: result.videos_analyzed?.map(v => ({
@@ -749,51 +753,34 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
     return (
         <div className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-blue-100 selection:text-blue-900">
             {/* Nav */}
-            <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 z-50">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-serif font-bold">G</div>
-                        <span className="font-serif text-xl font-medium tracking-tight">GAP Intel</span>
-                    </Link>
-                    <div className="flex items-center gap-3">
-                        <Link href={`/viral-predictor?key=${key}`}>
-                            <button className="h-10 px-5 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition font-medium text-sm flex items-center gap-2 shadow-lg shadow-purple-500/20">
-                                <Sparkles size={16} /> Predict Viral Video
-                            </button>
-                        </Link>
-                        <Link href="/dashboard">
-                            <button className="h-10 px-5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition font-medium text-sm">Dashboard</button>
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <ReportHeader accessKey={key} />
 
-            <main className="pt-32 pb-20 px-6">
+            <main className="pt-24 md:pt-32 pb-20 px-4 md:px-6">
                 <div className="max-w-7xl mx-auto space-y-8">
 
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="flex items-start gap-6">
+                        <div className="flex items-start gap-4 md:gap-6">
                             {/* Channel Profile Picture */}
                             {analysis.channel_thumbnail ? (
                                 <img
                                     src={analysis.channel_thumbnail}
                                     alt={analysis.channel_name}
-                                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0"
+                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0"
                                 />
                             ) : (
-                                <div className="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-2xl font-bold border-4 border-white shadow-lg flex-shrink-0">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-xl md:text-2xl font-bold border-4 border-white shadow-lg flex-shrink-0">
                                     {(analysis.channel_name || 'C')[0].toUpperCase()}
                                 </div>
                             )}
                             <div>
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 text-green-700 text-xs font-bold uppercase tracking-wider mb-2">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 text-green-700 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2">
                                     @{analysis.channel_name}
                                 </div>
-                                <h1 className="text-4xl md:text-5xl font-serif font-medium text-slate-900 mb-4">
+                                <h1 className="text-3xl md:text-5xl font-serif font-medium text-slate-900 mb-2 md:mb-4">
                                     Content Strategy Report
                                 </h1>
-                                <p className="text-lg text-slate-500 max-w-2xl">
+                                <p className="text-base md:text-lg text-slate-500 max-w-2xl">
                                     Detailed analysis of {report.videosAnalyzed} videos, audience sentiment, and missed opportunities.
                                 </p>
                             </div>
@@ -802,22 +789,22 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         {[
                             { label: "Comments Analyzed", value: report.pipeline.rawComments.toLocaleString(), icon: MessageCircle, color: "text-blue-600", bg: "bg-blue-50" },
                             { label: "Pain Points Found", value: report.pipeline.painPoints.toLocaleString(), icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-50" },
                             { label: "Content Gaps", value: report.pipeline.trueGaps, icon: Search, color: "text-green-600", bg: "bg-green-50" },
                             { label: "Videos Scanned", value: report.videosAnalyzed, icon: Play, color: "text-purple-600", bg: "bg-purple-50" },
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between h-32">
+                            <div key={i} className="bg-white rounded-2xl p-4 md:p-6 border border-slate-100 shadow-sm flex flex-col justify-between h-28 md:h-32">
                                 <div className="flex justify-between items-start">
-                                    <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
-                                        <stat.icon className="w-5 h-5" />
+                                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
+                                        <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                                    <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
+                                    <div className="text-xl md:text-2xl font-bold text-slate-900">{stat.value}</div>
+                                    <div className="text-xs md:text-sm text-slate-500 font-medium">{stat.label}</div>
                                 </div>
                             </div>
                         ))}
@@ -932,9 +919,17 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             {report.contentGaps.map((gap, i) => (
                                 <div key={i} className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-xl shadow-slate-200/50 hover:border-blue-200 transition-colors group h-full flex flex-col">
                                     <div className="flex justify-between items-start mb-6">
-                                        <span className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-900 border border-slate-200">
-                                            {gap.rank}
-                                        </span>
+                                        <div className="flex gap-2">
+                                            <span className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-900 border border-slate-200">
+                                                {gap.rank}
+                                            </span>
+                                            {(gap as any).mlViralScore && (
+                                                <span className="px-3 py-2 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3" />
+                                                    ML Score: {Math.round((gap as any).mlViralScore * 100)}%
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${gap.status === 'TRUE_GAP' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}`}>
                                             {gap.status.replace('_', ' ')}
                                         </span>

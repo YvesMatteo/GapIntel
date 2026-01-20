@@ -463,7 +463,7 @@ export default function Home() {
       <Navbar />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-6 overflow-hidden">
+      <section className="relative pt-24 pb-16 md:pt-32 lg:pt-48 md:pb-20 lg:pb-32 px-4 md:px-6 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 opacity-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-[radial-gradient(circle_at_center,_var(--color-brand-light)_0%,_transparent_70%)] blur-[100px] opacity-20" />
         </div>
@@ -584,37 +584,34 @@ export default function Home() {
           </FadeIn>
 
           <FadeIn delay={0.1}>
-            <h1 className="text-6xl md:text-8xl font-serif font-medium tracking-tight leading-[1] text-slate-900 mb-8">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif font-medium tracking-tight leading-[1.1] md:leading-[1] text-slate-900 mb-6 md:mb-8">
               <span className="block">Data-Driven</span>
               <span className="block text-slate-400 italic">Edge over Competitors</span>
             </h1>
           </FadeIn>
 
           <FadeIn delay={0.2}>
-            <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-12 leading-relaxed">
+            <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto mb-8 md:mb-12 leading-relaxed px-2">
               GAP Intel uses advanced AI to uncover content gaps, predict view velocity,
               and optimize thumbnails before you even hit record.
             </p>
           </FadeIn>
 
           <FadeIn delay={0.3}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href={user ? "/dashboard" : "/signup"}>
-                <button className="h-14 px-8 rounded-full bg-[#1c1c1e] text-white text-lg font-medium hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center gap-2 group">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+              <Link href={user ? "/dashboard" : "/signup"} className="w-full sm:w-auto">
+                <button className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-[#1c1c1e] text-white text-base sm:text-lg font-medium hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 group">
                   Start Analysis
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
-              <Link href="/report/GAP-zmNON1lat9cL">
-                <button className="h-14 px-8 rounded-full bg-white text-slate-900 border border-slate-200 text-lg font-medium hover:bg-slate-50 transition-colors">
+              <Link href="/report/GAP-zmNON1lat9cL" className="w-full sm:w-auto">
+                <button className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-white text-slate-900 border border-slate-200 text-base sm:text-lg font-medium hover:bg-slate-50 transition-colors">
                   View TJR Report
                 </button>
               </Link>
-              <Link href="/report/GAP-zmNON1lat9cL" target="_blank">
-                <span className="text-sm font-medium underline text-slate-500 hover:text-slate-800">See TJR Trades Analysis</span>
-              </Link>
             </div>
-            <p className="mt-4 text-sm text-slate-400">No credit card required for starter analysis</p>
+            <p className="mt-4 text-xs sm:text-sm text-slate-400">No credit card required for starter analysis</p>
           </FadeIn>
         </div>
 
@@ -735,11 +732,11 @@ export default function Home() {
       </section>
 
       {/* --- FEATURES GRID --- */}
-      <section className="py-32 px-6">
+      <section className="py-16 md:py-32 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
-          <FadeIn className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-serif font-medium text-slate-900 mb-6">
-              Four ways we accelerate <br /> your channel growth
+          <FadeIn className="text-center mb-12 md:mb-20">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-medium text-slate-900 mb-4 md:mb-6">
+              Four ways we accelerate <br className="hidden sm:block" /> your channel growth
             </h2>
           </FadeIn>
 
@@ -778,14 +775,14 @@ export default function Home() {
       </section>
 
       {/* --- STEPS SECTION --- */}
-      <section className="py-32 bg-white border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <FadeIn className="text-center mb-20">
-            <h2 className="text-4xl font-serif font-medium text-slate-900 mb-4">Analysis in 3 simple steps</h2>
-            <p className="text-slate-500">From idea to fully optimized video plan in seconds.</p>
+      <section className="py-16 md:py-32 bg-white border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <FadeIn className="text-center mb-12 md:mb-20">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-medium text-slate-900 mb-3 md:mb-4">Analysis in 3 simple steps</h2>
+            <p className="text-slate-500 text-sm md:text-base">From idea to fully optimized video plan in seconds.</p>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16 relative">
             {/* Connecting Line (Desktop) */}
             <div className="absolute top-10 left-[16%] right-[16%] h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent hidden md:block" />
 
