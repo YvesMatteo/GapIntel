@@ -21,6 +21,22 @@ import subprocess
 import asyncio
 import re
 
+# Monkeypatch for Python 3.9 compatibility (google-api-core requires packages_distributions)
+import importlib.metadata
+if not hasattr(importlib.metadata, 'packages_distributions'):
+    def packages_distributions():
+        from collections import defaultdict
+        res = defaultdict(list)
+        for dist in importlib.metadata.distributions():
+            try:
+                # This is a simplified version of what newer importlib.metadata does
+                for pkg in (dist.read_text('top_level.txt') or '').split():
+                    res[pkg].append(dist.metadata['Name'])
+            except Exception:
+                continue
+        return res
+    importlib.metadata.packages_distributions = packages_distributions
+
 from email_service import (
     send_report_complete_email, 
     send_analysis_started_email, 
@@ -521,11 +537,6 @@ def recover_stuck_jobs():
     """
     Check database for stuck jobs (processing for too long) and handle them.
     Called at startup to recover from crashes or sleep.
-    
-    Logic:
-    - Jobs processing for >30 minutes are considered stuck
-    - Stuck jobs get retry_count incremented and re-queued
-    - Jobs with retry_count >= 3 are marked as failed (prevent infinite loops)
     """
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("⚠️ Cannot recover stuck jobs: Supabase credentials missing")
@@ -553,78 +564,100 @@ def recover_stuck_jobs():
         
         processing_jobs = resp.json()
         if not processing_jobs:
-            print("✅ No stuck jobs found")
+            print("✅ No processing jobs found in DB")
             return
         
-        from datetime import datetime, timedelta
-        now = datetime.utcnow()
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
         stuck_threshold = timedelta(minutes=STUCK_THRESHOLD_MINUTES)
         
         stuck_count = 0
         requeued_count = 0
         failed_count = 0
         
+        print(f"🔍 Checking {len(processing_jobs)} processing jobs for staleness...")
+        
         for job in processing_jobs:
+            access_key = job.get('access_key', 'Unknown')
             # Check how long it's been processing
             updated_at = job.get('updated_at')
+            is_stuck = True
+            
             if updated_at:
                 try:
-                    job_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                    # Parse ISO format with Z or +00:00
+                    if updated_at.endswith('Z'):
+                        updated_at = updated_at.replace('Z', '+00:00')
+                    
+                    job_time = datetime.fromisoformat(updated_at)
+                    # Ensure job_time is aware
+                    if job_time.tzinfo is None:
+                        job_time = job_time.replace(tzinfo=timezone.utc)
+                    
                     time_stuck = now - job_time
+                    minutes_stuck = time_stuck.total_seconds() / 60
                     
                     if time_stuck < stuck_threshold:
-                        # Not stuck long enough, skip
-                        continue
-                except Exception:
-                    pass  # If time parsing fails, treat as stuck
+                        print(f"   • {access_key}: Still fresh ({minutes_stuck:.1f}m old)")
+                        is_stuck = False
+                    else:
+                        print(f"   • {access_key}: STUCK ({minutes_stuck:.1f}m old)")
+                except Exception as e:
+                    print(f"   • {access_key}: Failed to parse time '{updated_at}', assuming stuck. Error: {e}")
             
+            if not is_stuck:
+                continue
+                
             stuck_count += 1
-            access_key = job['access_key']
             retry_count = job.get('retry_count', 0) or 0
             
             if retry_count >= MAX_RETRIES:
                 # Too many retries - mark as permanently failed
-                print(f"   ❌ Marking as failed (max retries): {access_key}")
+                print(f"   ❌ Marking {access_key} as failed (max retries reached: {retry_count}/{MAX_RETRIES})")
                 update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
                 requests.patch(
                     update_url,
                     headers=headers,
                     json={
                         "status": "failed",
-                        "report_data": {"error": f"Analysis failed after {MAX_RETRIES} retry attempts"}
+                        "report_data": {"error": f"Analysis failed after {MAX_RETRIES} retry attempts (System stuck recovery)"}
                     }
                 )
                 failed_count += 1
             else:
                 # Re-queue with incremented retry count
-                print(f"   🔄 Re-queuing (retry #{retry_count + 1}): {access_key}")
+                print(f"   🔄 Re-queuing {access_key} (retry #{retry_count + 1})")
                 
-                # Update retry count
+                # Update retry count AND status back to pending/queued so it can be picked up
+                # Note: 'pending' in the UI maps to 'queued' or 'processing' but we use 'processing' for the worker
+                # but to re-trigger the queue we should set it back to something the queue picks up
                 update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
                 requests.patch(
                     update_url,
                     headers=headers,
-                    json={"status": "pending", "retry_count": retry_count + 1}
+                    json={"status": "processing", "retry_count": retry_count + 1, "updated_at": now.isoformat()}
                 )
                 
                 # Add to job queue
                 job_data = {
                     'channel_name': job.get('channel_handle') or job.get('channel_name'),
                     'access_key': access_key,
-                    'email': "recovered@gapintel.online",
-                    'video_count': 20,
-                    'tier': 'pro'
+                    'email': "recovered@gapintel.online", # Use a generic email for recovered jobs
+                    'video_count': 20, # Default for recovery
+                    'tier': 'pro' # Default for recovery
                 }
                 job_queue.enqueue(job_data)
                 requeued_count += 1
         
         if stuck_count > 0:
-            print(f"✅ Processed {stuck_count} stuck job(s): {requeued_count} re-queued, {failed_count} failed")
+            print(f"✅ Recovery finished: {stuck_count} stuck, {requeued_count} re-queued, {failed_count} failed")
         else:
-            print("✅ No stuck jobs found (all processing jobs are within time limit)")
+            print("✅ All processing jobs are within limits")
         
     except Exception as e:
         print(f"⚠️ Error recovering stuck jobs: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @asynccontextmanager

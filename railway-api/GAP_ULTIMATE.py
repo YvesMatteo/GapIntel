@@ -22,6 +22,22 @@ from pathlib import Path
 from pytrends.request import TrendReq
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Monkeypatch for Python 3.9 compatibility (google-api-core requires packages_distributions)
+import importlib.metadata
+if not hasattr(importlib.metadata, 'packages_distributions'):
+    def packages_distributions():
+        from collections import defaultdict
+        res = defaultdict(list)
+        for dist in importlib.metadata.distributions():
+            try:
+                # This is a simplified version of what newer importlib.metadata does
+                for pkg in (dist.read_text('top_level.txt') or '').split():
+                    res[pkg].append(dist.metadata['Name'])
+            except Exception:
+                continue
+        return res
+    importlib.metadata.packages_distributions = packages_distributions
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -62,6 +78,12 @@ LANGUAGE_INSTRUCTIONS = {
 
 # Standard Model Configuration
 DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+
+
+def print_progress(percentage: int, phase: str):
+    """Print structured progress log for server.py to parse."""
+    print(f"__PROGRESS__:{{'percentage': {percentage}, 'phase': '{phase}'}}", flush=True)
+
 
 
 def get_channel_id(youtube, handle: str) -> tuple[str, str]:
@@ -291,31 +313,43 @@ def filter_high_signal_comments(comments: list) -> list:
 
 def fetch_competitor_videos(youtube, competitors: list) -> dict:
     """
-    Fetch top recent video titles from competitor channels to analyze supply.
+    Fetch top recent video titles from competitor channels in parallel.
     """
-    comp_data = {}
-    print("\n⚔️ Analyzing Competitors...")
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     
-    for comp in competitors:
+    comp_data = {}
+    print("\n⚔️ Analyzing Competitors (Parallel Fetch)...")
+    print_progress(30, "Analyzing Competitors")
+
+    
+    def fetch_single(comp):
         try:
             cid, title = get_channel_id(youtube, comp)
-            print(f"   • Fetching: {title} ({comp})")
-            
             # get uploads playlist
             ch_resp = youtube.channels().list(id=cid, part='contentDetails').execute()
             uploads_id = ch_resp['items'][0]['contentDetails']['relatedPlaylists']['uploads']
             
-            # get last 15 videos
+            # get last 25 videos
             gov_resp = youtube.playlistItems().list(
                 playlistId=uploads_id, part='snippet', maxResults=25
             ).execute()
             
             titles = [item['snippet']['title'] for item in gov_resp['items']]
-            comp_data[title] = titles
-            
+            return title, titles, None
         except Exception as e:
-            print(f"   ⚠️ Failed to analyze competitor {comp}: {e}")
-            
+            return None, None, str(e)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(fetch_single, comp): comp for comp in competitors}
+        for future in as_completed(futures):
+            comp = futures[future]
+            title, titles, error = future.result()
+            if title:
+                comp_data[title] = titles
+                print(f"   • ✓ {title} ({comp})")
+            else:
+                print(f"   • ⚠️ Failed: {comp} - {error}")
+                
     return comp_data
 
 
@@ -343,6 +377,16 @@ def call_ai_model(client, prompt: str, model_type: str = "openai", gemini_model_
                                          generation_config={"response_mime_type": "application/json"})
             response = model.generate_content(prompt)
             return json.loads(response.text)
+            
+        elif model_type == "groq":
+            # client is the groq.Groq() instance
+            response = client.chat.completions.create(
+                model="llama3-70b-8192", 
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                temperature=0.3
+            )
+            return json.loads(response.choices[0].message.content)
             
         elif model_type == "local":
             # Ollama local inference
@@ -672,6 +716,8 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     # PHASE 2: PAIN POINT EXTRACTION (AI)
     # =========================================================
     print(f"\n🔍 PHASE 2: Extracting Pain Points...")
+    print_progress(45, "Analyzing Comments")
+
     
     # Dynamic batch size
     batch_size = 500 if model_type == "gemini" else 100
@@ -711,6 +757,8 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     # PHASE 3: GAP VERIFICATION (The Sellable Feature)
     # =========================================================
     print(f"\n🔎 PHASE 3: Verifying Gaps Against Creator's Content...")
+    print_progress(65, "Finding Gaps")
+
     verified = verify_gaps_against_content(ai_client, pain_points, transcripts_summary, model_type, gemini_model, language)
     verified_gaps = verified.get('verified_gaps', [])
     
@@ -770,6 +818,7 @@ def analyze_with_ai(ai_client, videos_data: list[dict], channel_name: str, compe
     # =========================================================
     if actionable_gaps:
         print(f"\n✍️ PHASE 4: Generating Titles for {len(actionable_gaps)} Verified Gaps...")
+        print_progress(75, "Generating Titles")
         
         gap_text = json.dumps(actionable_gaps, indent=2)
         
@@ -944,7 +993,8 @@ def run_premium_analysis(
     tier: str = "starter",
     ai_client=None,
     model_type: str = "gemini",
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.0-flash",
+    results: dict = None
 ) -> dict:
     """
     Run premium analysis modules based on subscription tier.
@@ -954,7 +1004,7 @@ def run_premium_analysis(
     - pro: All starter + Views Forecasting, Content Clustering, Publish Time, 10 competitors
     - enterprise: All pro + 100 competitors, advanced everything
     """
-    print(f"\n🌟 Running Premium Analysis (Tier: {tier.upper()})...")
+    print(f"\n🌟 Running Premium Analysis (Tier: {tier.upper()} | Optimized Parallel)...")
     
     premium_data = {
         'tier': tier,
@@ -967,624 +1017,292 @@ def run_premium_analysis(
         'hook_analysis': None,
         'color_insights': None,
         'visual_charts': None,
-        'satisfaction_signals': None,  # Skill 4
-        'growth_patterns': None,        # Skill 6
+        'satisfaction_signals': None,
+        'growth_patterns': None,
     }
     
-    # Tier limits - Enhanced with video counts
+    # Tier limits
     TIER_LIMITS = {
-    'starter': {
-        'video_count': 3,            # Reduced to 3
-        'hook_video_count': 3,       # Analyze all 3
-        'competitors': 1, 
-        'advanced_thumbnail': False, 
-        'views_forecast': False, 
-        'clustering': False, 
-        'publish_time': True,  # Enabled for starter per user request
-        'ml_predictor': False,
-    },
-    'pro': {
-        'video_count': 10,           # Reduced to 10
-        'hook_video_count': 5,       # Half
-        'competitors': 5, 
-        'advanced_thumbnail': True, 
-        'views_forecast': True, 
-        'clustering': True, 
-        'publish_time': True,
-        'ml_predictor': True,
-    },
-    'enterprise': {
-        'video_count': 50,           # Stays 50
-        'hook_video_count': 25,      # Half
-        'competitors': 100, 
-        'advanced_thumbnail': True, 
-        'views_forecast': True, 
-        'clustering': True, 
-        'publish_time': True,
-        'ml_predictor': True,
+        'starter': {
+            'video_count': 3,
+            'hook_video_count': 3,
+            'competitors': 1, 
+            'advanced_thumbnail': False, 
+            'views_forecast': False, 
+            'clustering': False, 
+            'publish_time': True,
+            'ml_predictor': False,
+        },
+        'pro': {
+            'video_count': 10,
+            'hook_video_count': 5,
+            'competitors': 5, 
+            'advanced_thumbnail': True, 
+            'views_forecast': True, 
+            'clustering': True, 
+            'publish_time': True,
+            'ml_predictor': True,
+        },
+        'enterprise': {
+            'video_count': 50,
+            'hook_video_count': 25,
+            'competitors': 100, 
+            'advanced_thumbnail': True, 
+            'views_forecast': True, 
+            'clustering': True, 
+            'publish_time': True,
+            'ml_predictor': True,
+        }
     }
-}
     limits = TIER_LIMITS.get(tier, TIER_LIMITS['starter'])
     
-    # Robustness: Disable features if not enough data
+    # Robustness checks
     if len(videos_data) < 2:
-        if limits.get('views_forecast'):
-            print("   ⚠️ Not enough videos for views forecasting (need 2+). Skipping.")
-            limits['views_forecast'] = False
-        if limits.get('clustering'):
-            print("   ⚠️ Not enough videos for clustering (need 2+). Skipping.")
-            limits['clustering'] = False
-    
-    # =========================================================
-    # 1. CTR PREDICTION (All Tiers)
-    # =========================================================
-    try:
-        print("   📊 Running CTR Prediction...")
-        ctr_predictor = CTRPredictor()
-        thumbnail_extractor = ThumbnailFeatureExtractor(use_ocr=False, use_face_detection=True)
-        
-        # Analyze thumbnails from recent videos
-        ctr_results = []
-        
-        def process_ctr(video):
-            video_info = video.get('video_info', {})
-            thumbnail_url = video_info.get('thumbnail_url') or f"https://img.youtube.com/vi/{video_info.get('video_id', '')}/maxresdefault.jpg"
-            
-            try:
-                features = thumbnail_extractor.extract_from_url(thumbnail_url)
-                prediction = ctr_predictor.predict(features.to_dict(), video_info.get('title', ''))
-                return {
-                    'video_title': video_info.get('title', ''),
-                    'predicted_ctr': prediction.predicted_ctr,
-                    'confidence': prediction.confidence,
-                    'positive_factors': prediction.top_positive_factors[:3],
-                    'negative_factors': prediction.top_negative_factors[:3],
-                    'suggestions': prediction.improvement_suggestions[:3]
-                }
-            except Exception as e:
-                print(f"      ⚠️ CTR analysis failed for video: {e}")
-                return None
+        if limits.get('views_forecast'): limits['views_forecast'] = False
+        if limits.get('clustering'): limits['clustering'] = False
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(process_ctr, v) for v in videos_data[:5]]
-            for future in as_completed(futures):
-                res = future.result()
-                if res:
-                    ctr_results.append(res)
-        
-        if ctr_results:
-            avg_ctr = sum(r['predicted_ctr'] for r in ctr_results) / len(ctr_results)
-            premium_data['ctr_prediction'] = {
-                'channel_avg_predicted_ctr': round(avg_ctr, 2),
-                'video_predictions': ctr_results,
-                'top_improvement': ctr_results[0]['suggestions'][0] if ctr_results and ctr_results[0].get('suggestions') else None
-            }
-            print(f"      ✓ Avg Predicted CTR: {avg_ctr:.1f}%")
-    except Exception as e:
-        print(f"   ⚠️ CTR Prediction failed: {e}")
-    
-    # =========================================================
-    # 2. THUMBNAIL OPTIMIZER (All Tiers - Using Gemini AI)
-    # =========================================================
-    try:
-        print("   🎨 Running Thumbnail Optimizer (Gemini AI)...")
-        from premium.thumbnail_analyzer_ai import analyze_thumbnails_batch
-        
-        # Analyze thumbnails using Gemini Vision
-        thumbnail_analyses = analyze_thumbnails_batch(
-            videos=videos_data,
-            ai_client=ai_client,
-            model=gemini_model,  # gemini-2.0-flash
-            max_videos=3  # Analyze top 3 thumbnails
-        )
-        
-        # Add advanced features for Pro+ tiers
-        if limits['advanced_thumbnail']:
-            for analysis in thumbnail_analyses:
-                # A/B test suggestions based on detected issues
-                ab_suggestions = []
-                for issue in analysis.get('issues', []):
-                    if 'face' in issue.get('issue', '').lower():
-                        ab_suggestions.append({
-                            'variant': 'Add Larger Face',
-                            'description': 'Use a close-up face with expressive emotion',
-                            'expected_lift': '+20-35%'
-                        })
-                    elif 'text' in issue.get('issue', '').lower():
-                        ab_suggestions.append({
-                            'variant': 'Add Text Overlay',
-                            'description': 'Add 2-3 bold words with key hook',
-                            'expected_lift': '+10-20%'
-                        })
-                analysis['ab_test_suggestions'] = ab_suggestions[:3]
-        
-        premium_data['thumbnail_analysis'] = {
-            'mode': 'advanced' if limits['advanced_thumbnail'] else 'basic',
-            'videos_analyzed': thumbnail_analyses
-        }
-        print(f"      ✓ Analyzed {len(thumbnail_analyses)} thumbnails with Gemini AI")
-    except Exception as e:
-        print(f"   ⚠️ Thumbnail Optimizer failed: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    # =========================================================
-    # 3. VIEWS FORECASTING (Pro+ Only)
-    # =========================================================
-    if limits['views_forecast']:
+    # --- Task Definitions for Parallel Execution ---
+
+    def task_ctr():
         try:
-            print("   📈 Running Views Forecasting...")
-            from datetime import datetime, timedelta
+            print("   📊 [Parallel] Running CTR Prediction...")
+            ctr_predictor = CTRPredictor()
+            thumbnail_extractor = ThumbnailFeatureExtractor(use_ocr=False, use_face_detection=True)
+            ctr_results = []
             
+            def process_ctr(video):
+                v_info = video.get('video_info', {})
+                v_id = v_info.get('video_id', '')
+                url = v_info.get('thumbnail_url') or f"https://img.youtube.com/vi/{v_id}/maxresdefault.jpg"
+                try:
+                    feat = thumbnail_extractor.extract_from_url(url)
+                    pred = ctr_predictor.predict(feat.to_dict(), v_info.get('title', ''))
+                    return {
+                        'video_title': v_info.get('title', ''),
+                        'predicted_ctr': pred.predicted_ctr,
+                        'confidence': pred.confidence,
+                        'positive_factors': pred.top_positive_factors[:3],
+                        'negative_factors': pred.top_negative_factors[:3],
+                        'suggestions': pred.improvement_suggestions[:3]
+                    }
+                except: return None
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = [executor.submit(process_ctr, v) for v in videos_data[:5]]
+                for f in as_completed(futures):
+                    res = f.result()
+                    if res: ctr_results.append(res)
+            
+            if ctr_results:
+                avg = sum(r['predicted_ctr'] for r in ctr_results) / len(ctr_results)
+                return 'ctr_prediction', {
+                    'channel_avg_predicted_ctr': round(avg, 2),
+                    'video_predictions': ctr_results,
+                    'top_improvement': ctr_results[0]['suggestions'][0] if ctr_results[0].get('suggestions') else None
+                }
+        except Exception as e: print(f"   ⚠️ CTR Task failed: {e}")
+        return 'ctr_prediction', None
+
+    def task_thumbnail():
+        try:
+            print("   🎨 [Parallel] Running Thumbnail AI...")
+            from premium.thumbnail_analyzer_ai import analyze_thumbnails_batch
+            analyses = analyze_thumbnails_batch(videos=videos_data, ai_client=ai_client, model=gemini_model, max_videos=3)
+            if limits['advanced_thumbnail']:
+                for analysis in analyses:
+                    ab = []
+                    for issue in analysis.get('issues', []):
+                        txt = issue.get('issue', '').lower()
+                        if 'face' in txt: ab.append({'variant': 'Add Larger Face', 'description': 'Use close-up expressive face', 'expected_lift': '+25%'})
+                        elif 'text' in txt: ab.append({'variant': 'Add Text Overlay', 'description': 'Add 2-3 bold hook words', 'expected_lift': '+15%'})
+                    analysis['ab_test_suggestions'] = ab[:3]
+            return 'thumbnail_analysis', {'mode': 'advanced' if limits['advanced_thumbnail'] else 'basic', 'videos_analyzed': analyses}
+        except Exception as e: print(f"   ⚠️ Thumbnail Task failed: {e}")
+        return 'thumbnail_analysis', None
+
+    def task_views():
+        if not limits['views_forecast']: return 'views_forecast', None
+        try:
+            print("   📈 [Parallel] Running Views Forecasting...")
+            from datetime import datetime
             forecasts = []
-            all_views = []  # Collect all view counts for channel average
-            
-            for v in videos_data[:10]:  # Analyze up to 10 videos for better average
-                video_info = v.get('video_info', {})
-                view_count = video_info.get('view_count') or 0
-                if view_count > 0:
-                    all_views.append(view_count)
-            
-            channel_avg_views = sum(all_views) / len(all_views) if all_views else 10000
-            
-            for v in videos_data[:3]:  # Display top 3
-                video_info = v.get('video_info', {})
-                view_count = video_info.get('view_count') or 0
-                like_count = video_info.get('like_count') or 0
-                upload_date = video_info.get('upload_date', '')
-                
-                # Calculate days since upload
-                days_old = 30  # Default if no date
-                if upload_date:
+            all_v = [v.get('video_info', {}).get('view_count', 0) for v in videos_data if v.get('video_info', {}).get('view_count')]
+            avg_v = sum(all_v) / len(all_v) if all_v else 10000
+            for v in videos_data[:3]:
+                vi = v.get('video_info', {})
+                vc = vi.get('view_count') or 0
+                ud = vi.get('upload_date', '')
+                days = 30
+                if ud:
                     try:
-                        # yt_dlp returns date as YYYYMMDD string
-                        if len(upload_date) == 8:
-                            pub_date = datetime.strptime(upload_date, '%Y%m%d')
-                        else:
-                            pub_date = datetime.fromisoformat(upload_date.replace('Z', '+00:00'))
-                        days_old = max(1, (datetime.now() - pub_date.replace(tzinfo=None)).days)
-                    except:
-                        days_old = 30
-                
-                # Use ML Predictor for forecasting (Scientific Method)
-                # Initialize predictor (can be moved outside loop for optimization)
-                views_predictor = ViewsVelocityPredictor()
-                
-                prediction = views_predictor.predict_from_current_state(
-                    current_views=view_count,
-                    days_since_upload=days_old,
-                    channel_avg_views=channel_avg_views
-                )
-                
-                predicted_7d = prediction.predicted_7d_views
-                predicted_30d = prediction.predicted_30d_views
-                viral_prob = prediction.viral_probability
-                trajectory = prediction.trajectory_type
-                
-                # Ensure minimum values for display
-                predicted_7d = max(predicted_7d, 100)
-                predicted_30d = max(predicted_30d, 100)
-                
-                # Compare to channel average
-                if view_count > channel_avg_views * 1.2:
-                    vs_avg = f"+{int((view_count / channel_avg_views - 1) * 100)}% above average"
-                elif view_count < channel_avg_views * 0.8:
-                    vs_avg = f"{int((1 - view_count / channel_avg_views) * 100)}% below average"
-                else:
-                    vs_avg = "Within normal range"
-                
+                        p_date = datetime.strptime(ud, '%Y%m%d') if len(ud)==8 else datetime.fromisoformat(ud.replace('Z', '+00:00'))
+                        days = max(1, (datetime.now() - p_date.replace(tzinfo=None)).days)
+                    except: pass
+                predictor = ViewsVelocityPredictor()
+                pred = predictor.predict_from_current_state(current_views=vc, days_since_upload=days, channel_avg_views=avg_v)
+                vs = "Within normal range"
+                if vc > avg_v * 1.2: vs = f"+{int((vc/avg_v-1)*100)}% above average"
+                elif vc < avg_v * 0.8: vs = f"{int((1-vc/avg_v)*100)}% below average"
                 forecasts.append({
-                    'video_title': video_info.get('title', ''),
-                    'predicted_7d_views': predicted_7d,
-                    'predicted_30d_views': predicted_30d,
-                    'viral_probability': round(viral_prob * 100, 1),
-                    'trajectory_type': trajectory,
-                    'vs_channel_avg': vs_avg
+                    'video_title': vi.get('title', ''),
+                    'predicted_7d_views': max(pred.predicted_7d_views, 100),
+                    'predicted_30d_views': max(pred.predicted_30d_views, 100),
+                    'viral_probability': round(pred.viral_probability * 100, 1),
+                    'trajectory_type': pred.trajectory_type,
+                    'vs_channel_avg': vs
                 })
-            
-            premium_data['views_forecast'] = {
-                'forecasts': forecasts,
-                'avg_viral_probability': round(sum(f['viral_probability'] for f in forecasts) / len(forecasts), 1) if forecasts else 0
-            }
-            print(f"      ✓ Generated {len(forecasts)} forecasts")
-        except Exception as e:
-            print(f"   ⚠️ Views Forecasting failed: {e}")
-    
-    # =========================================================
-    # 4. COMPETITOR INTEL (All Tiers - Limited by Tier) + CACHING
-    # =========================================================
-    try:
-        print(f"   ⚔️ Running Competitor Analysis (max {limits['competitors']} channels)...")
-        
-        # Import cache
-        try:
-            from premium.db.competitor_cache import get_competitor_cache
-            cache = get_competitor_cache()
-        except Exception as e:
-            print(f"      ⚠️ Cache unavailable: {e}")
-            cache = None
-        
-        competitor_analyzer = CompetitorAnalyzer()
-        
-        # Discover competitors
-        discovered = competitor_analyzer.discover_competitors(
-            channel_id,
-            search_terms=[channel_name],
-            max_competitors=limits['competitors']
-        )
-        
-        competitor_insights = []
-        cache_hits = 0
-        
-        competitor_insights = []
-        cache_hits = 0
-        to_analyze = []
-        
-        # Check cache first (fast, synchronous)
-        for comp_id in discovered[:limits['competitors']]:
-            cached_data = cache.get(comp_id) if cache else None
-            if cached_data:
-                competitor_insights.append(cached_data)
-                cache_hits += 1
-            else:
-                to_analyze.append(comp_id)
-        
-        if to_analyze:
-             print(f"      Parallel analyzing {len(to_analyze)} competitors...")
-        
-        def process_competitor(comp_id):
-            try:
-                insight = competitor_analyzer.analyze_competitor(comp_id, video_limit=10)
-                insight_data = {
-                    'channel_name': insight.channel_name,
-                    'subscriber_count': insight.subscriber_count,
-                    'avg_views': int(insight.avg_views_per_video),
-                    'avg_engagement': round(insight.avg_engagement_rate, 2),
-                    'upload_frequency_days': round(insight.upload_frequency_days, 1),
-                    'top_formats': insight.top_formats[:3],
-                    'posting_days': insight.posting_day_pattern[:3]
-                }
-                if cache:
-                    cache.set(comp_id, insight_data)
-                return insight_data
-            except Exception as e:
-                print(f"      ⚠️ Competitor analysis failed for {comp_id}: {e}")
-                return None
+            return 'views_forecast', {'forecasts': forecasts, 'avg_viral_probability': round(sum(f['viral_probability'] for f in forecasts)/len(forecasts), 1) if forecasts else 0}
+        except Exception as e: print(f"   ⚠️ Views Task failed: {e}")
+        return 'views_forecast', None
 
-        # Execute parallel analysis for non-cached
-        if to_analyze:
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = [executor.submit(process_competitor, cid) for cid in to_analyze]
-                for future in as_completed(futures):
-                    res = future.result()
-                    if res:
-                        competitor_insights.append(res)
-        
-        premium_data['competitor_intel'] = {
-            'competitors_tracked': len(competitor_insights),
-            'max_allowed': limits['competitors'],
-            'competitors': competitor_insights,
-            'cache_hits': cache_hits
-        }
-        print(f"      ✓ Analyzed {len(competitor_insights)} competitors ({cache_hits} from cache)")
-    except Exception as e:
-        print(f"   ⚠️ Competitor Analysis failed: {e}")
-    
-    # =========================================================
-    # 5. CONTENT CLUSTERING (Pro+ Only)
-    # =========================================================
-    if limits['clustering']:
+    def task_competitor():
         try:
-            print("   🧩 Running Content Clustering...")
-            clusterer = ContentClusteringEngine(use_embeddings=False)  # Use keyword-based for speed
-            
-            # Prepare video data for clustering with proper null handling
-            cluster_videos = []
-            total_views = 0
-            video_count = 0
-            
+            print(f"   ⚔️ [Parallel] Running Competitor Analysis...")
+            try:
+                from premium.db.competitor_cache import get_competitor_cache
+                cache = get_competitor_cache()
+            except: cache = None
+            analyzer = CompetitorAnalyzer()
+            disc = analyzer.discover_competitors(channel_id, search_terms=[channel_name], max_competitors=limits['competitors'])
+            insights, hits, to_analyze = [], 0, []
+            for cid in disc[:limits['competitors']]:
+                cached = cache.get(cid) if cache else None
+                if cached: insights.append(cached); hits += 1
+                else: to_analyze.append(cid)
+            def proc(cid):
+                try:
+                    ins = analyzer.analyze_competitor(cid, video_limit=10)
+                    data = {'channel_name': ins.channel_name, 'subscriber_count': ins.subscriber_count, 'avg_views': int(ins.avg_views_per_video), 'avg_engagement': round(ins.avg_engagement_rate, 2), 'upload_frequency_days': round(ins.upload_frequency_days, 1), 'top_formats': ins.top_formats[:3], 'posting_days': ins.posting_day_pattern[:3]}
+                    if cache: cache.set(cid, data)
+                    return data
+                except: return None
+            if to_analyze:
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    futures = [executor.submit(proc, cid) for cid in to_analyze]
+                    for f in as_completed(futures):
+                        res = f.result()
+                        if res: insights.append(res)
+            return 'competitor_intel', {'competitors_tracked': len(insights), 'max_allowed': limits['competitors'], 'competitors': insights, 'cache_hits': hits}
+        except Exception as e: print(f"   ⚠️ Competitor Task failed: {e}")
+        return 'competitor_intel', None
+
+    def task_clustering():
+        if not limits['clustering']: return 'content_clusters', None
+        try:
+            print("   🧩 [Parallel] Running Content Clustering...")
+            clusterer = ContentClusteringEngine(use_embeddings=False)
+            cvideos, tv, cv = [], 0, 0
             for v in videos_data:
-                video_info = v.get('video_info', {})
-                view_count = video_info.get('view_count') or 0  # Handle None
-                comments_count = len(v.get('comments', []))
-                
-                # Calculate engagement rate properly
-                if view_count > 0:
-                    engagement_rate = (comments_count / view_count) * 100
-                    total_views += view_count
-                    video_count += 1
-                else:
-                    engagement_rate = 0
-                
-                cluster_videos.append({
-                    'title': video_info.get('title', ''),
-                    'view_count': view_count,
-                    'engagement_rate': round(engagement_rate, 2)
-                })
-            
-            # Pass channel average to help with performance scoring
-            channel_avg = total_views / video_count if video_count > 0 else 10000
-            
-            result = clusterer.cluster_channel_content(cluster_videos, n_clusters=min(5, max(2, len(cluster_videos) // 2)))
-            
-            # Post-process clusters to ensure meaningful scores
-            processed_clusters = []
-            for c in result.clusters:
-                cluster_dict = c.to_dict()
-                # Recalculate performance score relative to channel average
-                if channel_avg > 0 and cluster_dict['avg_views'] > 0:
-                    cluster_dict['performance_score'] = round(cluster_dict['avg_views'] / channel_avg, 2)
-                processed_clusters.append(cluster_dict)
-            
-            premium_data['content_clusters'] = {
-                'clusters': processed_clusters,
-                'best_performing': result.best_performing_cluster,
-                'underperforming': result.underperforming_clusters,
-                'gap_opportunities': result.gap_opportunities,
-                'recommendations': result.recommendations[:3],
-                'format_diversity': result.format_diversity
-            }
-            print(f"      ✓ Found {len(result.clusters)} content clusters")
-        except Exception as e:
-            print(f"   ⚠️ Content Clustering failed: {e}")
-    
-    # =========================================================
-    # 6. PUBLISH TIME OPTIMIZER (Pro+ Only)
-    # =========================================================
-    if limits['publish_time']:
+                vi = v.get('video_info', {})
+                v_views = vi.get('view_count') or 0
+                er = (len(v.get('comments', [])) / v_views * 100) if v_views > 0 else 0
+                if v_views > 0: tv += v_views; cv += 1
+                cvideos.append({'title': vi.get('title', ''), 'view_count': v_views, 'engagement_rate': round(er, 2)})
+            avg = tv / cv if cv > 0 else 10000
+            res = clusterer.cluster_channel_content(cvideos, n_clusters=min(5, max(2, len(cvideos)//2)))
+            processed = []
+            for c in res.clusters:
+                d = c.to_dict()
+                if avg > 0 and d['avg_views'] > 0: d['performance_score'] = round(d['avg_views'] / avg, 2)
+                processed.append(d)
+            return 'content_clusters', {'clusters': processed, 'best_performing': res.best_performing_cluster, 'underperforming': res.underperforming_clusters, 'gap_opportunities': res.gap_opportunities, 'recommendations': res.recommendations[:3], 'format_diversity': res.format_diversity}
+        except Exception as e: print(f"   ⚠️ Clustering Task failed: {e}")
+        return 'content_clusters', None
+
+    def task_publish():
+        if not limits['publish_time']: return 'publish_times', None
         try:
-            print("   ⏰ Running Publish Time Optimizer...")
-            publish_optimizer = PublishTimeOptimizer()
-            
-            # Prepare video data with publish times
-            publish_videos = []
-            for v in videos_data:
-                video_info = v.get('video_info', {})
-                publish_videos.append({
-                    'published_at': video_info.get('published_at', ''),
-                    'view_count': video_info.get('view_count') or 0  # Handle None
-                })
-            
-            result = publish_optimizer.analyze_optimal_times(
-                videos=publish_videos,
-                content_type="general"
-            )
-            
-            premium_data['publish_times'] = {
-                'best_days': result.best_days,
-                'best_hours_utc': result.best_hours_utc,
-                'recommendations': [
-                    {'day': r.day, 'hour': r.hour_utc, 'boost': r.expected_view_boost, 'reasoning': r.reasoning}
-                    for r in result.schedule_recommendations[:3]
-                ],
-                'avoid_times': [
-                    {'day': a.day, 'hour': a.hour_utc, 'reason': a.reason}
-                    for a in result.avoid_times[:3]
-                ],
-                'content_advice': result.content_specific
-            }
-            print(f"      ✓ Best days: {', '.join(result.best_days[:3])}")
-        except Exception as e:
-            print(f"   ⚠️ Publish Time Optimizer failed: {e}")
-    
-    # =========================================================
-    # 7. HOOK ANALYSIS (Pro+ Only) - First 60 seconds
-    # =========================================================
-    if tier in ['pro', 'enterprise']:
+            print("   ⏰ [Parallel] Running Publish Time Optimizer...")
+            opt = PublishTimeOptimizer()
+            p_v = [{'published_at': v.get('video_info', {}).get('published_at', ''), 'view_count': v.get('video_info', {}).get('view_count') or 0} for v in videos_data]
+            res = opt.analyze_optimal_times(videos=p_v, content_type="general")
+            return 'publish_times', {'best_days': res.best_days, 'best_hours_utc': res.best_hours_utc, 'recommendations': [{'day': r.day, 'hour': r.hour_utc, 'boost': r.expected_view_boost, 'reasoning': r.reasoning} for r in res.schedule_recommendations[:3]], 'avoid_times': [{'day': a.day, 'hour': a.hour_utc, 'reason': a.reason} for a in res.avoid_times[:3]], 'content_advice': res.content_specific}
+        except Exception as e: print(f"   ⚠️ Publish Task failed: {e}")
+        return 'publish_times', None
+
+    def task_hook():
+        if tier not in ['pro', 'enterprise']: return 'hook_analysis', None
         try:
-            print("   🎣 Running Hook Analysis (first 60s of videos)...")
-            hook_analyzer = HookAnalyzer(whisper_model='tiny')
-            
-            # Prepare video data for hook analysis (include transcript for fallback)
-            hook_videos = []
-            for v in videos_data[:10]:  # Analyze 10 videos for hooks (fast)
-                video_info = v.get('video_info', {})
-                hook_videos.append({
-                    'video_id': video_info.get('video_id', ''),
-                    'title': video_info.get('title', ''),
-                    'view_count': video_info.get('view_count') or 0,
-                    'transcript': v.get('transcript', '')[:1000],  # First 1000 chars for hook analysis fallback
-                })
-            
-            hook_results = hook_analyzer.analyze_videos(hook_videos, max_videos=10)
-            hook_insights = hook_analyzer.generate_insights(hook_results)
-            
-            premium_data['hook_analysis'] = {
-                'videos_analyzed': hook_insights.total_videos,
-                'avg_hook_score': hook_insights.avg_hook_score,
-                'best_patterns': hook_insights.best_patterns[:5],
-                'recommendations': hook_insights.recommended_hooks,
-                'top_hooks': hook_insights.top_performing_hooks[:3],
-                'pattern_performance': hook_insights.pattern_performance,
-            }
-            print(f"      ✓ Analyzed hooks for {hook_insights.total_videos} videos")
-        except Exception as e:
-            print(f"   ⚠️ Hook Analysis failed: {e}")
+            print("   🎣 [Parallel] Running Hook Analysis...")
+            analyzer = HookAnalyzer()
+            h_v = [{'video_id': v.get('video_info', {}).get('video_id', ''), 'title': v.get('video_info', {}).get('title', ''), 'view_count': v.get('video_info', {}).get('view_count') or 0, 'transcript': v.get('transcript', '')[:1000]} for v in videos_data[:10]]
+            res = analyzer.analyze_videos(h_v, max_videos=10)
+            ins = analyzer.generate_insights(res)
+            return 'hook_analysis', {'videos_analyzed': ins.total_videos, 'avg_hook_score': ins.avg_hook_score, 'best_patterns': ins.best_patterns[:5], 'recommendations': ins.recommended_hooks, 'top_hooks': ins.top_performing_hooks[:3], 'pattern_performance': ins.pattern_performance}
+        except Exception as e: print(f"   ⚠️ Hook Task failed: {e}")
+        return 'hook_analysis', None
+
+    def task_satisfaction():
+        try:
+            print("   😊 [Parallel] Analyzing Satisfaction Signals...")
+            analyzer = SatisfactionAnalyzer()
+            avg_e = sum([v.get('engagement_rate', 0) for v in videos_data if v.get('engagement_rate')]) / len(videos_data) if videos_data else 5.0
+            res = analyzer.analyze_satisfaction(videos_data, channel_engagement_rate=avg_e)
+            return 'satisfaction_signals', {'satisfaction_index': res.satisfaction_index, 'engagement_quality': res.engagement_quality_score, 'retention_proxy': res.retention_proxy_score, 'implementation_success': res.implementation_success_score, 'success_comments': res.success_comment_count, 'confusion_signals': res.confusion_signal_count, 'return_viewer_ratio': res.return_viewer_ratio, 'clarity_score': res.clarity_score, 'top_success': res.top_success_comments[:3], 'top_confusion': res.top_confusion_comments[:3], 'recommendations': res.recommendations}
+        except Exception as e: print(f"   ⚠️ Satisfaction Task failed: {e}")
+        return 'satisfaction_signals', None
+
+    def task_growth():
+        if not limits.get('views_forecast'): return 'growth_patterns', None
+        try:
+            print("   📈 [Parallel] Analyzing Growth Patterns...")
+            analyzer = GrowthPatternAnalyzer()
+            res = analyzer.analyze_growth_patterns(videos_data)
+            return 'growth_patterns', {'consistency_index': res.consistency_index, 'avg_days_between_uploads': res.avg_days_between_uploads, 'upload_variance': res.upload_variance, 'current_streak': res.upload_streak_current, 'series_detected': [s.to_dict() for s in res.series_detected], 'series_performance_boost': res.series_performance_boost, 'growth_trajectory': res.growth_trajectory, 'views_growth_rate': res.views_growth_rate, 'optimal_frequency': res.optimal_upload_frequency, 'recommendations': res.recommendations}
+        except Exception as e: print(f"   ⚠️ Growth Task failed: {e}")
+        return 'growth_patterns', None
+
+    # --- Execute Parallel Tasks ---
+    funcs = [task_ctr, task_thumbnail, task_views, task_competitor, task_clustering, task_publish, task_hook, task_satisfaction, task_growth]
+    with ThreadPoolExecutor(max_workers=10) as master:
+        mfutures = [master.submit(f) for f in funcs]
+        for f in as_completed(mfutures):
+            k, v = f.result()
+            if k: premium_data[k] = v
+
+    # --- Sequential Tasks ---
     
-    # =========================================================
-    # 8. COLOR ML ANALYSIS (Pro+ Only) - Thumbnail colors
-    # =========================================================
+    # 1. Color ML (depends on thumbnail analysis)
     if tier in ['pro', 'enterprise'] and premium_data.get('thumbnail_analysis'):
         try:
             print("   🎨 Running Color ML Analysis...")
             color_analyzer = ColorMLAnalyzer()
-            
-            # Build color profiles from existing thumbnail analysis
-            color_profiles = []
-            thumbnail_data = premium_data['thumbnail_analysis'].get('videos_analyzed', [])
-            
-            for i, thumb in enumerate(thumbnail_data):
-                video_info = videos_data[i].get('video_info', {}) if i < len(videos_data) else {}
-                # Extract color features from thumbnail data
-                features = {
-                    'dominant_color_1': thumb.get('score_breakdown', {}).get('dominant_color_1', (128, 128, 128)),
-                    'dominant_color_2': thumb.get('score_breakdown', {}).get('dominant_color_2', (100, 100, 100)),
-                    'dominant_color_3': thumb.get('score_breakdown', {}).get('dominant_color_3', (80, 80, 80)),
-                }
-                color_profiles.append({
-                    'video_data': {
-                        'video_id': video_info.get('video_id', ''),
-                        'title': thumb.get('video_title', ''),
-                        'view_count': video_info.get('view_count') or 0,
-                    },
-                    'thumbnail_features': features,
-                })
-            
-            # Note: analyze_thumbnails expects dicts with 'thumbnail_features' and 'video_data'
-            # Or ColorProfile objects. Let's see analyze_thumbnails implementation. 
-            # It seems I need to check color_ml_analyzer.py again to match its expected input.
-            # Assuming analyze_thumbnails handles the input format:
-            profiles = color_analyzer.analyze_thumbnails(color_profiles)
-            color_insights = color_analyzer.generate_insights(profiles)
-            
-            premium_data['color_insights'] = color_insights.to_dict()
-            print(f"      ✓ Color analysis complete - Best: {color_insights.best_color_temperatures[0]['temperature'] if color_insights.best_color_temperatures else 'N/A'}")
-        except Exception as e:
-            print(f"   ⚠️ Color ML Analysis failed: {e}")
+            profiles = []
+            thumbs = premium_data['thumbnail_analysis'].get('videos_analyzed', [])
+            for i, t in enumerate(thumbs):
+                vi = videos_data[i].get('video_info', {}) if i < len(videos_data) else {}
+                feat = {'dominant_color_1': t.get('score_breakdown', {}).get('dominant_color_1', (128, 128, 128)), 'dominant_color_2': t.get('score_breakdown', {}).get('dominant_color_2', (100, 100, 100)), 'dominant_color_3': t.get('score_breakdown', {}).get('dominant_color_3', (80, 80, 80))}
+                profiles.append({'video_data': {'video_id': vi.get('video_id', ''), 'title': t.get('video_title', ''), 'view_count': vi.get('view_count') or 0}, 'thumbnail_features': feat})
+            res_p = color_analyzer.analyze_thumbnails(profiles)
+            premium_data['color_insights'] = color_analyzer.generate_insights(res_p).to_dict()
+        except Exception as e: print(f"   ⚠️ Color ML failed: {e}")
     
-    # =========================================================
-    # 9. ML VIRAL PREDICTION (Enterprise/Pro only)
-    # =========================================================
-    if tier in ['pro', 'enterprise'] and premium_data.get('ml_predictor', True):
+    # 2. Viral Prediction (depends on results)
+    if limits['ml_predictor'] and results:
         try:
-            from premium.ml_models.viral_predictor import ViralPredictor
             print("   🔮 Running ML Viral Prediction...")
-            
             predictor = ViralPredictor()
-            
-            # Predict for top opportunity if available
-            top_opp = results.get('top_opportunity', {})
-            if top_opp and top_opp.get('title'):
-                title = top_opp.get('title')
-                hook = top_opp.get('hook', '')
-                topic = top_opp.get('topic', 'General')
-                
-                # Get channel history from videos_data
-                history = [v.get('video_info', {}) for v in videos_data]
-                
-                prediction = predictor.predict(title, hook, topic, history)
-                
-                premium_data['viral_prediction'] = {
-                    'predicted_views': prediction.predicted_views,
-                    'viral_probability': prediction.viral_probability,
-                    'confidence': prediction.confidence_score,
-                    'factors': prediction.factors,
-                    'tips': prediction.tips
-                }
-                print(f"      ✓ Predicted views: {prediction.predicted_views:,.0f} (Prob: {prediction.viral_probability:.0%})")
-                
-        except Exception as e:
-            print(f"   ⚠️ Viral Prediction failed: {e}")
-    
-    # =========================================================
-    # 9. VISUAL CHART GENERATION (All Tiers)
-    # =========================================================
+            top = results.get('top_opportunity', {})
+            if top and top.get('title'):
+                p = predictor.predict(top.get('title'), top.get('hook', ''), top.get('topic', 'General'), [v.get('video_info', {}) for v in videos_data])
+                premium_data['viral_prediction'] = {'predicted_views': p.predicted_views, 'viral_probability': p.viral_probability, 'confidence': p.confidence_score, 'factors': p.factors, 'tips': p.tips}
+        except Exception as e: print(f"   ⚠️ Viral Predictor failed: {e}")
+
+    # 3. Visual Charts
     try:
-        print("   📈 Generating Visual Charts...")
-        viz_gen = VisualReportGenerator()
+        print("   📊 Generating Visual Charts...")
+        viz = VisualReportGenerator()
         charts = {}
-        
-        # Hook pattern chart (if hook analysis exists)
         if premium_data.get('hook_analysis') and premium_data['hook_analysis'].get('best_patterns'):
-            hook_data = [
-                {'label': p['pattern'], 'value': p['avg_views']}
-                for p in premium_data['hook_analysis']['best_patterns'][:5]
-            ]
-            charts['hook_patterns'] = viz_gen.create_bar_chart(
-                hook_data, "Hook Pattern Performance"
-            ).to_dict()
-        
-        # Color temperature chart
-        if premium_data.get('color_insights') and premium_data['color_insights'].get('temperature_performance'):
-            temp_data = [
-                {'label': k.title(), 'value': v}
-                for k, v in premium_data['color_insights']['temperature_performance'].items()
-            ]
-            charts['color_temperature'] = viz_gen.create_bar_chart(
-                temp_data, "Color Temperature vs Views", color='#8b5cf6'
-            ).to_dict()
-        
-        # Top colors palette
+            charts['hook_patterns'] = viz.create_bar_chart([{'label': p['pattern'], 'value': p['avg_views']} for p in premium_data['hook_analysis']['best_patterns'][:5]], "Hook Performance").to_dict()
         if premium_data.get('color_insights') and premium_data['color_insights'].get('top_performing_colors'):
-            charts['top_colors'] = viz_gen.create_color_palette_chart(
-                premium_data['color_insights']['top_performing_colors'][:5],
-                "Top Performing Colors"
-            ).to_dict()
-        
-        # CTR gauge
+            charts['top_colors'] = viz.create_color_palette_chart(premium_data['color_insights']['top_performing_colors'][:5], "Top Colors").to_dict()
         if premium_data.get('ctr_prediction') and premium_data['ctr_prediction'].get('channel_avg_predicted_ctr'):
-            avg_ctr = premium_data['ctr_prediction']['channel_avg_predicted_ctr']
-            charts['ctr_gauge'] = viz_gen.create_score_gauge(
-                avg_ctr * 100, 15, f"Avg CTR: {avg_ctr:.1%}"
-            ).to_dict()
-        
+            avg = premium_data['ctr_prediction']['channel_avg_predicted_ctr']
+            charts['ctr_gauge'] = viz.create_score_gauge(avg * 100, 15, f"Avg CTR: {avg:.1%}").to_dict()
         premium_data['visual_charts'] = charts
-        print(f"      ✓ Generated {len(charts)} visual charts")
-    except Exception as e:
-        print(f"   ⚠️ Visual Chart Generation failed: {e}")
-    
-    # =========================================================
-    # 10. SATISFACTION SIGNALS - Skill 4 (All Tiers)
-    # =========================================================
-    try:
-        print("   😊 Analyzing Satisfaction Signals...")
-        satisfaction_analyzer = SatisfactionAnalyzer()
-        
-        # Get average engagement rate for benchmark
-        avg_engagement = 5.0  # Default
-        if videos_data:
-            engagement_rates = [v.get('engagement_rate', 0) for v in videos_data if v.get('engagement_rate')]
-            if engagement_rates:
-                avg_engagement = sum(engagement_rates) / len(engagement_rates)
-        
-        satisfaction_result = satisfaction_analyzer.analyze_satisfaction(
-            videos_data, 
-            channel_engagement_rate=avg_engagement
-        )
-        
-        premium_data['satisfaction_signals'] = {
-            'satisfaction_index': satisfaction_result.satisfaction_index,
-            'engagement_quality': satisfaction_result.engagement_quality_score,
-            'retention_proxy': satisfaction_result.retention_proxy_score,
-            'implementation_success': satisfaction_result.implementation_success_score,
-            'success_comments': satisfaction_result.success_comment_count,
-            'confusion_signals': satisfaction_result.confusion_signal_count,
-            'return_viewer_ratio': satisfaction_result.return_viewer_ratio,
-            'clarity_score': satisfaction_result.clarity_score,
-            'top_success': satisfaction_result.top_success_comments[:3],
-            'top_confusion': satisfaction_result.top_confusion_comments[:3],
-            'recommendations': satisfaction_result.recommendations
-        }
-        print(f"      ✓ Satisfaction Index: {satisfaction_result.satisfaction_index}")
-    except Exception as e:
-        print(f"   ⚠️ Satisfaction Analysis failed: {e}")
-    
-    # =========================================================
-    # 11. GROWTH PATTERNS - Skill 6 (Pro+ Tiers)
-    # =========================================================
-    if limits.get('views_forecast'):  # Reuse views_forecast tier check
-        try:
-            print("   📈 Analyzing Growth Patterns...")
-            growth_analyzer = GrowthPatternAnalyzer()
-            
-            growth_result = growth_analyzer.analyze_growth_patterns(videos_data)
-            
-            premium_data['growth_patterns'] = {
-                'consistency_index': growth_result.consistency_index,
-                'avg_days_between_uploads': growth_result.avg_days_between_uploads,
-                'upload_variance': growth_result.upload_variance,
-                'current_streak': growth_result.upload_streak_current,
-                'series_detected': [s.to_dict() for s in growth_result.series_detected],
-                'series_performance_boost': growth_result.series_performance_boost,
-                'growth_trajectory': growth_result.growth_trajectory,
-                'views_growth_rate': growth_result.views_growth_rate,
-                'optimal_frequency': growth_result.optimal_upload_frequency,
-                'recommendations': growth_result.recommendations
-            }
-            print(f"      ✓ Consistency: {growth_result.consistency_index}, Trajectory: {growth_result.growth_trajectory}")
-        except Exception as e:
-            print(f"   ⚠️ Growth Pattern Analysis failed: {e}")
-    
+    except Exception as e: print(f"   ⚠️ Charts failed: {e}")
+
     print("   ✅ Premium Analysis Complete!")
     return premium_data
 
@@ -1774,8 +1492,8 @@ Examples:
                         help='Whisper model size (default: tiny for speed)')
     parser.add_argument('--skip-shorts', action='store_true',
                         help='Skip YouTube Shorts (videos <= 60 seconds)')
-    parser.add_argument('--ai', choices=['openai', 'gemini', 'local'], default='gemini',
-                        help='AI backend: openai, gemini (default), or local (free/ollama).')
+    parser.add_argument('--ai', choices=['openai', 'gemini', 'groq', 'local'], default='gemini',
+                        help='AI backend: openai, gemini (default), groq, or local (free/ollama).')
     parser.add_argument('--gemini-model', default='gemini-2.0-flash',
                         help='Specific Gemini model to use (default: gemini-2.0-flash).')
     parser.add_argument('--competitors', nargs='+', help='List of competitor channel handles (e.g. @Rival1 @Rival2)')
@@ -1812,6 +1530,17 @@ Examples:
             sys.exit(1)
         genai.configure(api_key=gemini_api_key)
         ai_client = genai
+    elif args.ai == 'groq':
+        from groq import Groq
+        groq_api_key = os.getenv('GROQ_API_KEY')
+        if not groq_api_key:
+            print("❌ GROQ_API_KEY not found in .env. Falling back to Gemini.")
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_api_key)
+            ai_client = genai
+            args.ai = 'gemini'
+        else:
+            ai_client = Groq(api_key=groq_api_key)
     elif args.ai == 'local':
         # No client needed for requests, but we verify connection
         try:
@@ -1841,6 +1570,8 @@ Examples:
         print(f"\n📺 Looking up channel: {args.channel}")
         channel_id, channel_name = get_channel_id(youtube, args.channel)
         print(f"   ✓ Found: {channel_name}")
+        print_progress(10, "Initializing")
+
         
         # Step 2: Get uploads playlist
         uploads_playlist = get_uploads_playlist_id(youtube, channel_id)
@@ -1848,6 +1579,8 @@ Examples:
         # Step 3: Get latest N videos
         shorts_text = " (excluding Shorts)" if args.skip_shorts else ""
         print(f"\n📋 Fetching last {args.videos} videos{shorts_text}...")
+        print_progress(25, "Fetching Videos")
+
         videos = get_latest_videos(youtube, uploads_playlist, args.videos, skip_shorts=args.skip_shorts)
         for v in videos:
             duration_mins = v.get('duration_seconds', 0) // 60
@@ -1998,7 +1731,8 @@ Examples:
             tier=args.tier,
             ai_client=ai_client,
             model_type=args.ai,
-            gemini_model=args.gemini_model
+            gemini_model=args.gemini_model,
+            results=analysis
         )
         
         # Merge premium data into analysis
@@ -2055,6 +1789,8 @@ Examples:
 
         print(f"\n🎉 Analysis complete!")
         print(f"   Report: {report_path}")
+        print_progress(100, "Complete")
+
         
         # FINAL OUTPUT FOR PARENT PROCESS
         # Print the JSON to stdout so main.py can capture it
