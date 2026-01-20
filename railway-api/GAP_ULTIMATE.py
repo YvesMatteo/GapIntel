@@ -920,7 +920,7 @@ OUTPUT JSON:
              viral_predictor = ViralPredictor()
              
              # Extract history for baseline
-             history = [{'view_count': v.get('views', 0)} for v in processed_videos]
+             history = [{'view_count': v.get('video_info', {}).get('view_count', 0)} for v in videos_data]
              
              for opp in final_result['opportunities']:
                  titles = opp.get('viral_titles', [])
