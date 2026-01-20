@@ -44,8 +44,8 @@ MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "5"))
 ALLOWED_ORIGINS = [
     "https://gapintel.online",
     "https://www.gapintel.online",
-    "https://renewed-comfort-production.up.railway.app",
-    "http://localhost:3000",  # Local dev
+    # "https://renewed-comfort-production.up.railway.app",
+    # "http://localhost:3000",  # Uncomment for local dev
 ]
 
 
@@ -86,6 +86,7 @@ rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 class JobQueue:
     """Thread-safe job queue with concurrent job limiting."""
+    def __init__(self, max_concurrent: int = 5):
         self.max_concurrent = max_concurrent
         self.active_jobs = 0
         self.queue = deque()
@@ -367,6 +368,8 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
         update_analysis_status(access_key, "processing", progress=10, phase="Initializing")
         
         import sys
+        import re
+        
         cmd_list = [
             sys.executable, "GAP_ULTIMATE.py",
             channel_name,
@@ -391,72 +394,116 @@ def run_analysis(channel_name: str, access_key: str, email: str, video_count: in
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            cwd=os.path.dirname(os.path.abspath(__file__))
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            bufsize=1,  # Line buffered
+            universal_newlines=True
         )
         
-        try:
-            # Use communicate with timeout instead of iterating stdout
-            stdout_text, _ = process.communicate(timeout=JOB_TIMEOUT_SECONDS)
-            
-            # Print output for logging
-            for line in stdout_text.split('\n'):
-                if line.strip():
-                    print(f"   [ANALYSIS] {line.strip()}")
-            
-            output = stdout_text.split('\n')
-            
-        except subprocess.TimeoutExpired:
-            # Kill the process if it times out
-            process.kill()
-            process.wait()
-            error_msg = f"Analysis timed out after {JOB_TIMEOUT_SECONDS // 60} minutes"
-            print(f"⏰ {error_msg}")
-            update_analysis_status(access_key, "failed", {"error": error_msg})
-            send_analysis_failed_email(email, access_key, channel_name, error_msg)
-            handle_failure_logic(email, access_key, channel_name, error_msg)
-            return
+        start_time = time.time()
+        output_lines = []
+        full_stdout = ""
         
-        if process.returncode == 0:
+        # Stream output line by line
+        for line in iter(process.stdout.readline, ""):
+            if not line:
+                break
+                
+            # Check for timeout
+            if time.time() - start_time > JOB_TIMEOUT_SECONDS:
+                process.kill()
+                raise subprocess.TimeoutExpired(cmd_list, JOB_TIMEOUT_SECONDS)
+                
+            stripped_line = line.strip()
+            if stripped_line:
+                print(f"   [ANALYSIS] {stripped_line}")
+                output_lines.append(stripped_line)
+                full_stdout += line
+            
+            # Check for progress marker
+            if "__PROGRESS__:" in line:
+                try:
+                    # Extract JSON part
+                    json_str = line.split("__PROGRESS__:", 1)[1].strip()
+                    # Replace single quotes with double quotes for valid JSON
+                    json_str = json_str.replace("'", '"')
+                    progress_data = json.loads(json_str)
+                    
+                    p_pct = progress_data.get('percentage')
+                    p_phase = progress_data.get('phase')
+                    
+                    if p_pct is not None:
+                        update_analysis_status(access_key, "processing", progress=p_pct, phase=p_phase)
+                except Exception as e:
+                    print(f"⚠️ Failed to parse progress update: {e}")
+
+        # Wait for process to close
+        process.stdout.close()
+        return_code = process.wait()
+        
+        if return_code == 0:
             try:
                 json_candidate = ""
                 # Look for explicit JSON block first
                 try:
-                    full_output = stdout_text
-                    if "___JSON_START___" in full_output and "___JSON_END___" in full_output:
-                        json_str = full_output.split("___JSON_START___")[1].split("___JSON_END___")[0].strip()
+                    if "___JSON_START___" in full_stdout and "___JSON_END___" in full_stdout:
+                        json_str = full_stdout.split("___JSON_START___")[1].split("___JSON_END___")[0].strip()
                         analysis_result = json.loads(json_str)
                     else:
-                        # Fallback to old method
-                        for line in reversed(output):
+                        # Fallback to old method: find last valid JSON block
+                        # Iterate reversed to find the main output JSON
+                        for line in reversed(output_lines):
                             if line.strip().startswith("{") and line.strip().endswith("}"):
-                                json_candidate = line.strip()
-                                break
+                                # Check if it looks like the full report (has pipeline_stats)
+                                if "pipeline_stats" in line:
+                                    json_candidate = line.strip()
+                                    break
+                                # Or if no candidate yet, take any JSON
+                                if not json_candidate:
+                                    json_candidate = line.strip()
+                                    
                         if json_candidate:
                             analysis_result = json.loads(json_candidate)
                         else:
-                            raise ValueError("No JSON found")
+                            # Use regex to find largest JSON object if simple splitting failed
+                            matches = re.findall(r'(\{.*\})', full_stdout, re.DOTALL)
+                            if matches:
+                                analysis_result = json.loads(matches[-1])
+                            else:
+                                raise ValueError("No JSON found")
                 except Exception:
                     analysis_result = {
-                        "raw_report": stdout_text,
+                        "raw_report": full_stdout,
                         "generated_at": datetime.utcnow().isoformat()
                     }
             except Exception:
                 analysis_result = {
-                    "raw_report": stdout_text,
+                    "raw_report": full_stdout,
                     "generated_at": datetime.utcnow().isoformat()
                 }
             
-            update_analysis_status(access_key, "completed", analysis_result)
+            update_analysis_status(access_key, "completed", analysis_result, progress=100, phase="Complete")
             print(f"✅ Analysis complete for {channel_name}")
             send_report_complete_email(email, channel_name, access_key)
             
         else:
-            error_msg = f"Analysis failed (code: {process.returncode})"
-            last_lines = '\n'.join(output[-10:]) if output else "No output"
+            error_msg = f"Analysis failed (code: {return_code})"
+            last_lines = '\n'.join(output_lines[-10:]) if output_lines else "No output"
             print(f"❌ {error_msg}")
             update_analysis_status(access_key, "failed", {"error": error_msg, "last_output": last_lines})
             send_analysis_failed_email(email, channel_name, error_msg)
             handle_failure_logic(email, access_key, channel_name, error_msg)
+            
+    except subprocess.TimeoutExpired:
+        # Kill the process if it times out
+        if 'process' in locals():
+            process.kill()
+            process.wait()
+        error_msg = f"Analysis timed out after {JOB_TIMEOUT_SECONDS // 60} minutes"
+        print(f"⏰ {error_msg}")
+        update_analysis_status(access_key, "failed", {"error": error_msg})
+        send_analysis_failed_email(email, access_key, channel_name, error_msg)
+        handle_failure_logic(email, access_key, channel_name, error_msg)
+        return
                 
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
@@ -641,41 +688,10 @@ async def root():
         "version": "2.0.3"
     }
 
-# Worker Heartbeat (to detect frozen threads)
-last_worker_heartbeat = time.time()
-
-def worker():
-    """Background worker to process reports from the queue."""
-    global last_worker_heartbeat
-    print("👷 Worker started, waiting for jobs...")
-    
-    while True:
-        try:
-            # Update heartbeat
-            last_worker_heartbeat = time.time()
-            
-            # blocked waiting for job
-            job = job_queue.dequeue()
-            if job:
-                process_job(job)
-            else:
-                time.sleep(1) 
-                
-        except Exception as e:
-            print(f"⚠️ Worker error: {e}")
-            time.sleep(5)
-
 @app.get("/health")
 def health_check():
     """Health check endpoint for Railway."""
-    # Check if worker is alive (heartbeat within last 10 minutes)
-    time_since_heartbeat = time.time() - last_worker_heartbeat
-    
-    if time_since_heartbeat > 600:
-        print(f"❌ Worker stuck! Last heartbeat {int(time_since_heartbeat)}s ago.")
-        raise HTTPException(status_code=500, detail="Worker thread stuck")
-        
-    return {"status": "ok", "worker_heartbeat_age": int(time_since_heartbeat)}
+    return {"status": "ok", "service": "up"}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
