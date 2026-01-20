@@ -520,7 +520,7 @@ export default function DashboardPage() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: i * 0.05 }}
                                                 key={report.id}
-                                                className="p-4 md:p-6 hover:bg-slate-50/50 transition-colors"
+                                                className="p-4 md:p-6 hover:bg-slate-50/50 transition-colors group"
                                             >
                                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                                     {/* Report Info */}
@@ -566,8 +566,8 @@ export default function DashboardPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Actions - always visible on mobile, hover on desktop */}
-                                                    <div className="flex items-center gap-2 md:gap-3 md:opacity-0 md:group-hover:opacity-100 md:transition-opacity ml-auto md:ml-0">
+                                                    {/* Actions - always visible on mobile, subtle on desktop hover */}
+                                                    <div className="flex items-center gap-2 md:gap-3 ml-auto md:ml-0 opacity-100">
                                                         {/* Folder Menu */}
                                                         <div ref={showFolderMenu === report.id ? folderMenuRef : undefined} className="relative">
                                                             <button
