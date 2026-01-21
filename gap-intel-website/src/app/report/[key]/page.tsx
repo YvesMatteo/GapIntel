@@ -11,6 +11,7 @@ import { SeoSection } from "@/components/report/SeoSection";
 import { GrowthDriversSection } from "@/components/report/GrowthDriversSection";
 import { SatisfactionSection } from "@/components/report/SatisfactionSection";
 import { GrowthPatternsSection } from "@/components/report/GrowthPatternsSection";
+import { SafeThumbnail, SafeThumbnailLarge } from "@/components/SafeThumbnail";
 
 // Initialize Supabase client for server component
 // Safe Supabase client initialization for SSR
@@ -1064,13 +1065,11 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                 <div className="flex justify-between items-start mb-4 gap-4">
                                                     <div className="flex items-start gap-4 flex-1">
                                                         {/* Thumbnail Image */}
-                                                        <div className="relative w-32 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100">
-                                                            <img
-                                                                src={video.thumbnail_url || (video.video_id ? `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg` : undefined)}
-                                                                alt={video.video_title}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        </div>
+                                                        <SafeThumbnailLarge
+                                                            videoId={video.video_id}
+                                                            thumbnailUrl={video.thumbnail_url}
+                                                            alt={video.video_title}
+                                                        />
                                                         <div>
                                                             <h4 className="font-bold text-slate-900 line-clamp-2">{video.video_title}</h4>
                                                         </div>
@@ -1142,13 +1141,11 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                     <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
                                                         <div className="flex items-start justify-between gap-4">
                                                             <div className="flex items-start gap-4 flex-1 min-w-0">
-                                                                <div className="relative w-24 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100">
-                                                                    <img
-                                                                        src={forecast.thumbnail_url || (forecast.video_id ? `https://img.youtube.com/vi/${forecast.video_id}/mqdefault.jpg` : undefined)}
-                                                                        alt={forecast.video_title}
-                                                                        className="w-full h-full object-cover"
-                                                                    />
-                                                                </div>
+                                                                <SafeThumbnail
+                                                                    videoId={forecast.video_id}
+                                                                    thumbnailUrl={forecast.thumbnail_url}
+                                                                    alt={forecast.video_title}
+                                                                />
                                                                 <div className="min-w-0">
                                                                     <h4 className="font-medium text-slate-900 truncate mb-2">{forecast.video_title}</h4>
                                                                     <div className="flex items-center gap-3 flex-wrap">
