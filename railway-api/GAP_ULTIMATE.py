@@ -870,6 +870,7 @@ OUTPUT JSON:
     "top_opportunity": {{
         "topic_keyword": "best opportunity",
         "best_title": "Your Next Viral Video",
+        "thumbnail_concept": "Visual description (max 20 words) of the ideal thumbnail (e.g., 'Close up of shocked face, red arrow, high contrast')",
         "engagement_potential": 5000,
         "reason": "Why this is the #1 pick"
     }}
@@ -1324,9 +1325,13 @@ def run_premium_analysis(
             print("   ✨ Running Optimization Scoring (Heuristic)...")
             scorer = OptimizationScorer()
             top = results.get('top_opportunity', {})
-            # Score the best generated title
+            # Score the best generated title + virtual thumbnail concept
             if top and top.get('best_title'):
-                score_res = scorer.evaluate(top.get('best_title'), None)
+                score_res = scorer.evaluate(
+                    title=top.get('best_title'),
+                    thumbnail_description=top.get('thumbnail_concept'), # Fixes Blindness
+                    niche=niche # Fixes Niche Sensitivity
+                )
                 
                 premium_data['viral_prediction'] = {
                     'predicted_views': 'N/A',  # Pivoted away from view prediction

@@ -146,7 +146,7 @@ interface AnalysisResult {
                 avg_engagement: number;
                 performance_score: number;
                 common_elements: string[];
-                best_performer: Record<string, unknown>;
+                best_performer: Record<string, unknown> | null;
                 example_titles: string[];
                 saturation_score?: number;
                 saturation_label?: string;
@@ -292,11 +292,11 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             mlViralScore: gap.ml_viral_probability,
         })),
         alreadyCovered: result.already_covered || [],
-        videosAnalyzedList: result.videos_analyzed?.map(v => ({
+        videosAnalyzedList: result.videos_analyzed?.filter(v => v).map(v => ({
             title: v.title || 'Untitled Video',
-            comments: v.comments_count,
-            url: `https://youtube.com/watch?v=${v.video_id}`,
-            thumbnail: v.thumbnail_url || `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
+            comments: v.comments_count || 0,
+            url: v.video_id ? `https://youtube.com/watch?v=${v.video_id}` : '#',
+            thumbnail: v.thumbnail_url || (v.video_id ? `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg` : undefined),
         })) || [],
         competitors: result.competitors || [],
     };
@@ -317,7 +317,7 @@ const CVR_BENCHMARKS: Record<string, { low: number; high: number; top: number; l
 function detectContentCategory(videos: Array<{ title: string }>): string {
     if (!videos || videos.length === 0) return 'educational';
 
-    const titleText = videos.map(v => (v.title || '').toLowerCase()).join(' ');
+    const titleText = videos.filter(v => v && v.title).map(v => (v.title || '').toLowerCase()).join(' ');
 
     // Category detection patterns
     const patterns: Record<string, RegExp[]> = {
@@ -410,6 +410,7 @@ function calculateContentLandscape(result: AnalysisResult) {
     // Extract topics from video titles
     const topicCounts: Record<string, number> = {};
     videos.forEach(v => {
+        if (!v) return;
         // Simple topic extraction from title
         const title = v.title || '';
         const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
@@ -517,6 +518,7 @@ function calculateSeoMetrics(result: AnalysisResult) {
     const noHookTitles: string[] = [];
 
     videos.forEach(v => {
+        if (!v) return;
         const title = v.title || '';
         totalLength += title.length;
 
@@ -978,7 +980,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         <p className="text-slate-500 mt-2">AI-powered analysis of your recent thumbnails to predict click-through rate.</p>
                                     </div>
                                     <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-slate-100 max-h-[600px] overflow-y-auto">
-                                        {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.map((video, i) => (
+                                        {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.filter(v => v).map((video, i) => (
                                             <div key={i} className="p-8 hover:bg-slate-50/30 transition-colors">
                                                 <div className="flex justify-between items-start mb-4 gap-4">
                                                     <div className="flex items-start gap-4 flex-1">
@@ -1049,7 +1051,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                             <p className="text-slate-500 mt-2">How each of your recent videos is tracking against your channel average</p>
                                         </div>
                                         <div className="divide-y divide-slate-100">
-                                            {forecasts.map((forecast, i) => {
+                                            {forecasts.filter(f => f).map((forecast, i) => {
                                                 const prob = forecast.viral_probability || 0;
                                                 const trajectoryColors: Record<string, { bg: string; text: string; border: string }> = {
                                                     'viral': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
