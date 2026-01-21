@@ -13,10 +13,18 @@ import { SatisfactionSection } from "@/components/report/SatisfactionSection";
 import { GrowthPatternsSection } from "@/components/report/GrowthPatternsSection";
 
 // Initialize Supabase client for server component
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Safe Supabase client initialization for SSR
+const getSupabase = () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use SERVICE_ROLE_KEY for server-side operations
+    if (!url || !key) {
+        console.error("Supabase environment variables (URL or SERVICE_ROLE_KEY) are missing.");
+        return null;
+    }
+    return createClient(url, key);
+};
+
+const supabase = getSupabase();
 
 // Types for the analysis result
 interface GapItem {
@@ -237,6 +245,15 @@ interface AnalysisRow {
 }
 
 async function getAnalysis(accessKey: string): Promise<AnalysisRow | null> {
+    // If no supabase, we can't fetch anything safely
+    if (!supabase) {
+        console.error("Supabase client not initialized. Environment variables might be missing.");
+        // Depending on context, you might want to throw an error, redirect, or return null.
+        // For a server component, `notFound()` is a Next.js way to handle this.
+        // If `notFound` is not available or desired, return null.
+        return null;
+    }
+
     const { data, error } = await supabase
         .from("user_reports")
         .select("*")

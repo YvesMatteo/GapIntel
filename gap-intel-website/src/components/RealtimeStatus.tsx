@@ -4,11 +4,15 @@ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Loader2, CheckCircle, XCircle, Clock, Sparkles, Search, FileText, Eye } from "lucide-react";
 
-// Initialize Supabase client for realtime
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Safe Supabase client initialization for realtime
+const getRealtimeSupabase = () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return null;
+    return createClient(url, key);
+};
+
+const supabase = getRealtimeSupabase();
 
 interface RealtimeStatusProps {
     accessKey: string;
@@ -41,6 +45,8 @@ export default function RealtimeStatus({
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
+        if (!supabase) return;
+
         // Subscribe to realtime changes
         const channel = supabase
             .channel(`report-${accessKey}`)
@@ -80,7 +86,9 @@ export default function RealtimeStatus({
             });
 
         return () => {
-            supabase.removeChannel(channel);
+            if (supabase) {
+                supabase.removeChannel(channel);
+            }
         };
     }, [accessKey]);
 
