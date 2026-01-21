@@ -94,31 +94,67 @@ class HookAnalyzer:
         insights = analyzer.generate_insights(results)
     """
     
-    # Hook pattern detection regexes
+    # Hook pattern detection regexes - comprehensive patterns for YouTube hooks
     HOOK_PATTERNS = {
         'question': [
             r'^(what|why|how|when|where|who|which|can|do|does|did|is|are|was|were|have|has|will|would|could|should)\b',
-            r'\?$',
+            r'\?',  # Contains a question mark
+            r'^(ever wonder|have you ever|did you know|do you know|want to know)',
         ],
         'statement': [
             r'^(today|in this video|i\'m going to|let me show|here\'s|this is)',
             r'^(the truth|the secret|the real|the best|the worst)',
+            r'^(i\'ve|i have|we\'re|we have|this video is about)',
         ],
         'teaser': [
             r'^(you won\'t believe|wait until|by the end|stick around|don\'t go)',
-            r'(reveal|secret|hidden|trick|hack)',
+            r'(reveal|secret|hidden|trick|hack|nobody tells you)',
+            r'(at the end|stay tuned|keep watching)',
         ],
         'story': [
-            r'^(so|okay so|alright so|yesterday|last week|i was)',
-            r'^(imagine|picture this|let me tell you)',
+            r'^(so|okay so|alright so|yesterday|last week|i was|the other day)',
+            r'^(imagine|picture this|let me tell you|story time)',
+            r'^(this happened|something happened|i need to tell you)',
         ],
         'cta': [
-            r'(subscribe|like|comment|hit the bell|notification)',
-            r'(before we start|quick reminder)',
+            r'\b(subscribe|like the video|comment below|hit the bell|notification)',
+            r'(before we start|quick reminder|make sure to)',
+            r'(drop a like|smash that|leave a comment)',
         ],
         'shock': [
-            r'^(oh my|what the|holy|insane|crazy|unbelievable)',
-            r'(broke|destroyed|ruined|exposed|called out)',
+            r'^(oh my|what the|holy|insane|crazy|unbelievable|no way)',
+            r'(broke|destroyed|ruined|exposed|called out|went wrong)',
+            r'(can\'t believe|never expected|shocked|speechless)',
+        ],
+        'challenge': [
+            r'(i tried|i tested|i attempted|challenge|experiment)',
+            r'(for 24 hours|for a week|for a month|for one day)',
+            r'(only using|without|i bet|dare)',
+        ],
+        'bold_claim': [
+            r'(best|worst|biggest|smallest|fastest|easiest|hardest) (way|method|mistake)',
+            r'(number one|#1|\d+\s*(ways|tips|secrets|reasons|mistakes|things))',
+            r'(you need to|you must|you should|everyone should)',
+        ],
+        'personal': [
+            r'^(i|my|me|we|our)\b',
+            r'(my experience|my story|my journey|my take|my opinion)',
+            r'(personal|honest|real talk|real thoughts)',
+        ],
+        'urgency': [
+            r'(right now|immediately|asap|urgent|hurry|limited)',
+            r'(before it\'s too late|don\'t miss|last chance|only today)',
+            r'(breaking|just happened|just dropped|just released)',
+        ],
+        'educational': [
+            r'(learn|teach|explain|understand|guide|tutorial|how to)',
+            r'(step by step|complete guide|everything you need)',
+            r'(beginner|advanced|pro tips|masterclass)',
+        ],
+        'controversy': [
+            r'(unpopular opinion|hot take|controversial|debate)',
+            r'(wrong|lying|scam|fraud|fake|overrated|underrated)',
+            r'(rant|truth about|expose|the problem with)',
         ],
     }
     
@@ -200,10 +236,29 @@ class HookAnalyzer:
                     
         return patterns
     
-    def extract_opening_words(self, transcript: str, n_words: int = 5) -> List[str]:
-        """Extract the first N words of the hook."""
-        words = transcript.split()[:n_words]
-        return [w.lower().strip('.,!?') for w in words]
+    def extract_opening_words(self, transcript: str, n_words: int = 8) -> List[str]:
+        """Extract the first N meaningful words of the hook, filtering out noise."""
+        # Filter out common caption noise patterns
+        noise_patterns = [
+            r'\[.*?\]',  # [music], [applause], etc.
+            r'\(.*?\)',  # (music), etc.
+            r'♪.*?♪',   # music notes
+            r'^\s*$',   # empty lines
+        ]
+        
+        cleaned = transcript
+        for pattern in noise_patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+        
+        # Split and filter
+        words = cleaned.split()[:n_words]
+        # Filter out single-character words and clean up
+        meaningful_words = [
+            w.lower().strip('.,!?:;-"\'')
+            for w in words
+            if len(w.strip('.,!?:;-"\'')) > 1
+        ]
+        return meaningful_words[:5]  # Return max 5 words
     
     def calculate_hook_score(self, patterns: List[HookPattern], view_count: int, avg_views: float) -> float:
         """
@@ -436,15 +491,50 @@ class HookAnalyzer:
                         'video_id': result.video_id,
                     })
         
-        # Generate recommendations
+        # Generate recommendations - more comprehensive and actionable
         recommendations = []
+        
+        # 1. Best performing pattern
         if best_patterns:
             top_pattern = best_patterns[0]['pattern']
             recommendations.append(f"Use '{top_pattern}' hooks - they average {best_patterns[0]['avg_views']:,.0f} views")
         
+        # 2. Top opening words (filter out noise)
         if word_freq:
-            top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:3]
-            recommendations.append(f"Popular opening words: {', '.join(w[0] for w in top_words)}")
+            # Filter noise words
+            noise_words = {'um', 'uh', 'like', 'so', 'and', 'the', 'a', 'to', 'i', 'you', 'we', 'it', 'is', 'ok', 'okay'}
+            clean_freq = {w: c for w, c in word_freq.items() if w not in noise_words and len(w) > 2}
+            if clean_freq:
+                top_words = sorted(clean_freq.items(), key=lambda x: x[1], reverse=True)[:3]
+                recommendations.append(f"Strong opening words: {', '.join(w[0] for w in top_words)}")
+        
+        # 3. Pattern-specific actionable tips
+        pattern_tips = {
+            'question': "Ask a direct question to hook viewers emotionally",
+            'teaser': "Use teasers like 'by the end of this video...' to boost retention",
+            'story': "Start with 'So...' to trigger storytelling mode in viewers",
+            'bold_claim': "Make a bold claim in the first 5 seconds to stop scrollers",
+            'challenge': "Challenge formats drive high engagement and shares",
+            'shock': "Shock hooks work well but use sparingly to maintain authenticity",
+            'personal': "Personal hooks ('I tried...') build connection with viewers",
+            'urgency': "Urgency hooks drive immediate action but don't overuse",
+            'educational': "Educational hooks work best with a clear promise of value",
+            'controversy': "Controversial takes drive comments but manage expectations",
+        }
+        
+        # Suggest underused patterns that typically perform well
+        used_patterns = set(p['pattern'] for p in best_patterns) if best_patterns else set()
+        high_value_patterns = ['question', 'teaser', 'bold_claim', 'story']
+        missing = [p for p in high_value_patterns if p not in used_patterns]
+        if missing:
+            tip = pattern_tips.get(missing[0], f"Try using '{missing[0]}' hooks")
+            recommendations.append(f"Try adding: {tip}")
+        
+        # 4. Hook score feedback
+        if avg_score < 40:
+            recommendations.append("Hook diversity is low - try combining 2-3 hook types per video")
+        elif avg_score > 70:
+            recommendations.append("Strong hook game! Your hooks are well-structured")
         
         return HookInsights(
             total_videos=len(results),
