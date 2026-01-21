@@ -66,6 +66,7 @@ from premium.satisfaction_analyzer import SatisfactionAnalyzer
 from premium.growth_pattern_analyzer import GrowthPatternAnalyzer
 from premium.ml_models.sentiment_engine import SentimentEngine
 from premium.market_intelligence import MarketIntelligence
+from premium.ml_models.optimization_scorer import OptimizationScorer
 
 # Language instructions for AI prompts
 LANGUAGE_INSTRUCTIONS = {
@@ -994,7 +995,8 @@ def run_premium_analysis(
     ai_client=None,
     model_type: str = "gemini",
     gemini_model: str = "gemini-2.0-flash",
-    results: dict = None
+    results: dict = None,
+    niche: str = "General"
 ) -> dict:
     """
     Run premium analysis modules based on subscription tier.
@@ -1068,7 +1070,8 @@ def run_premium_analysis(
         try:
             print("   📊 [Parallel] Running CTR Prediction...")
             ctr_predictor = CTRPredictor()
-            thumbnail_extractor = ThumbnailFeatureExtractor(use_ocr=False, use_face_detection=True)
+            # Disable face detection to prevent crashes on Mac
+            thumbnail_extractor = ThumbnailFeatureExtractor(use_ocr=False, use_face_detection=False)
             ctr_results = []
             
             def process_ctr(video):
@@ -1106,9 +1109,9 @@ def run_premium_analysis(
 
     def task_thumbnail():
         try:
-            print("   🎨 [Parallel] Running Thumbnail AI...")
+            print("   🎨 [Parallel] Running Thumbnail AI (RAG-Enhanced)...")
             from premium.thumbnail_analyzer_ai import analyze_thumbnails_batch
-            analyses = analyze_thumbnails_batch(videos=videos_data, ai_client=ai_client, model=gemini_model, max_videos=3)
+            analyses = analyze_thumbnails_batch(videos=videos_data, ai_client=ai_client, model=gemini_model, max_videos=3, niche=niche)
             if limits['advanced_thumbnail']:
                 for analysis in analyses:
                     ab = []
@@ -1315,15 +1318,27 @@ def run_premium_analysis(
         except Exception as e: print(f"   ⚠️ Color ML failed: {e}")
     
     # 2. Viral Prediction (depends on results)
+    # 2. Optimization Scoring (Replaces Viral Prediction)
     if limits['ml_predictor'] and results:
         try:
-            print("   🔮 Running ML Viral Prediction...")
-            predictor = ViralPredictor()
+            print("   ✨ Running Optimization Scoring (Heuristic)...")
+            scorer = OptimizationScorer()
             top = results.get('top_opportunity', {})
-            if top and top.get('title'):
-                p = predictor.predict(top.get('title'), top.get('hook', ''), top.get('topic', 'General'), [v.get('video_info', {}) for v in videos_data])
-                premium_data['viral_prediction'] = {'predicted_views': p.predicted_views, 'viral_probability': p.viral_probability, 'confidence': p.confidence_score, 'factors': p.factors, 'tips': p.tips}
-        except Exception as e: print(f"   ⚠️ Viral Predictor failed: {e}")
+            # Score the best generated title
+            if top and top.get('best_title'):
+                score_res = scorer.evaluate(top.get('best_title'), None)
+                
+                premium_data['viral_prediction'] = {
+                    'predicted_views': 'N/A',  # Pivoted away from view prediction
+                    'viral_probability': score_res.total_score / 100.0,
+                    'confidence': 'High (Heuristic)',
+                    'factors': score_res.positive_factors,
+                    'tips': score_res.recommendations,
+                    'optimization_rating': score_res.rating,
+                    'title_score': score_res.title_score
+                }
+                print(f"      ✓ Scored '{top.get('best_title')}' as {score_res.rating} ({score_res.total_score}/100)")
+        except Exception as e: print(f"   ⚠️ Optimization Scorer failed: {e}")
 
     # 3. Visual Charts
     print_progress(92, "Generating Charts")
@@ -1484,6 +1499,32 @@ def generate_report(output_path: Path, channel_name: str, videos_data: list, ana
                     f.write(f"- {rec}\n")
             f.write("\n")
 
+        # Thumbnail Analysis (RAG-based)
+        if premium.get('thumbnail_analysis'):
+            ta = premium['thumbnail_analysis']
+            f.write("---\n\n")
+            f.write(f"## 🖼️ Thumbnail Strategy Analysis ({args.niche})\n\n")
+            f.write("*AI-powered critique based on industry-leading thumbnail performance datasets.*\n\n")
+            
+            for item in ta.get('videos_analyzed', []):
+                f.write(f"### {item.get('video_title')}\n")
+                f.write(f"**Quality Score:** {item.get('quality_score', 0)}/100 | **Improvement Potential:** {item.get('potential_improvement', 'N/A')}\n\n")
+                
+                if item.get('strengths'):
+                    f.write("**✅ Strengths:**\n")
+                    for s in item['strengths']:
+                        f.write(f"- {s}\n")
+                    f.write("\n")
+                
+                if item.get('issues'):
+                    f.write("**⚠️ Recommended Fixes:**\n")
+                    f.write("| Issue | Severity | Fix |\n")
+                    f.write("|-------|----------|-----|\n")
+                    for iss in item['issues']:
+                        f.write(f"| {iss.get('issue')} | {iss.get('severity')} | {iss.get('fix')} |\n")
+                    f.write("\n")
+            f.write("\n")
+
         # =========================================================
         # COMPETITORS
         # =========================================================
@@ -1545,6 +1586,7 @@ Examples:
                         help='Subscription tier for feature access (default: starter)')
     parser.add_argument('--language', default='en', choices=['en', 'de', 'fr', 'it', 'es'],
                         help='Report language: en, de, fr, it, es (default: en)')
+    parser.add_argument('--niche', default='General', help='Niche for strategy guidelines (e.g. Gaming, Finance, Tech)')
     
     args = parser.parse_args()
     
@@ -1773,7 +1815,8 @@ Examples:
             ai_client=ai_client,
             model_type=args.ai,
             gemini_model=args.gemini_model,
-            results=analysis
+            results=analysis,
+            niche=args.niche
         )
         
         # Merge premium data into analysis

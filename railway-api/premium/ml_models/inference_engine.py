@@ -15,11 +15,41 @@ import logging
 # Configure logger
 logger = logging.getLogger(__name__)
 
+# Scientific V2 Imports
+import sys
+import os
+
+# Script path: railway-api/premium/ml_models/inference_engine.py
+# We want to add 'railway-api' to sys.path to allow 'from premium...' imports
+current_dir = os.path.dirname(os.path.abspath(__file__)) 
+premium_dir = os.path.dirname(current_dir)
+railway_api_dir = os.path.dirname(premium_dir)
+
+if railway_api_dir not in sys.path:
+    sys.path.append(railway_api_dir)
+
+try:
+    from premium.ml_models.text_embedder import TextEmbedder
+    HAS_V2_MODULES = True
+except ImportError:
+    try:
+         from .text_embedder import TextEmbedder
+         HAS_V2_MODULES = True
+    except:
+         logger.warning("V2 Modules not found in inference engine.")
+         HAS_V2_MODULES = False
+
 class ScientificInference:
     def __init__(self, models_dir: str = "railway-api/premium/ml_models/trained"):
         self.models_dir = models_dir
         self.models = {} # Cache
         self.niche_map = {} # Map niche names to filenames
+        self.embedder = None
+        if HAS_V2_MODULES:
+            try:
+                self.embedder = TextEmbedder() # Uses OpenAI by default now
+            except:
+                pass
         self._load_available_models()
         
     def _load_available_models(self):
@@ -64,7 +94,10 @@ class ScientificInference:
                 
         return self.models[slug]
 
-    def predict_expected_views(self, niche: str, video_metadata: Dict, channel_stats: Dict) -> Dict:
+    def predict_expected_views(self, niche: str, video_metadata: Dict, channel_stats: Dict, thumbnail_features: Dict = None) -> Dict:
+        """
+        Predict 'Expected Views' given metadata, channel stats, and optional visual features.
+        """
         """
         Predict 'Expected Views' for a video given its metadata and channel stats.
         Returns prediction and confidence/error margins.
@@ -75,7 +108,10 @@ class ScientificInference:
         
         model = model_bundle['model']
         scaler = model_bundle['scaler']
+        model = model_bundle['model']
+        scaler = model_bundle['scaler']
         feature_cols = model_bundle['features']
+        pca = model_bundle.get('pca') # Optional PCA model for embeddings
         
         # Prepare Features
         # Must match training time preprocessing exactly
@@ -126,8 +162,62 @@ class ScientificInference:
             subscriber_count_log
         ]
         
+        # === V2 Feature Extension ===
+        
+        # 1. Add Thumbnail Features (if model expects them)
+        # We check 'feature_cols' to see what the model was trained on.
+        # This makes it backward compatible with V1 models (which won't have thumb_ cols)
+        
+        # We construct a dict of avail features first
+        avail_features = {
+            'duration_seconds': duration,
+            'title_length': title_length,
+            'title_has_question': title_has_question,
+            'title_has_number': title_has_number,
+            'tags_count': tags_count,
+            'subscriber_count_log': subscriber_count_log
+        }
+        
+        # Add visual features to avail_features
+        if thumbnail_features:
+            for k, v in thumbnail_features.items():
+                if isinstance(v, (int, float, bool)):
+                     avail_features[f'thumb_{k}'] = float(v)
+        
+        # Re-build input vector based on model's feature_cols
+        # This handles dynamic V2 features order
+        final_input_vector = []
+        embedding_cols_indices = [] # Track where embeddings go
+        
+        for i, col in enumerate(feature_cols):
+            if col.startswith('emb_'):
+                # Handle embeddings separately (need PCA)
+                embedding_cols_indices.append((i, col))
+                final_input_vector.append(0.0) # Placeholder
+            else:
+                final_input_vector.append(avail_features.get(col, 0.0))
+        
+        # 2. Add Embeddings (if model needs them)
+        if embedding_cols_indices and self.embedder:
+            try:
+                # Generate embedding
+                emb_vector = self.embedder.embed(title) # (1536,)
+                
+                # Apply PCA if available
+                if pca:
+                    emb_reduced = pca.transform(emb_vector.reshape(1, -1))[0] # (20,)
+                    
+                    # Fill placeholders
+                    # Assuming emb_0, emb_1... correspond to pca components 0, 1...
+                    for idx, col_name in embedding_cols_indices:
+                        comp_idx = int(col_name.split('_')[1])
+                        if comp_idx < len(emb_reduced):
+                            final_input_vector[idx] = emb_reduced[comp_idx]
+            except Exception as e:
+                logger.error(f"Embedding/PCA failed at inference: {e}")
+
         # Scale
-        X = np.array(input_vector).reshape(1, -1)
+        X = np.array(final_input_vector).reshape(1, -1)
         X_scaled = scaler.transform(X)
         
         # Predict

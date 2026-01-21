@@ -38,8 +38,14 @@ class NicheTrainer:
             'title_has_question',
             'title_has_number',
             'tags_count',
-            'duration_seconds'
+            'duration_seconds',
+            # V2 Features (Dynamically added during training if present)
+            # 'title_emb_0', ... 'title_emb_n'
+            # 'thumb_contrast', 'thumb_brightness', etc.
         ]
+        self.pca = {} # Store PCA models per niche if used
+        self.final_features = {} # Store actual feature list per niche
+
         
     def load_data(self, data_dir: str) -> pd.DataFrame:
         """Load and merge all JSON datasets from the data directory."""
@@ -114,7 +120,49 @@ class NicheTrainer:
         
         # Remove outliers (e.g. 0 views)
         df = df[df['view_count'] > 100].copy()
+
+        # === V2 Feature Processing ===
         
+        # 1. Unpack Thumbnail Features (if present)
+        if 'thumbnail_features' in df.columns:
+            # Normalize: Check if it's a string (JSON) or dict
+            def unpack_thumb(row):
+                tf = row.get('thumbnail_features')
+                if not tf: return {}
+                if isinstance(tf, str):
+                    try: return json.loads(tf)
+                    except: return {}
+                return tf if isinstance(tf, dict) else {}
+            
+            thumb_dicts = df.apply(unpack_thumb, axis=1)
+            thumb_df = pd.json_normalize(thumb_dicts)
+            
+            # Select key numeric visual features
+            visual_cols = [
+                'confidence_score', # from some APIs, or custom
+                'avg_brightness', 'avg_saturation', 'contrast_score',
+                'face_count', 'face_area_ratio', 'has_text', 'text_area_ratio'
+            ]
+            # Rename or prefix
+            for col in thumb_df.columns:
+                if col in visual_cols or col in ['dominant_color_1']: # maybe not color tuple
+                    # Clean boolean to int
+                    if thumb_df[col].dtype == bool:
+                        df[f'thumb_{col}'] = thumb_df[col].astype(int)
+                    elif pd.api.types.is_numeric_dtype(thumb_df[col]):
+                         df[f'thumb_{col}'] = thumb_df[col].fillna(0)
+        
+        # 2. Unpack Text Embeddings (if present)
+        if 'title_embedding' in df.columns:
+            # Check shape
+            sample = df['title_embedding'].dropna().iloc[0] if not df['title_embedding'].dropna().empty else []
+            if len(sample) > 0:
+                print(f"  Found embeddings (dim={len(sample)})")
+                # Expand to columns? Or keep as list and PCA later?
+                # For XGBoost, we need columns. 
+                # Doing it inside training loop might be safer to handle dimensionality reduction.
+                pass
+                
         return df
 
     def train_all_niches(self, data_dir: str) -> Dict[str, Dict]:
@@ -145,7 +193,42 @@ class NicheTrainer:
             features = ['duration_seconds', 'title_length', 'title_has_question', 
                         'title_has_number', 'tags_count', 'subscriber_count_log']
             
+            # Add V2 Thumbnail Features
+            thumb_cols = [c for c in niche_df.columns if c.startswith('thumb_')]
+            if thumb_cols:
+                features.extend(thumb_cols)
+                print(f"  + Added {len(thumb_cols)} visual features")
+
             X = niche_df[features].fillna(0)
+
+            # Add Embeddings with PCA
+            if 'title_embedding' in niche_df.columns:
+                # Stack vectors
+                valid_indices = niche_df['title_embedding'].apply(lambda x: isinstance(x, list) and len(x) > 0)
+                if valid_indices.any():
+                    emb_matrix = np.vstack(niche_df.loc[valid_indices, 'title_embedding'].values)
+                    
+                    # Reduce dimension (1536 -> 20)
+                    from sklearn.decomposition import PCA
+                    n_components = min(20, len(emb_matrix), emb_matrix.shape[1])
+                    pca = PCA(n_components=n_components)
+                    emb_reduced = pca.fit_transform(emb_matrix)
+                    
+                    self.pca[niche] = pca
+                    
+                    # Create DF columns
+                    emb_cols = [f'emb_{i}' for i in range(n_components)]
+                    emb_df = pd.DataFrame(emb_reduced, columns=emb_cols, index=niche_df[valid_indices].index)
+                    
+                    # Merge (join)
+                    X = X.join(emb_df).fillna(0)
+                    features.extend(emb_cols)
+                    print(f"  + Added {n_components} embedding components (PCA)")
+            
+            # Save final feature list for this niche model
+            # Note: We update the global list or per-model list?
+            # It's better to verify features at inference time.
+            # We will save 'features' list into the joblib bundle.
             
             # Split
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -190,6 +273,8 @@ class NicheTrainer:
                 'error_factor': error_factor,
                 'top_feature': top_feat
             }
+            # Save exact features used
+            self.final_features[niche] = features
             
         return results
 
@@ -197,6 +282,10 @@ class NicheTrainer:
         """Save all trained models."""
         os.makedirs(save_dir, exist_ok=True)
         for niche, model in self.models.items():
+            # Get specific features used for this model (from X train columns)
+            # We need to retrieve them. Correct way: Store them in results or self.model_features
+            bundle_features = model.get_booster().feature_names
+
             # Clean filename
             slug = niche.lower().replace(" & ", "_").replace(" ", "_").replace("/", "_")
             path = os.path.join(save_dir, f"benchmark_{slug}.joblib")
@@ -204,7 +293,8 @@ class NicheTrainer:
             bundle = {
                 'model': model,
                 'scaler': self.scalers[niche],
-                'features': self.feature_cols,
+                'features': self.final_features.get(niche, self.feature_cols), # Use actual features used
+                'pca': self.pca.get(niche), # Save PCA model
                 'niche': niche
             }
             joblib.dump(bundle, path)

@@ -7,6 +7,17 @@ import json
 import requests
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
+import os
+import sys
+
+# Ensure we can import from the same directory or parent
+try:
+    from premium.rag_service import ThumbnailRAGService
+except ImportError:
+    try:
+        from rag_service import ThumbnailRAGService
+    except ImportError:
+        ThumbnailRAGService = None
 
 
 @dataclass
@@ -49,7 +60,8 @@ def analyze_thumbnail_with_gemini(
     thumbnail_url: str,
     video_title: str,
     ai_client,
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.0-flash",
+    guidelines: str = ""
 ) -> ThumbnailAnalysis:
     """
     Analyze a YouTube thumbnail using Gemini Vision.
@@ -65,6 +77,11 @@ def analyze_thumbnail_with_gemini(
     """
     
     prompt = f"""Analyze this YouTube thumbnail for the video titled: "{video_title}"
+
+STRATEGY GUIDELINES TO FOLLOW:
+{guidelines if guidelines else "Use general YouTube thumbnail best practices (high contrast, readable text, emotional faces)."}
+
+TASK: Based on the STRATEGY GUIDELINES above, critique this thumbnail.
 
 Return a JSON object with these exact fields:
 {{
@@ -161,7 +178,8 @@ def analyze_thumbnails_batch(
     videos: List[Dict],
     ai_client,
     model: str = "gemini-2.0-flash",
-    max_videos: int = 5
+    max_videos: int = 5,
+    niche: str = "General"
 ) -> List[Dict]:
     """
     Analyze multiple thumbnails and return formatted results in parallel.
@@ -179,6 +197,15 @@ def analyze_thumbnails_batch(
     
     results = []
     
+    # Initialize RAG Service
+    guidelines = ""
+    if ThumbnailRAGService:
+        try:
+            rag = ThumbnailRAGService()
+            guidelines = rag.get_guidelines(niche)
+        except Exception as e:
+            print(f"⚠️ RAG Service init failed: {e}")
+
     def process_video_thumbnail(video):
         video_info = video.get('video_info', video)
         title = video_info.get('title', 'Unknown')
@@ -194,7 +221,8 @@ def analyze_thumbnails_batch(
             thumbnail_url=thumbnail_url,
             video_title=title,
             ai_client=ai_client,
-            model=model
+            model=model,
+            guidelines=guidelines
         )
         
         # Format for frontend

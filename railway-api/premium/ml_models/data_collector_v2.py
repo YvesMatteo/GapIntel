@@ -19,7 +19,6 @@ import argparse
 import random
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 from googleapiclient.discovery import build
@@ -101,10 +100,10 @@ class MassiveDataCollector:
         if HAS_V2_MODULES:
             try:
                 self.embedder = TextEmbedder()
-                # Disable OCR/Face for speed if massive batch, 
-                # but user requested Quality Features so we enable them.
-                self.thumb_extractor = ThumbnailFeatureExtractor(use_ocr=True, use_face_detection=True)
-                print("✅ V2 Features Enabled: Text Embeddings + Thumbnail Analysis")
+                # User Pivot: Disabling local ML visual analysis (crashes).
+                # Switching to RAG-based LLM analysis at inference time instead.
+                self.thumb_extractor = None 
+                print("✅ V2 Features Enabled: Text Embeddings Only (Thumbnail ML Disabled)")
             except Exception as e:
                 print(f"⚠️ Failed to init V2 modules: {e}")
 

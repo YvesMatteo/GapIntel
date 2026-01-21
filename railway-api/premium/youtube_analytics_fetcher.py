@@ -168,10 +168,41 @@ class YouTubeAnalyticsFetcher:
                                    end_date: str) -> Optional[VideoCTRData]:
         """
         Fetch impression and CTR metrics for a video.
-        
-        Uses the Traffic Sources report which includes impressions.
+        Attempts to get REAL metrics first, falls back to estimates.
         """
-        # Try to get impression click-through rate
+        # 1. Try fetching REAL thumbnail CTR (impressionsClickThroughRate)
+        real_params = {
+            'ids': f'channel=={channel_id}',
+            'startDate': start_date,
+            'endDate': end_date,
+            'metrics': 'impressions,impressionsClickThroughRate,views',
+            'dimensions': 'video',
+            'filters': f'video=={video_id}',
+            'maxResults': 1
+        }
+        
+        try:
+            data = self._make_request(real_params)
+            
+            if data and data.get('rows'):
+                row = data['rows'][0]
+                impressions = int(row[1]) # order matches metrics
+                ctr = float(row[2])
+                views = int(row[3])
+                clicks = int(impressions * (ctr / 100.0))
+                
+                print(f"   ✓ Fetched REAL CTR for {video_id}: {ctr}%")
+                return VideoCTRData(
+                    video_id=video_id,
+                    impressions=impressions,
+                    clicks=clicks,
+                    ctr=ctr,
+                    date=end_date
+                )
+        except Exception:
+            pass # Fallback to estimate if unauthorized or unavailable
+
+        # 2. Fallback: Estimate from Traffic Sources
         params = {
             'ids': f'channel=={channel_id}',
             'startDate': start_date,
@@ -189,18 +220,18 @@ class YouTubeAnalyticsFetcher:
             video_id_result = row[0]
             views = int(row[1]) if len(row) > 1 else 0
             
-            # Calculate CTR from available data
-            # Note: Real implementation should use impressions from YouTube Studio
-            # This is a simplified version using views as a proxy
-            impressions = views * 20  # Rough estimate: 5% CTR average
+            # Estimate impressions based on typical CTR ranges
+            # Videos with more browse/notification traffic tend to have higher CTR
+            # (Simplified logic from before)
+            estimated_ctr = 4.5 # Conservative average
+            impressions = int(views / (estimated_ctr / 100))
             clicks = views
-            ctr = (clicks / max(impressions, 1)) * 100
             
             return VideoCTRData(
                 video_id=video_id_result,
                 impressions=impressions,
                 clicks=clicks,
-                ctr=round(ctr, 2),
+                ctr=estimated_ctr,
                 date=end_date
             )
         

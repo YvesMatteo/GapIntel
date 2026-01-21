@@ -605,9 +605,9 @@ export default function Home() {
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
-              <Link href="/report/GAP-zmNON1lat9cL" className="w-full sm:w-auto">
+              <Link href="/report/GAP-cPPt5c8A2MeX" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-white text-slate-900 border border-slate-200 text-base sm:text-lg font-medium hover:bg-slate-50 transition-colors">
-                  View TJR Report
+                  View Sample Report
                 </button>
               </Link>
             </div>

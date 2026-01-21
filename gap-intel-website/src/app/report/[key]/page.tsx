@@ -293,7 +293,7 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
         })),
         alreadyCovered: result.already_covered || [],
         videosAnalyzedList: result.videos_analyzed?.map(v => ({
-            title: v.title,
+            title: v.title || 'Untitled Video',
             comments: v.comments_count,
             url: `https://youtube.com/watch?v=${v.video_id}`,
             thumbnail: v.thumbnail_url || `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
@@ -317,7 +317,7 @@ const CVR_BENCHMARKS: Record<string, { low: number; high: number; top: number; l
 function detectContentCategory(videos: Array<{ title: string }>): string {
     if (!videos || videos.length === 0) return 'educational';
 
-    const titleText = videos.map(v => v.title.toLowerCase()).join(' ');
+    const titleText = videos.map(v => (v.title || '').toLowerCase()).join(' ');
 
     // Category detection patterns
     const patterns: Record<string, RegExp[]> = {
@@ -411,7 +411,8 @@ function calculateContentLandscape(result: AnalysisResult) {
     const topicCounts: Record<string, number> = {};
     videos.forEach(v => {
         // Simple topic extraction from title
-        const words = v.title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+        const title = v.title || '';
+        const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
         words.slice(0, 3).forEach(word => {
             topicCounts[word] = (topicCounts[word] || 0) + 1;
         });
@@ -516,7 +517,7 @@ function calculateSeoMetrics(result: AnalysisResult) {
     const noHookTitles: string[] = [];
 
     videos.forEach(v => {
-        const title = v.title;
+        const title = v.title || '';
         totalLength += title.length;
 
         // Check length (optimal: 50-60)
@@ -1001,7 +1002,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                         <div className="text-xs text-slate-400 font-bold uppercase">CTR <span className="text-amber-500">(Est.)</span></div>
                                                     </div>
                                                 </div>
-                                                {video.issues.length > 0 ? (
+                                                {video.issues && video.issues.length > 0 ? (
                                                     <ul className="space-y-3">
                                                         {video.issues.map((issue, j) => (
                                                             <li key={j} className="flex gap-3 text-sm">
