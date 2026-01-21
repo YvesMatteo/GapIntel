@@ -592,7 +592,7 @@ export default function Home() {
 
           <FadeIn delay={0.2}>
             <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto mb-8 md:mb-12 leading-relaxed px-2">
-              GAP Intel uses advanced AI to uncover content gaps, predict view velocity,
+              GAP Intel uses advanced AI to uncover YouTube content gaps, predict view velocity,
               and optimize thumbnails before you even hit record.
             </p>
           </FadeIn>
