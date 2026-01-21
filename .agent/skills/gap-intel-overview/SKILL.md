@@ -97,11 +97,21 @@ Where:
 
 ## Key Files
 
-- `gap_analyzer.py` - Main analysis engine
-- `youtube_processor.py` - YouTube API data collection
-- `scoring_engine.py` - Gap scoring algorithm
-- `vision_analyzer.py` - Thumbnail analysis
+- `GAP_ULTIMATE.py` - Primary production-grade analysis engine
+- `gap_analyzer.py` - Secondary/legacy analysis engine
+- `railway-api/server.py` - FastAPI server entry point
+- `railway-api/premium/` - Core 7-skill logic and ML models
+- `ingest_manager.py` - Video data ingestion utility
 - `gap-intel-website/` - Next.js frontend
+
+## Detailed Documentation
+
+For comprehensive system understanding, see the knowledge files in `.agent/knowledge/`:
+- [CODEBASE_OVERVIEW.md](file:///Users/yvesromano/AiRAG/.agent/knowledge/CODEBASE_OVERVIEW.md) - Project-wide map
+- [BACKEND_DETAILS.md](file:///Users/yvesromano/AiRAG/.agent/knowledge/BACKEND_DETAILS.md) - Backend deep dive
+- [FRONTEND_DETAILS.md](file:///Users/yvesromano/AiRAG/.agent/knowledge/FRONTEND_DETAILS.md) - Frontend deep dive
+- [DATA_FLOW.md](file:///Users/yvesromano/AiRAG/.agent/knowledge/DATA_FLOW.md) - System-wide data request lifecycle
+- [DEVELOPMENT_GUIDE.md](file:///Users/yvesromano/AiRAG/.agent/knowledge/DEVELOPMENT_GUIDE.md) - Maintenance & Ops guide
 
 ## Implementation Phases
 

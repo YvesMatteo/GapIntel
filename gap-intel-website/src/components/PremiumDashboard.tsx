@@ -119,8 +119,8 @@ export default function PremiumDashboard({ channelId, channelName }: PremiumDash
                     <button
                         onClick={() => setActiveTab("thumbnail")}
                         className={`p-4 rounded-lg border transition-all ${activeTab === "thumbnail"
-                                ? "bg-emerald-500/20 border-emerald-500/50"
-                                : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
+                            ? "bg-emerald-500/20 border-emerald-500/50"
+                            : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
                             }`}
                     >
                         <BarChart3 className="w-6 h-6 text-emerald-400 mb-2" />
@@ -130,8 +130,8 @@ export default function PremiumDashboard({ channelId, channelName }: PremiumDash
                     <button
                         onClick={() => setActiveTab("optimize")}
                         className={`p-4 rounded-lg border transition-all ${activeTab === "optimize"
-                                ? "bg-purple-500/20 border-purple-500/50"
-                                : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
+                            ? "bg-purple-500/20 border-purple-500/50"
+                            : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
                             }`}
                     >
                         <Zap className="w-6 h-6 text-purple-400 mb-2" />
@@ -141,8 +141,8 @@ export default function PremiumDashboard({ channelId, channelName }: PremiumDash
                     <button
                         onClick={() => { setActiveTab("publish"); getPublishTimes(); }}
                         className={`p-4 rounded-lg border transition-all ${activeTab === "publish"
-                                ? "bg-blue-500/20 border-blue-500/50"
-                                : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
+                            ? "bg-blue-500/20 border-blue-500/50"
+                            : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
                             }`}
                     >
                         <Clock className="w-6 h-6 text-blue-400 mb-2" />
@@ -152,8 +152,8 @@ export default function PremiumDashboard({ channelId, channelName }: PremiumDash
                     <button
                         onClick={() => setActiveTab("gaps")}
                         className={`p-4 rounded-lg border transition-all ${activeTab === "gaps"
-                                ? "bg-orange-500/20 border-orange-500/50"
-                                : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
+                            ? "bg-orange-500/20 border-orange-500/50"
+                            : "bg-[#1a1a2e]/50 border-gray-800 hover:border-gray-700"
                             }`}
                     >
                         <Target className="w-6 h-6 text-orange-400 mb-2" />
@@ -275,7 +275,7 @@ function ThumbnailResults({ data }: { data: any }) {
                     <div className="text-5xl font-bold text-emerald-400">
                         {prediction.predicted_ctr?.toFixed(1) || "N/A"}%
                     </div>
-                    <div className="text-sm text-gray-400 mt-1">Predicted CTR</div>
+                    <div className="text-sm text-gray-400 mt-1">Estimated CTR <span className="text-amber-400">(Heuristic)</span></div>
                 </div>
 
                 <div className="flex-1">
@@ -339,14 +339,14 @@ function OptimizationResults({ data }: { data: any }) {
                     <div className="space-y-3">
                         {issues.slice(0, 4).map((issue: any, i: number) => (
                             <div key={i} className={`p-4 rounded-lg border ${issue.severity === 'critical' ? 'bg-red-500/10 border-red-500/30' :
-                                    issue.severity === 'high' ? 'bg-orange-500/10 border-orange-500/30' :
-                                        'bg-yellow-500/10 border-yellow-500/30'
+                                issue.severity === 'high' ? 'bg-orange-500/10 border-orange-500/30' :
+                                    'bg-yellow-500/10 border-yellow-500/30'
                                 }`}>
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="font-medium">{issue.issue}</span>
                                     <span className={`text-xs px-2 py-0.5 rounded uppercase ${issue.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                            issue.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                                'bg-yellow-500/20 text-yellow-400'
+                                        issue.severity === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                            'bg-yellow-500/20 text-yellow-400'
                                         }`}>{issue.severity}</span>
                                 </div>
                                 <p className="text-sm text-gray-400">{issue.fix}</p>

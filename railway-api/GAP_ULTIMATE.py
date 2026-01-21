@@ -1243,7 +1243,7 @@ def run_premium_analysis(
         return 'satisfaction_signals', None
 
     def task_growth():
-        if not limits.get('views_forecast'): return 'growth_patterns', None
+        # Growth patterns analysis runs for all tiers - doesn't require views_forecast
         try:
             print("   📈 [Parallel] Analyzing Growth Patterns...")
             analyzer = GrowthPatternAnalyzer()

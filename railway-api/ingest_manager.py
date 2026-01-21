@@ -19,6 +19,10 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
+import json
+import time
+import random
+
 
 # Load environment variables
 try:
@@ -35,6 +39,13 @@ except ImportError:
     sys.exit(1)
 
 # import whisper (Removed: strict caption-only mode)
+try:
+    from faster_whisper import WhisperModel
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+    print("⚠️ faster-whisper not installed, local transcription disabled")
+
 
 try:
     from googleapiclient.discovery import build
@@ -65,16 +76,21 @@ except ImportError:
     print("⚠️ ContentClusteringEngine not available, embeddings will not be pre-computed")
 
 
-# Whisper model cache removed
+# Whisper model cache
+_whisper_model = None
 _whisper_model_name = None
 
 
 def get_whisper_model(model_name: str = "tiny"):
     """Get cached Whisper model or load it."""
     global _whisper_model, _whisper_model_name
+    if not WHISPER_AVAILABLE:
+        return None
+        
     if _whisper_model is None or _whisper_model_name != model_name:
-        print(f"   Loading Whisper {model_name} model...")
-        _whisper_model = whisper.load_model(model_name)
+        print(f"   🚀 Loading Faster-Whisper {model_name} model...")
+        # device="auto" handles CUDA vs CPU automatically
+        _whisper_model = WhisperModel(model_name, device="auto", compute_type="int8")
         _whisper_model_name = model_name
     return _whisper_model
 
@@ -293,23 +309,30 @@ def download_audio(youtube_url: str, output_dir: Path, video_id: str, verbose: b
 
 def transcribe_audio(audio_path: Path, model_name: str = "tiny") -> dict:
     """
-    Transcribe audio using OpenAI Whisper (local).
+    Transcribe audio using Faster-Whisper (local).
     """
     model = get_whisper_model(model_name)
-    result = model.transcribe(str(audio_path))
+    if not model:
+        return {"text": "", "language": "unknown", "segments": []}
+        
+    segments, info = model.transcribe(str(audio_path), beam_size=5)
     
-    segments = []
-    for seg in result.get('segments', []):
-        segments.append({
-            'start': round(seg['start'], 2),
-            'end': round(seg['end'], 2),
-            'text': seg['text'].strip(),
+    full_text = ""
+    processed_segments = []
+    
+    # segments is an iterable, we need to gather them
+    for segment in segments:
+        full_text += segment.text + " "
+        processed_segments.append({
+            'start': round(segment.start, 2),
+            'end': round(segment.end, 2),
+            'text': segment.text.strip(),
         })
     
     return {
-        'text': result['text'],
-        'language': result.get('language', 'unknown'),
-        'segments': segments,
+        'text': full_text.strip(),
+        'language': info.language,
+        'segments': processed_segments,
     }
 
 
@@ -410,8 +433,8 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     if verbose:
         print(f"\n📹 Processing: {video_id}")
     
-    # Step 1: Smart Transcription (Strict: Captions ONLY)
-    transcription = None # Audio/Transcribe functions removed (Strict mode)
+    # Step 1: Smart Transcription (Try captions first, fallback to transcription)
+    transcription = None
     video_info = None
     
     # Try fetching captions
@@ -420,14 +443,14 @@ def process_video(url: str, api_key: str, model_name: str = "tiny",
     
     caption_result = fetch_captions(video_id)
     
-    if not caption_result:
+    if caption_result:
         if verbose:
-            print(f"   ❌ No captions found. Skipping video (Strict mode).")
+            print(f"   ✅ Captions found!")
+        transcription = caption_result
+    else:
+        if verbose:
+            print(f"   ❌ No captions found. Skipping video (Audio transcription disabled in fast mode).")
         return None
-        
-    if verbose:
-        print(f"   ✅ Captions found!")
-    transcription = caption_result
     
     # Fetch metadata (lightweight, no download)
     if verbose:

@@ -221,6 +221,29 @@ class GrowthPatternAnalyzer:
                         series_groups[series_name.lower()].append(video)
                     break
         
+        # FALLBACK: If no regex matches, try fuzzy title prefix matching
+        # This catches recurring formats like "TOGI VS CABO", "REACT TO", etc.
+        if not series_groups:
+            title_prefixes = defaultdict(list)
+            for video in videos:
+                title = video.get('title', '') or video.get('video_info', {}).get('title', '')
+                if not title:
+                    continue
+                # Extract first 3-4 words as potential series prefix
+                words = title.split()[:4]
+                for length in [4, 3, 2]:  # Try longest prefixes first
+                    if len(words) >= length:
+                        prefix = ' '.join(words[:length]).lower()
+                        # Skip very short or common prefixes
+                        if len(prefix) > 8 and prefix not in ['how to', 'why i', 'the best', 'my new']:
+                            title_prefixes[prefix].append(video)
+                            break
+            
+            # Only keep prefixes with 2+ videos
+            for prefix, vids in title_prefixes.items():
+                if len(vids) >= 2:
+                    series_groups[prefix] = vids
+        
         # Convert to SeriesInfo objects (only series with 2+ videos)
         series_list = []
         for name, vids in series_groups.items():

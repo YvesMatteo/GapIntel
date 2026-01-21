@@ -973,7 +973,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                     <h4 className="font-bold text-slate-900 line-clamp-1 pr-4">{video.video_title}</h4>
                                                     <div className="text-right">
                                                         <div className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</div>
-                                                        <div className="text-xs text-slate-400 font-bold uppercase">CTR</div>
+                                                        <div className="text-xs text-slate-400 font-bold uppercase">CTR <span className="text-amber-500">(Est.)</span></div>
                                                     </div>
                                                 </div>
                                                 {video.issues.length > 0 ? (
@@ -1034,7 +1034,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                 </div>
                                             </div>
                                         </div>
-                                        <p className="text-slate-400">Likelihood of outperforming channel average</p>
+                                        <p className="text-slate-400">Likelihood of outperforming channel average <span className="text-amber-500 text-sm">(Estimated)</span></p>
                                     </div>
 
                                     <div className="space-y-4">

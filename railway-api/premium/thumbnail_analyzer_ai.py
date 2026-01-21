@@ -164,7 +164,7 @@ def analyze_thumbnails_batch(
     max_videos: int = 5
 ) -> List[Dict]:
     """
-    Analyze multiple thumbnails and return formatted results.
+    Analyze multiple thumbnails and return formatted results in parallel.
     
     Args:
         videos: List of video dicts with 'title' and 'thumbnail_url' or 'video_id'
@@ -175,9 +175,11 @@ def analyze_thumbnails_batch(
     Returns:
         List of analysis results formatted for frontend
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
     results = []
     
-    for video in videos[:max_videos]:
+    def process_video_thumbnail(video):
         video_info = video.get('video_info', video)
         title = video_info.get('title', 'Unknown')
         video_id = video_info.get('video_id', '')
@@ -214,7 +216,7 @@ def analyze_thumbnails_batch(
         else:
             potential = "+5%"
         
-        results.append({
+        return {
             "video_title": title,
             "predicted_ctr": round(analysis.predicted_ctr, 1),
             "potential_improvement": potential,
@@ -227,7 +229,18 @@ def analyze_thumbnails_batch(
             "issues": formatted_issues,
             "strengths": analysis.strengths,
             "ab_test_suggestions": []  # Can add later
-        })
+        }
+
+    # Parallelize with up to 5 workers
+    with ThreadPoolExecutor(max_workers=min(5, max_videos)) as executor:
+        futures = [executor.submit(process_video_thumbnail, v) for v in videos[:max_videos]]
+        for future in as_completed(futures):
+            try:
+                res = future.result()
+                if res:
+                    results.append(res)
+            except Exception as e:
+                print(f"   ⚠️ Batch thumbnail processed failed: {e}")
     
     return results
 

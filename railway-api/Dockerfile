@@ -12,8 +12,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV CACHE_BUST=3
-
 # Copy all source files
 COPY . .
 

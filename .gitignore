@@ -48,3 +48,11 @@ data/.temp/
 *.mp4
 *.mkv
 *.mov
+
+*.dmg
+*.7z
+*.zip
+Grammarly*
+
+railway-api/data/
+**/analysis_result.json

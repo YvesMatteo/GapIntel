@@ -1,35 +1,35 @@
-yt-dlp>=2025.01.01
-openai-whisper
-sentence-transformers>=2.2.2
-supabase>=2.3.0
-google-api-python-client
-google-generativeai
-python-dotenv
-openai
-pytrends
-opencv-python-headless>=4.8.0
-numpy
-pillow>=10.0.0
-streamlit
-plotly
-pandas
+# --- Core API & Web ---
 fastapi
 uvicorn
 requests
+httpx
+python-dotenv
 
-# Premium Analysis - ML & Data Science
+# --- AI & ML ---
+openai
+google-generativeai
+groq
+transformers>=4.30.0
+torch>=2.0.0
+sentence-transformers>=2.2.2
 scikit-learn>=1.3.0
 xgboost>=2.0.0
 joblib
+numpy
+pandas
 
-# Premium Analysis - Computer Vision (optional)
-easyocr>=1.7.0
-mediapipe>=0.10.0
-stripe
+# --- YouTube & Data ---
+yt-dlp>=2025.01.01
+google-api-python-client
 youtube-transcript-api
+pytrends
+supabase>=2.3.0
 
+# --- Media Processing (Optional/Premium) ---
+openai-whisper
+faster-whisper
+pillow>=10.0.0
+opencv-python-headless>=4.8.0
 
-# Security
-cryptography>=41.0.0
-transformers>=4.30.0
-torch>=2.0.0
+# --- Integrations ---
+stripe

@@ -1,9 +1,16 @@
+*.DS_Store
 
+# Exclude frontend and bulky files from backend build
+gap-intel-website/
 Grammarly*
 ffmpeg*
-.git
-.venv
-venv
-__pycache__
+*.dmg
+*.7z
+*.zip
+backend.log
+backend.error.log
+data/
+venv/
+.venv/
+__pycache__/
 *.pyc
-*.DS_Store
