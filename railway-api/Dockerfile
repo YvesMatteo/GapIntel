@@ -11,6 +11,12 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
+ENV OPENBLAS_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV OMP_NUM_THREADS=1
+ENV NUMEXPR_NUM_THREADS=1
+ENV VECLIB_MAXIMUM_THREADS=1
+
 WORKDIR /app
 
 # Install PyTorch CPU-only first to save space/time and avoid OOM

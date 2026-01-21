@@ -1290,7 +1290,7 @@ def run_premium_analysis(
     funcs = [task_ctr, task_thumbnail, task_views, task_competitor, task_clustering, task_publish, task_hook, task_satisfaction, task_growth]
     completed_count = 0
     total_tasks = len(funcs)
-    with ThreadPoolExecutor(max_workers=10) as master:
+    with ThreadPoolExecutor(max_workers=3) as master:
         mfutures = [master.submit(f) for f in funcs]
         for f in as_completed(mfutures):
             k, v = f.result()
