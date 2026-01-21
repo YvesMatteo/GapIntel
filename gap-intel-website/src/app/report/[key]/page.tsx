@@ -269,25 +269,24 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             rawComments: 0,
             highSignal: 0,
             painPoints: 0,
-            trueGaps: gaps.filter(g => g.status === "TRUE_GAP").length,
-            underExplained: gaps.filter(g => g.status === "UNDER_EXPLAINED").length,
+            trueGaps: gaps.filter(g => g?.status === "TRUE_GAP").length,
+            underExplained: gaps.filter(g => g?.status === "UNDER_EXPLAINED").length,
             alreadyCovered: result.already_covered?.length || 0,
         },
         topOpportunity: topGap ? {
-            topic: (topGap as unknown as Record<string, string>).topic || "Analysis pending",
-            suggestedTitle: (topGap as unknown as Record<string, string>).title_suggestion || (topGap as unknown as Record<string, string[]>).title_suggestions?.[0] || "",
-            engagementPotential: (topGap as unknown as Record<string, number>).engagement_score || 0,
-            reasoning: (topGap as unknown as Record<string, string>).reasoning || "",
+            topic: (topGap as unknown as Record<string, string>)?.topic || "Analysis pending",
+            suggestedTitle: (topGap as unknown as Record<string, string>)?.title_suggestion || (topGap as unknown as Record<string, string[]>)?.title_suggestions?.[0] || "",
+            engagementPotential: (topGap as unknown as Record<string, number>)?.engagement_score || 0,
+            reasoning: (topGap as unknown as Record<string, string>)?.reasoning || "",
         } : null,
-        contentGaps: gaps.map((gap, i) => ({
+        contentGaps: gaps.filter(g => g).map((gap, i) => ({
             rank: i + 1,
-            topic: gap.topic,
+            topic: gap.topic || "Unknown Topic",
             status: gap.status === "TRUE_GAP" ? "TRUE_GAP" : "UNDER_EXPLAINED",
             userStruggle: gap.user_struggle || "",
             engagement: gap.engagement_score || 0,
             verification: gap.transcript_evidence || "",
             reasoning: gap.reasoning || "",
-
             suggestedTitles: gap.title_suggestions || [],
             mlViralScore: gap.ml_viral_probability,
         })),
@@ -343,293 +342,343 @@ function detectContentCategory(videos: Array<{ title: string }>): string {
 
 // Helper function to calculate engagement metrics from existing data
 function calculateEngagementMetrics(result: AnalysisResult, totalViews: number = 100000) {
-    const rawComments = result.pipeline_stats?.raw_comments || result.pipeline?.rawComments || 0;
-    const painPoints = result.pipeline_stats?.pain_points_found || 0;
-    const highSignal = result.pipeline_stats?.high_signal_comments || 0;
+    try {
+        const rawComments = result.pipeline_stats?.raw_comments || result.pipeline?.rawComments || 0;
+        const painPoints = result.pipeline_stats?.pain_points_found || 0;
+        const highSignal = result.pipeline_stats?.high_signal_comments || 0;
 
-    // Detect content category
-    const videos = result.videos_analyzed || [];
-    const category = detectContentCategory(videos);
-    const benchmark = CVR_BENCHMARKS[category] || CVR_BENCHMARKS.educational;
+        // Detect content category
+        const videos = result.videos_analyzed || [];
+        const category = detectContentCategory(videos);
+        const benchmark = CVR_BENCHMARKS[category] || CVR_BENCHMARKS.educational;
 
-    // Calculate CVR (using estimated views based on comment count typical ratio)
-    const estimatedViews = totalViews > 0 ? totalViews : Math.max(rawComments * 100, 10000);
-    const cvr = (rawComments / estimatedViews) * 100;
+        // Calculate CVR (using estimated views based on comment count typical ratio)
+        const estimatedViews = totalViews > 0 ? totalViews : Math.max(rawComments * 100, 10000);
+        const cvr = (rawComments / estimatedViews) * 100;
 
-    // Calculate CVR vs benchmark
-    const benchmarkMid = (benchmark.low + benchmark.high) / 2;
-    const cvrVsBenchmark = benchmarkMid > 0 ? ((cvr - benchmarkMid) / benchmarkMid) * 100 : 0;
+        // Calculate CVR vs benchmark
+        const benchmarkMid = (benchmark.low + benchmark.high) / 2;
+        const cvrVsBenchmark = benchmarkMid > 0 ? ((cvr - benchmarkMid) / benchmarkMid) * 100 : 0;
 
-    // Calculate Question Density
-    const questionCount = (result.pipeline_stats as any)?.question_count;
-    let questionDensity = 0;
+        // Calculate Question Density
+        const questionCount = (result.pipeline_stats as any)?.question_count;
+        let questionDensity = 0;
 
-    if (questionCount !== undefined) {
-        questionDensity = rawComments > 0 ? (questionCount / rawComments) * 100 : 0;
-    } else {
-        // Fallback: proxy using pain points
-        questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25;
-    }
-
-    // Estimate other metrics from available data
-    const depthScore = Math.min(1, (highSignal / Math.max(rawComments, 1)) * 2);
-    const repeatScore = Math.min(30, 10 + (rawComments / 100)); // Estimate based on volume
-
-    // Sentiment estimation based on gap analysis (more true gaps = more questions = more engagement)
-    const trueGaps = result.pipeline_stats?.true_gaps || 0;
-    const saturated = result.pipeline_stats?.saturated || 0;
-    const total = trueGaps + saturated + (result.pipeline_stats?.under_explained || 0);
-    const positiveRatio = total > 0 ? Math.max(50, 85 - trueGaps * 3) : 70;
-
-    return {
-        cvr: Math.min(5, cvr),
-        cvrBenchmark: category,
-        cvrBenchmarkLabel: benchmark.label,
-        cvrBenchmarkRange: `${benchmark.low}-${benchmark.high}%`,
-        cvrVsBenchmark: Math.round(cvrVsBenchmark),
-        cvrStatus: cvr >= benchmark.high ? 'above' : cvr >= benchmark.low ? 'at' : 'below',
-        questionDensity: Math.min(50, questionDensity),
-        depthScore: Math.min(1, Math.max(0.1, depthScore)),
-        repeatScore: Math.min(35, repeatScore),
-        totalComments: rawComments,
-        sentiments: {
-            positive: Math.round(positiveRatio),
-            neutral: Math.round(100 - positiveRatio - 10),
-            negative: 5,
-            questions: Math.min(35, Math.round(questionDensity)),
+        if (questionCount !== undefined) {
+            questionDensity = rawComments > 0 ? (questionCount / rawComments) * 100 : 0;
+        } else {
+            // Fallback: proxy using pain points
+            questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25;
         }
-    };
+
+        // Estimate other metrics from available data
+        const depthScore = Math.min(1, (highSignal / Math.max(rawComments, 1)) * 2);
+        const repeatScore = Math.min(30, 10 + (rawComments / 100)); // Estimate based on volume
+
+        // Sentiment estimation based on gap analysis (more true gaps = more questions = more engagement)
+        const trueGaps = result.pipeline_stats?.true_gaps || 0;
+        const saturated = result.pipeline_stats?.saturated || 0;
+        const total = trueGaps + saturated + (result.pipeline_stats?.under_explained || 0);
+        const positiveRatio = total > 0 ? Math.max(50, 85 - trueGaps * 3) : 70;
+
+        return {
+            cvr: Math.min(5, cvr),
+            cvrBenchmark: category,
+            cvrBenchmarkLabel: benchmark.label,
+            cvrBenchmarkRange: `${benchmark.low}-${benchmark.high}%`,
+            cvrVsBenchmark: Math.round(cvrVsBenchmark),
+            cvrStatus: cvr >= benchmark.high ? 'above' : cvr >= benchmark.low ? 'at' : 'below' as 'above' | 'at' | 'below',
+            questionDensity: Math.min(50, questionDensity),
+            depthScore: Math.min(1, Math.max(0.1, depthScore)),
+            repeatScore: Math.min(35, repeatScore),
+            totalComments: rawComments,
+            sentiments: {
+                positive: Math.round(positiveRatio),
+                neutral: Math.round(100 - positiveRatio - 10),
+                negative: 5,
+                questions: Math.min(35, Math.round(questionDensity)),
+            }
+        };
+    } catch (e) {
+        console.error("Error calculating engagement metrics:", e);
+        return {
+            cvr: 0,
+            cvrBenchmark: 'educational',
+            cvrBenchmarkLabel: 'Educational',
+            cvrBenchmarkRange: '1-2%',
+            cvrVsBenchmark: 0,
+            cvrStatus: 'at' as const,
+            questionDensity: 0,
+            depthScore: 0,
+            repeatScore: 0,
+            totalComments: 0,
+            sentiments: { positive: 80, neutral: 15, negative: 5, questions: 0 }
+        };
+    }
 }
 
 // Helper function to calculate content landscape metrics
 function calculateContentLandscape(result: AnalysisResult) {
-    const videos = result.videos_analyzed || [];
-    const gaps = result.verified_gaps || [];
-    const alreadyCovered = result.already_covered || [];
+    try {
+        const videos = result.videos_analyzed || [];
+        const gaps = result.verified_gaps || [];
 
-    // Extract topics from video titles
-    const topicCounts: Record<string, number> = {};
-    videos.forEach(v => {
-        if (!v) return;
-        // Simple topic extraction from title
-        const title = v.title || '';
-        const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
-        words.slice(0, 3).forEach(word => {
-            topicCounts[word] = (topicCounts[word] || 0) + 1;
+        // Extract topics from video titles
+        const topicCounts: Record<string, number> = {};
+        videos.forEach(v => {
+            if (!v) return;
+            // Simple topic extraction from title
+            const title = v.title || '';
+            const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+            words.slice(0, 3).forEach(word => {
+                topicCounts[word] = (topicCounts[word] || 0) + 1;
+            });
         });
-    });
 
-    // Create topic list with saturation
-    const avgPerTopic = videos.length / Math.max(Object.keys(topicCounts).length, 1);
-    const topics: Array<{
-        name: string;
-        videoCount: number;
-        saturation: number;
-        status: 'over' | 'balanced' | 'under' | 'gap';
-    }> = Object.entries(topicCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([name, count]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            videoCount: count,
-            saturation: count / avgPerTopic,
-            status: count / avgPerTopic > 1.5 ? 'over' as const :
-                count / avgPerTopic < 0.5 ? 'under' as const : 'balanced' as const,
-        }));
+        // Create topic list with saturation
+        const avgPerTopic = videos.length / Math.max(Object.keys(topicCounts).length, 1);
+        const topics: Array<{
+            name: string;
+            videoCount: number;
+            saturation: number;
+            status: 'over' | 'balanced' | 'under' | 'gap';
+        }> = Object.entries(topicCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                videoCount: count,
+                saturation: count / avgPerTopic,
+                status: count / avgPerTopic > 1.5 ? 'over' as const :
+                    count / avgPerTopic < 0.5 ? 'under' as const : 'balanced' as const,
+            }));
 
-    // Add gaps as uncovered topics
-    gaps.filter(g => g.status === 'TRUE_GAP').slice(0, 3).forEach(gap => {
-        topics.push({
-            name: gap.topic.slice(0, 30),
-            videoCount: 0,
-            saturation: 0,
-            status: 'gap' as const,
+        // Add gaps as uncovered topics
+        gaps.filter(g => g && g.status === 'TRUE_GAP').slice(0, 3).forEach(gap => {
+            topics.push({
+                name: gap.topic.slice(0, 30),
+                videoCount: 0,
+                saturation: 0,
+                status: 'gap' as const,
+            });
         });
-    });
 
-    // Estimate format diversity
-    let formats: Array<{ name: string; count: number; icon: string }> = [];
+        // Estimate format diversity
+        let formats: Array<{ name: string; count: number; icon: string }> = [];
 
-    if (result.premium?.content_clusters?.format_diversity?.breakdown) {
-        formats = result.premium.content_clusters.format_diversity.breakdown.map((f: any) => {
-            const icons: Record<string, string> = {
-                'tutorial': '📚', 'listicle': '📋', 'review': '⭐', 'reaction': '😲',
-                'vlog': '📹', 'news': '📰', 'comparison': '⚖️', 'challenge': '🏆',
-                'story': '📖', 'educational': '🎓', 'interview': '🎙️', 'case_study': '🔎',
-                'shorts': '📱', 'other': '📁'
-            };
-            return {
-                name: f.name.charAt(0).toUpperCase() + f.name.slice(1),
-                count: f.count,
-                icon: icons[f.name] || '📁'
-            };
-        });
-    } else {
-        formats = [
-            { name: 'Long-form', count: Math.max(1, Math.floor(videos.length * 0.7)), icon: '📹' },
-            { name: 'Tutorial', count: Math.max(1, Math.floor(videos.length * 0.4)), icon: '📚' },
-            { name: 'Discussion', count: Math.max(1, Math.floor(videos.length * 0.2)), icon: '💬' },
-        ];
-    }
+        if (result.premium?.content_clusters?.format_diversity?.breakdown) {
+            formats = result.premium.content_clusters.format_diversity.breakdown.map((f: any) => {
+                const icons: Record<string, string> = {
+                    'tutorial': '📚', 'listicle': '📋', 'review': '⭐', 'reaction': '😲',
+                    'vlog': '📹', 'news': '📰', 'comparison': '⚖️', 'challenge': '🏆',
+                    'story': '📖', 'educational': '🎓', 'interview': '🎙️', 'case_study': '🔎',
+                    'shorts': '📱', 'other': '📁'
+                };
+                return {
+                    name: f.name.charAt(0).toUpperCase() + f.name.slice(1),
+                    count: f.count,
+                    icon: icons[f.name] || '📁'
+                };
+            });
+        } else {
+            formats = [
+                { name: 'Long-form', count: Math.max(1, Math.floor(videos.length * 0.7)), icon: '📹' },
+                { name: 'Tutorial', count: Math.max(1, Math.floor(videos.length * 0.4)), icon: '📚' },
+                { name: 'Discussion', count: Math.max(1, Math.floor(videos.length * 0.2)), icon: '💬' },
+            ];
+        }
 
-    // Estimate upload consistency (would need dates for real calculation)
-    let uploadConsistency = {
-        score: 65,
-        avgDaysBetween: 7,
-        pattern: 'weekly',
-    };
-
-    if (result.premium?.growth_patterns) {
-        uploadConsistency = {
-            score: result.premium.growth_patterns.consistency_index,
-            avgDaysBetween: result.premium.growth_patterns.avg_days_between_uploads,
-            pattern: result.premium.growth_patterns.optimal_frequency || 'weekly'
-        };
-    } else {
-        uploadConsistency = {
-            score: 65 + Math.random() * 20, // Placeholder
-            avgDaysBetween: 7 + Math.floor(Math.random() * 7),
+        // Estimate upload consistency
+        let uploadConsistency = {
+            score: 65,
+            avgDaysBetween: 7,
             pattern: 'weekly',
         };
-    }
 
-    return {
-        topicCoverage: Math.min(85, 40 + topics.length * 5),
-        totalTopics: topics.length,
-        topics,
-        formats,
-        uploadConsistency,
-        freshness: 30 + Math.floor(Math.random() * 40),
-    };
+        if (result.premium?.growth_patterns) {
+            uploadConsistency = {
+                score: result.premium.growth_patterns.consistency_index,
+                avgDaysBetween: result.premium.growth_patterns.avg_days_between_uploads,
+                pattern: result.premium.growth_patterns.optimal_frequency || 'weekly'
+            };
+        } else {
+            uploadConsistency = {
+                score: 75,
+                avgDaysBetween: 7,
+                pattern: 'weekly',
+            };
+        }
+
+        return {
+            topicCoverage: Math.min(85, 40 + topics.length * 5),
+            totalTopics: topics.length,
+            topics,
+            formats,
+            uploadConsistency,
+            freshness: 60,
+        };
+    } catch (e) {
+        console.error("Error calculating content landscape:", e);
+        return {
+            topicCoverage: 50,
+            totalTopics: 0,
+            topics: [],
+            formats: [],
+            uploadConsistency: { score: 50, avgDaysBetween: 7, pattern: 'weekly' },
+            freshness: 50
+        };
+    }
 }
 
 // Helper function to calculate SEO metrics from video titles
 function calculateSeoMetrics(result: AnalysisResult) {
-    const videos = result.videos_analyzed || [];
+    try {
+        const videos = result.videos_analyzed || [];
 
-    // Analyze titles
-    let totalTitleScore = 0;
-    let keywordFirst30 = 0;
-    let hookUsage = 0;
-    let totalLength = 0;
+        // Analyze titles
+        let totalTitleScore = 0;
+        let keywordFirst30 = 0;
+        let hookUsage = 0;
+        let totalLength = 0;
 
-    const issues: Array<{ type: string; count: number; example: string; fix: string }> = [];
-    const longTitles: string[] = [];
-    const noHookTitles: string[] = [];
+        const issues: Array<{ type: string; count: number; example: string; fix: string }> = [];
+        const longTitles: string[] = [];
+        const noHookTitles: string[] = [];
 
-    videos.forEach(v => {
-        if (!v) return;
-        const title = v.title || '';
-        totalLength += title.length;
+        videos.forEach(v => {
+            if (!v) return;
+            const title = v.title || '';
+            totalLength += title.length;
 
-        // Check length (optimal: 50-60)
-        let lengthScore = title.length >= 50 && title.length <= 60 ? 10 :
-            title.length >= 40 && title.length <= 70 ? 8 : 5;
-        if (title.length > 70) longTitles.push(title);
+            // Check length (optimal: 50-60)
+            let lengthScore = title.length >= 50 && title.length <= 60 ? 10 :
+                title.length >= 40 && title.length <= 70 ? 8 : 5;
+            if (title.length > 70) longTitles.push(title);
 
-        // Check for number hooks
-        const hasNumberHook = /\d+\s*(ways|tips|secrets|rules|steps|hacks|reasons)/i.test(title);
-        const hasQuestionHook = title.includes('?');
-        const hasHowTo = title.toLowerCase().startsWith('how to');
+            // Check for number hooks
+            const hasNumberHook = /\d+\s*(ways|tips|secrets|rules|steps|hacks|reasons)/i.test(title);
+            const hasQuestionHook = title.includes('?');
+            const hasHowTo = title.toLowerCase().startsWith('how to');
 
-        if (hasNumberHook || hasQuestionHook || hasHowTo) {
-            hookUsage++;
-        } else {
-            noHookTitles.push(title);
+            if (hasNumberHook || hasQuestionHook || hasHowTo) {
+                hookUsage++;
+            } else {
+                noHookTitles.push(title);
+            }
+
+            let hookScore = hasNumberHook ? 10 : hasQuestionHook ? 8 : hasHowTo ? 7 : 4;
+
+            // Assume keyword placement is decent if title is structured
+            const keywordScore = (hasNumberHook || hasHowTo) ? 9 : 6;
+            if (hasNumberHook || hasHowTo) keywordFirst30++;
+
+            totalTitleScore += (lengthScore * 0.3 + hookScore * 0.4 + keywordScore * 0.3) * 10;
+        });
+
+        const videoCount = Math.max(videos.length, 1);
+
+        // Build issues list
+        if (longTitles.length > 0) {
+            issues.push({
+                type: 'Titles Too Long',
+                count: longTitles.length,
+                example: longTitles[0]?.slice(0, 50) + '...',
+                fix: 'Keep titles under 60 characters for mobile visibility',
+            });
+        }
+        if (noHookTitles.length > videoCount * 0.5) {
+            issues.push({
+                type: 'Missing Hook Patterns',
+                count: noHookTitles.length,
+                example: noHookTitles[0]?.slice(0, 40) || '',
+                fix: 'Use numbers ("7 Ways...") or questions to boost CTR by 35%',
+            });
         }
 
-        let hookScore = hasNumberHook ? 10 : hasQuestionHook ? 8 : hasHowTo ? 7 : 4;
-
-        // Assume keyword placement is decent if title is structured
-        const keywordScore = (hasNumberHook || hasHowTo) ? 9 : 6;
-        if (hasNumberHook || hasHowTo) keywordFirst30++;
-
-        totalTitleScore += (lengthScore * 0.3 + hookScore * 0.4 + keywordScore * 0.3) * 10;
-    });
-
-    const videoCount = Math.max(videos.length, 1);
-
-    // Build issues list
-    if (longTitles.length > 0) {
-        issues.push({
-            type: 'Titles Too Long',
-            count: longTitles.length,
-            example: longTitles[0]?.slice(0, 50) + '...',
-            fix: 'Keep titles under 60 characters for mobile visibility',
-        });
+        return {
+            seoStrength: Math.round(totalTitleScore / videoCount),
+            titleAnalysis: {
+                avgScore: Math.round(totalTitleScore / videoCount),
+                avgLength: Math.round(totalLength / videoCount),
+                keywordPlacement: Math.round((keywordFirst30 / videoCount) * 100),
+                hookUsage: Math.round((hookUsage / videoCount) * 100),
+            },
+            descriptionAnalysis: {
+                avgScore: 65, // Would need description data
+                frontLoadScore: 60,
+                hasTimestamps: 40,
+                hasLinks: 70,
+            },
+            issues,
+            recommendations: [
+                'Add number-based hooks to titles ("7 Ways...", "5 Secrets...")',
+                'Keep primary keyword in first 30 characters',
+                'Add timestamps to descriptions for +20% engagement',
+                'Use curiosity gaps in titles to improve CTR',
+            ],
+        };
+    } catch (e) {
+        console.error("Error calculating SEO metrics:", e);
+        return {
+            seoStrength: 50,
+            titleAnalysis: { avgScore: 50, avgLength: 50, keywordPlacement: 50, hookUsage: 50 },
+            descriptionAnalysis: { avgScore: 50, frontLoadScore: 50, hasTimestamps: 0, hasLinks: 0 },
+            issues: [],
+            recommendations: []
+        };
     }
-    if (noHookTitles.length > videoCount * 0.5) {
-        issues.push({
-            type: 'Missing Hook Patterns',
-            count: noHookTitles.length,
-            example: noHookTitles[0]?.slice(0, 40) || '',
-            fix: 'Use numbers ("7 Ways...") or questions to boost CTR by 35%',
-        });
-    }
-
-    return {
-        seoStrength: Math.round(totalTitleScore / videoCount),
-        titleAnalysis: {
-            avgScore: Math.round(totalTitleScore / videoCount),
-            avgLength: Math.round(totalLength / videoCount),
-            keywordPlacement: Math.round((keywordFirst30 / videoCount) * 100),
-            hookUsage: Math.round((hookUsage / videoCount) * 100),
-        },
-        descriptionAnalysis: {
-            avgScore: 65, // Would need description data
-            frontLoadScore: 60,
-            hasTimestamps: 40,
-            hasLinks: 70,
-        },
-        issues,
-        recommendations: [
-            'Add number-based hooks to titles ("7 Ways...", "5 Secrets...")',
-            'Keep primary keyword in first 30 characters',
-            'Add timestamps to descriptions for +20% engagement',
-            'Use curiosity gaps in titles to improve CTR',
-        ],
-    };
 }
 
 // Helper function to calculate growth driver status
 function calculateGrowthDrivers(result: AnalysisResult, premium: AnalysisResult['premium']) {
-    const videos = result.videos_analyzed || [];
-    const rawComments = result.pipeline_stats?.raw_comments || 0;
+    try {
+        const videos = result.videos_analyzed || [];
+        const rawComments = result.pipeline_stats?.raw_comments || 0;
 
-    // Estimate if creator has shorts
-    const hasShorts = premium?.hook_analysis?.videos_analyzed ?
-        premium.hook_analysis.videos_analyzed > 0 : videos.length > 5;
+        // Estimate if creator has shorts
+        const hasShorts = premium?.hook_analysis?.videos_analyzed ?
+            premium.hook_analysis.videos_analyzed > 0 : videos.length > 5;
 
-    return {
-        uploadConsistency: {
-            current: videos.length > 10 ? 'Regular uploads detected' : 'Limited upload history',
-            recommendation: 'Aim for consistent weekly uploads',
-            impact: '+156% growth',
-            implemented: videos.length > 8,
-        },
-        seriesContent: {
-            seriesCount: Math.floor(videos.length / 5), // Estimate
-            topSeries: videos[0]?.title?.split(':')[0] || 'Main Content',
-            impact: '+89% watch time',
-            implemented: videos.length > 6,
-        },
-        communityEngagement: {
-            responseRate: Math.min(80, 30 + Math.floor(rawComments / 100)),
-            impact: '+134% growth',
-            implemented: rawComments > 200,
-        },
-        multiFormat: {
-            hasShorts,
-            hasLongForm: videos.length > 0,
-            impact: '+156% reach',
-            implemented: hasShorts && videos.length > 0,
-        },
-        consistency: {
-            daysBetweenUploads: 7,
-            impact: '+156% growth',
-            implemented: videos.length > 10,
-        },
-    };
+        return {
+            uploadConsistency: {
+                current: videos.length > 10 ? 'Regular uploads detected' : 'Limited upload history',
+                recommendation: 'Aim for consistent weekly uploads',
+                impact: '+156% growth',
+                implemented: videos.length > 8,
+            },
+            seriesContent: {
+                seriesCount: Math.floor(videos.length / 5), // Estimate
+                topSeries: videos[0]?.title?.split(':')[0] || 'Main Content',
+                impact: '+89% watch time',
+                implemented: videos.length > 6,
+            },
+            communityEngagement: {
+                responseRate: Math.min(80, 30 + Math.floor(rawComments / 100)),
+                impact: '+134% growth',
+                implemented: rawComments > 200,
+            },
+            multiFormat: {
+                hasShorts,
+                hasLongForm: videos.length > 0,
+                impact: '+156% reach',
+                implemented: hasShorts && videos.length > 0,
+            },
+            consistency: {
+                daysBetweenUploads: 7,
+                impact: '+156% growth',
+                implemented: videos.length > 10,
+            },
+        };
+    } catch (e) {
+        console.error("Error calculating growth drivers:", e);
+        return {
+            uploadConsistency: { current: 'N/A', recommendation: 'N/A', impact: 'N/A', implemented: false },
+            seriesContent: { seriesCount: 0, topSeries: 'N/A', impact: 'N/A', implemented: false },
+            communityEngagement: { responseRate: 0, impact: 'N/A', implemented: false },
+            multiFormat: { hasShorts: false, hasLongForm: false, impact: 'N/A', implemented: false },
+            consistency: { daysBetweenUploads: 0, impact: 'N/A', implemented: false }
+        };
+    }
 }
 
 // Helper to calculate overall channel health score
@@ -638,62 +687,75 @@ function calculateHealthScore(
     seo: ReturnType<typeof calculateSeoMetrics>,
     growth: ReturnType<typeof calculateGrowthDrivers>
 ) {
-    // Engagement score (0-100)
-    const engagementScore = Math.min(100,
-        (engagement.cvr * 20) +
-        (engagement.questionDensity * 1.5) +
-        (engagement.repeatScore * 1.5) +
-        (engagement.sentiments.positive * 0.3)
-    );
+    try {
+        // Engagement score (0-100)
+        const engagementScore = Math.min(100,
+            (engagement.cvr * 20) +
+            (engagement.questionDensity * 1.5) +
+            (engagement.repeatScore * 1.5) +
+            (engagement.sentiments.positive * 0.3)
+        );
 
-    // Satisfaction score (based on sentiment)
-    const satisfactionScore = engagement.sentiments.positive;
+        // Satisfaction score (based on sentiment)
+        const satisfactionScore = engagement.sentiments.positive;
 
-    // SEO score
-    const seoScore = seo.seoStrength;
+        // SEO score
+        const seoScore = seo.seoStrength;
 
-    // Growth score (based on how many drivers are implemented)
-    const growthDrivers = [
-        growth.uploadConsistency.implemented,
-        growth.seriesContent.implemented,
-        growth.communityEngagement.implemented,
-        growth.multiFormat.implemented,
-    ];
-    const growthScore = (growthDrivers.filter(Boolean).length / growthDrivers.length) * 100;
+        // Growth score (based on how many drivers are implemented)
+        const growthDrivers = [
+            growth.uploadConsistency.implemented,
+            growth.seriesContent.implemented,
+            growth.communityEngagement.implemented,
+            growth.multiFormat.implemented,
+        ];
+        const growthScore = (growthDrivers.filter(Boolean).length / growthDrivers.length) * 100;
 
-    // Title Potential score (from hook usage - not actual CTR, which requires analytics access)
-    const titlePotentialScore = Math.min(100, seo.titleAnalysis.hookUsage + 30);
+        // Title Potential score (from hook usage - not actual CTR)
+        const titlePotentialScore = Math.min(100, (seo.titleAnalysis?.hookUsage || 0) + 30);
 
-    // Calculate overall (weighted average)
-    const overall = (
-        engagementScore * 0.25 +
-        satisfactionScore * 0.25 +
-        seoScore * 0.20 +
-        growthScore * 0.15 +
-        titlePotentialScore * 0.15
-    );
+        // Calculate overall (weighted average)
+        const overall = (
+            engagementScore * 0.25 +
+            satisfactionScore * 0.25 +
+            seoScore * 0.20 +
+            growthScore * 0.15 +
+            titlePotentialScore * 0.15
+        );
 
-    // Generate top insight
-    let topInsight = '';
-    if (seoScore < 60) {
-        topInsight = 'Focus on title optimization with number hooks to boost CTR by 35%';
-    } else if (engagementScore < 60) {
-        topInsight = 'Increase engagement by responding to comments within first hour';
-    } else if (growthScore < 60) {
-        topInsight = 'Create content series to boost watch time by 89%';
-    } else {
-        topInsight = 'Strong foundation! Focus on addressing identified content gaps';
+        // Generate top insight
+        let topInsight = '';
+        if (seoScore < 60) {
+            topInsight = 'Focus on title optimization with number hooks to boost CTR by 35%';
+        } else if (engagementScore < 60) {
+            topInsight = 'Increase engagement by responding to comments within first hour';
+        } else if (growthScore < 60) {
+            topInsight = 'Create content series to boost watch time by 89%';
+        } else {
+            topInsight = 'Strong foundation! Focus on addressing identified content gaps';
+        }
+
+        return {
+            overall: Math.round(overall),
+            engagement: Math.round(engagementScore),
+            satisfaction: Math.round(satisfactionScore),
+            seo: Math.round(seoScore),
+            growth: Math.round(growthScore),
+            titlePotential: Math.round(titlePotentialScore),
+            topInsight,
+        };
+    } catch (e) {
+        console.error("Error calculating health score:", e);
+        return {
+            overall: 50,
+            engagement: 50,
+            satisfaction: 50,
+            seo: 50,
+            growth: 50,
+            titlePotential: 50,
+            topInsight: 'Analysis in progress...'
+        };
     }
-
-    return {
-        overall: Math.round(overall),
-        engagement: Math.round(engagementScore),
-        satisfaction: Math.round(satisfactionScore),
-        seo: Math.round(seoScore),
-        growth: Math.round(growthScore),
-        titlePotential: Math.round(titlePotentialScore),
-        topInsight,
-    };
 }
 
 
