@@ -62,7 +62,7 @@ export function GrowthPatternsSection({ data }: GrowthPatternsSectionProps) {
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${getTrajectoryColor()}`}>
                     {getTrajectoryIcon()}
                     <span className="text-sm font-bold capitalize">
-                        {data.growth_trajectory} ({data.views_growth_rate > 0 ? '+' : ''}{data.views_growth_rate}%)
+                        {data.growth_trajectory || 'steady'} ({(data.views_growth_rate ?? 0) > 0 ? '+' : ''}{data.views_growth_rate ?? 0}%)
                     </span>
                 </div>
             </div>
@@ -88,7 +88,7 @@ export function GrowthPatternsSection({ data }: GrowthPatternsSectionProps) {
                         <span className="text-sm font-medium text-slate-600">Upload Frequency</span>
                     </div>
                     <div className="text-2xl font-bold text-slate-900">
-                        {data.avg_days_between_uploads.toFixed(0)}d
+                        {(data.avg_days_between_uploads ?? 0).toFixed(0)}d
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Avg days between uploads</p>
                 </div>
@@ -110,7 +110,7 @@ export function GrowthPatternsSection({ data }: GrowthPatternsSectionProps) {
                         <span className="text-sm font-medium text-slate-600">Series Boost</span>
                     </div>
                     <div className={`text-2xl font-bold ${data.series_performance_boost > 0 ? 'text-green-600' : 'text-slate-900'}`}>
-                        {data.series_performance_boost > 0 ? '+' : ''}{data.series_performance_boost}%
+                        {(data.series_performance_boost ?? 0) > 0 ? '+' : ''}{data.series_performance_boost ?? 0}%
                     </div>
                     <p className="text-xs text-slate-400 mt-1">vs standalone videos</p>
                 </div>

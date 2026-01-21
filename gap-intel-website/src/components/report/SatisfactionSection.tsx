@@ -41,10 +41,10 @@ export function SatisfactionSection({ data }: SatisfactionSectionProps) {
                     <h2 className="text-2xl font-serif font-medium text-slate-900">Viewer Satisfaction</h2>
                     <p className="text-slate-500 mt-1">How well your content meets audience expectations</p>
                 </div>
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${getSIBg(data.satisfaction_index)}`}>
-                    <Smile className={`w-4 h-4 ${getSIColor(data.satisfaction_index)}`} />
-                    <span className={`text-sm font-bold ${getSIColor(data.satisfaction_index)}`}>
-                        SI: {data.satisfaction_index}
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${getSIBg(data.satisfaction_index ?? 0)}`}>
+                    <Smile className={`w-4 h-4 ${getSIColor(data.satisfaction_index ?? 0)}`} />
+                    <span className={`text-sm font-bold ${getSIColor(data.satisfaction_index ?? 0)}`}>
+                        SI: {data.satisfaction_index ?? 0}
                     </span>
                 </div>
             </div>
@@ -74,7 +74,7 @@ export function SatisfactionSection({ data }: SatisfactionSectionProps) {
                         <Users className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-slate-600">Return Viewers</span>
                     </div>
-                    <div className="text-2xl font-bold text-slate-900">{(data.return_viewer_ratio * 100).toFixed(0)}%</div>
+                    <div className="text-2xl font-bold text-slate-900">{((data.return_viewer_ratio ?? 0) * 100).toFixed(0)}%</div>
                     <p className="text-xs text-slate-400 mt-1">Comment on multiple videos</p>
                 </div>
 
