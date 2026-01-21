@@ -1005,6 +1005,7 @@ def run_premium_analysis(
     - enterprise: All pro + 100 competitors, advanced everything
     """
     print(f"\n🌟 Running Premium Analysis (Tier: {tier.upper()} | Optimized Parallel)...")
+    print_progress(78, "Premium Analysis")
     
     premium_data = {
         'tier': tier,
@@ -1254,13 +1255,20 @@ def run_premium_analysis(
 
     # --- Execute Parallel Tasks ---
     funcs = [task_ctr, task_thumbnail, task_views, task_competitor, task_clustering, task_publish, task_hook, task_satisfaction, task_growth]
+    completed_count = 0
+    total_tasks = len(funcs)
     with ThreadPoolExecutor(max_workers=10) as master:
         mfutures = [master.submit(f) for f in funcs]
         for f in as_completed(mfutures):
             k, v = f.result()
             if k: premium_data[k] = v
+            completed_count += 1
+            # Update progress as tasks complete (78% to 88%)
+            progress = 78 + int((completed_count / total_tasks) * 10)
+            print_progress(progress, f"Analyzing ({completed_count}/{total_tasks})")
 
     # --- Sequential Tasks ---
+    print_progress(88, "Advanced Analysis")
     
     # 1. Color ML (depends on thumbnail analysis)
     if tier in ['pro', 'enterprise'] and premium_data.get('thumbnail_analysis'):
@@ -1289,6 +1297,7 @@ def run_premium_analysis(
         except Exception as e: print(f"   ⚠️ Viral Predictor failed: {e}")
 
     # 3. Visual Charts
+    print_progress(92, "Generating Charts")
     try:
         print("   📊 Generating Visual Charts...")
         viz = VisualReportGenerator()
@@ -1303,6 +1312,7 @@ def run_premium_analysis(
         premium_data['visual_charts'] = charts
     except Exception as e: print(f"   ⚠️ Charts failed: {e}")
 
+    print_progress(95, "Finalizing Report")
     print("   ✅ Premium Analysis Complete!")
     return premium_data
 
