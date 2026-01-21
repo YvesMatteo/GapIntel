@@ -1369,7 +1369,7 @@ def run_premium_analysis(
 
 
 
-def generate_report(output_path: Path, channel_name: str, videos_data: list, analysis: dict, is_sample: bool = False):
+def generate_report(output_path: Path, channel_name: str, videos_data: list, analysis: dict, is_sample: bool = False, niche: str = "General"):
     """Generate the analytical GAP_REPORT.md file with verified gaps."""
     
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -1508,7 +1508,7 @@ def generate_report(output_path: Path, channel_name: str, videos_data: list, ana
         if premium.get('thumbnail_analysis'):
             ta = premium['thumbnail_analysis']
             f.write("---\n\n")
-            f.write(f"## 🖼️ Thumbnail Strategy Analysis ({args.niche})\n\n")
+            f.write(f"## 🖼️ Thumbnail Strategy Analysis ({niche})\n\n")
             f.write("*AI-powered critique based on industry-leading thumbnail performance datasets.*\n\n")
             
             for item in ta.get('videos_analyzed', []):
@@ -1874,7 +1874,7 @@ Examples:
 
         # Step 6: Generate report
         report_path = data_dir / f"GAP_REPORT_{channel_name.replace(' ', '_')}.md"
-        generate_report(report_path, channel_name, videos_data, analysis, is_sample=args.sample)
+        generate_report(report_path, channel_name, videos_data, analysis, is_sample=args.sample, niche=args.niche)
 
         print(f"\n🎉 Analysis complete!")
         print(f"   Report: {report_path}")
