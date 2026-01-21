@@ -469,16 +469,7 @@ export default function Home() {
         </div>
 
         {/* Floating Creator Icons - Parallax & Animated */}
-        <FloatingIcon
-          src="/images/youtube-logo.png"
-          alt="YouTube"
-          top="12%"
-          left="4%"
-          rotate={-12}
-          delay={0.5}
-          scale={1.2}
-          parallaxY={-40}
-        />
+
         <FloatingIcon
           src="/images/mrbeast.png"
           alt="MrBeast"
@@ -574,6 +565,17 @@ export default function Home() {
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
 
+          <FadeIn>
+            <motion.div
+              animate={{ y: [-8, 8, -8] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="mb-8 inline-block relative z-10"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center justify-center transform hover:scale-110 transition-transform duration-300">
+                <img src="/images/youtube-logo.png" alt="YouTube" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+              </div>
+            </motion.div>
+          </FadeIn>
 
           <FadeIn delay={0.1}>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif font-medium tracking-tight leading-[1.1] md:leading-[1] text-slate-900 mb-6 md:mb-8">
