@@ -24,6 +24,7 @@ google-api-python-client
 youtube-transcript-api
 pytrends
 supabase>=2.3.0
+psycopg2-binary>=2.9.9
 
 # --- Media Processing (Optional/Premium) ---
 openai-whisper
