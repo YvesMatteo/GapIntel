@@ -1069,9 +1069,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                                 src={video.thumbnail_url || (video.video_id ? `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg` : undefined)}
                                                                 alt={video.video_title}
                                                                 className="w-full h-full object-cover"
-                                                                onError={(e) => {
-                                                                    (e.target as HTMLImageElement).style.display = 'none';
-                                                                }}
                                                             />
                                                         </div>
                                                         <div>
@@ -1150,9 +1147,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                                         src={forecast.thumbnail_url || (forecast.video_id ? `https://img.youtube.com/vi/${forecast.video_id}/mqdefault.jpg` : undefined)}
                                                                         alt={forecast.video_title}
                                                                         className="w-full h-full object-cover"
-                                                                        onError={(e) => {
-                                                                            (e.target as HTMLImageElement).style.display = 'none';
-                                                                        }}
                                                                     />
                                                                 </div>
                                                                 <div className="min-w-0">
