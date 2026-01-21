@@ -95,7 +95,7 @@ const StepCard = ({ number, title, description, children }: any) => {
 };
 
 // Floating Icon Component
-const FloatingIcon = ({ src, alt, top, left, right, rotate, delay, scale = 1, parallaxY }: any) => {
+const FloatingIcon = ({ src, alt, top, left, right, rotate, delay, scale = 1, parallaxY, objectPosition = "object-cover" }: any) => {
   const { scrollYProgress } = useScroll();
   const yTransform = useTransform(scrollYProgress, [0, 1], [0, parallaxY]);
 
@@ -114,7 +114,7 @@ const FloatingIcon = ({ src, alt, top, left, right, rotate, delay, scale = 1, pa
       >
         <div className={`w-20 h-20 rounded-2xl bg-white p-2 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.1)] border border-slate-100 transform hover:scale-110 transition-transform duration-300`} style={{ transform: `scale(${scale})` }}>
           <div className="w-full h-full rounded-xl overflow-hidden bg-slate-50 relative">
-            <img src={src} alt={alt} className="w-full h-full object-cover" />
+            <img src={src} alt={alt} className={`w-full h-full ${objectPosition}`} />
             <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl" />
           </div>
         </div>
@@ -478,6 +478,7 @@ export default function Home() {
           delay={0.5}
           scale={1.2}
           parallaxY={-40}
+          objectPosition="object-top object-cover"
         />
 
         <FloatingIcon
