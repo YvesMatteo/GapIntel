@@ -469,6 +469,16 @@ export default function Home() {
         </div>
 
         {/* Floating Creator Icons - Parallax & Animated */}
+        <FloatingIcon
+          src="/images/ishowspeed.jpg"
+          alt="IShowSpeed"
+          top="12%"
+          left="4%"
+          rotate={-12}
+          delay={0.5}
+          scale={1.2}
+          parallaxY={-40}
+        />
 
         <FloatingIcon
           src="/images/mrbeast.png"
@@ -571,8 +581,8 @@ export default function Home() {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="mb-8 inline-block relative z-10"
             >
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 flex items-center justify-center transform hover:scale-110 transition-transform duration-300">
-                <img src="/images/youtube-logo.png" alt="YouTube" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.1)] border border-slate-100 flex items-center justify-center transform hover:scale-110 transition-transform duration-300">
+                <img src="/images/youtube-logo.png" alt="YouTube" className="w-12 h-12 md:w-16 md:h-16 object-contain" />
               </div>
             </motion.div>
           </FadeIn>
