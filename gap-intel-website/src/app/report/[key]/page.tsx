@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle, Sparkles, Target, Zap, Users, Layers, FileText } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle, Sparkles, Target, Zap, Users, Layers, FileText, Lightbulb } from "lucide-react";
 import ReportActions from "@/components/ReportActions";
 import ReportHeader from "@/components/ReportHeader";
 import { ChannelHealthSection } from "@/components/report/ChannelHealthSection";
@@ -64,6 +64,7 @@ interface AnalysisResult {
         title: string;
         comments_count: number;
         video_id: string;
+        thumbnail_url?: string;
     }>;
     competitors?: string[];
     raw_report?: string;
@@ -100,6 +101,8 @@ interface AnalysisResult {
             mode: 'basic' | 'advanced';
             videos_analyzed: Array<{
                 video_title: string;
+                video_id?: string;
+                thumbnail_url?: string;
                 predicted_ctr: number;
                 potential_improvement: string;
                 score_breakdown: Record<string, number>;
@@ -111,6 +114,8 @@ interface AnalysisResult {
         views_forecast?: {
             forecasts: Array<{
                 video_title: string;
+                video_id?: string;
+                thumbnail_url?: string;
                 predicted_7d_views: number;
                 predicted_30d_views: number;
                 viral_probability: number;
@@ -291,6 +296,7 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             title: v.title,
             comments: v.comments_count,
             url: `https://youtube.com/watch?v=${v.video_id}`,
+            thumbnail: v.thumbnail_url || `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`,
         })) || [],
         competitors: result.competitors || [],
     };
@@ -652,8 +658,8 @@ function calculateHealthScore(
     ];
     const growthScore = (growthDrivers.filter(Boolean).length / growthDrivers.length) * 100;
 
-    // CTR score (from hook usage)
-    const ctrScore = Math.min(100, seo.titleAnalysis.hookUsage + 30);
+    // Title Potential score (from hook usage - not actual CTR, which requires analytics access)
+    const titlePotentialScore = Math.min(100, seo.titleAnalysis.hookUsage + 30);
 
     // Calculate overall (weighted average)
     const overall = (
@@ -661,7 +667,7 @@ function calculateHealthScore(
         satisfactionScore * 0.25 +
         seoScore * 0.20 +
         growthScore * 0.15 +
-        ctrScore * 0.15
+        titlePotentialScore * 0.15
     );
 
     // Generate top insight
@@ -682,7 +688,7 @@ function calculateHealthScore(
         satisfaction: Math.round(satisfactionScore),
         seo: Math.round(seoScore),
         growth: Math.round(growthScore),
-        ctr: Math.round(ctrScore),
+        titlePotential: Math.round(titlePotentialScore),
         topInsight,
     };
 }
@@ -698,7 +704,9 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
             <main className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="text-center max-w-md mx-auto px-6">
                     <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 p-12">
-                        <div className="text-6xl mb-6">🔍</div>
+                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
+                            <Search className="w-8 h-8 text-slate-400" />
+                        </div>
                         <h1 className="text-2xl font-serif font-medium text-slate-900 mb-4">Report Not Found</h1>
                         <p className="text-slate-500 mb-6">
                             We couldn't find a report with this access key.
@@ -736,7 +744,9 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
             <main className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="text-center">
                     <div className="bg-white rounded-[32px] p-12 max-w-md mx-auto border border-slate-100 shadow-xl">
-                        <div className="text-6xl mb-6">❌</div>
+                        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6">
+                            <AlertCircle className="w-8 h-8 text-red-500" />
+                        </div>
                         <h1 className="text-2xl font-bold text-slate-900 mb-4">Analysis Failed</h1>
                         <p className="text-slate-500 mb-8">{analysis.report_data?.error || "Unknown error occurred"}</p>
                         <Link href="/dashboard" className="text-blue-600 hover:underline">
@@ -969,9 +979,24 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                     <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-slate-100 max-h-[600px] overflow-y-auto">
                                         {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.map((video, i) => (
                                             <div key={i} className="p-8 hover:bg-slate-50/30 transition-colors">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <h4 className="font-bold text-slate-900 line-clamp-1 pr-4">{video.video_title}</h4>
-                                                    <div className="text-right">
+                                                <div className="flex justify-between items-start mb-4 gap-4">
+                                                    <div className="flex items-start gap-4 flex-1">
+                                                        {/* Thumbnail Image */}
+                                                        <div className="relative w-32 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100">
+                                                            <img
+                                                                src={video.thumbnail_url || (video.video_id ? `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg` : undefined)}
+                                                                alt={video.video_title}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900 line-clamp-2">{video.video_title}</h4>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
                                                         <div className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</div>
                                                         <div className="text-xs text-slate-400 font-bold uppercase">CTR <span className="text-amber-500">(Est.)</span></div>
                                                     </div>
@@ -999,67 +1024,108 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                 </div>
                             )}
 
-                            {/* Views Forecast */}
-                            {analysis.report_data.premium.views_forecast && (
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    <div className="bg-[#1c1c1e] text-white rounded-[32px] p-8 flex flex-col justify-center text-center">
-                                        <h3 className="text-2xl font-serif font-medium mb-2">Viral Probability</h3>
-                                        <div className="flex-1 flex items-center justify-center py-8">
-                                            <div className="relative w-40 h-40">
-                                                <svg className="w-full h-full transform -rotate-90">
-                                                    <circle
-                                                        cx="80"
-                                                        cy="80"
-                                                        r="70"
-                                                        stroke="currentColor"
-                                                        strokeWidth="12"
-                                                        fill="transparent"
-                                                        className="text-white/10"
-                                                    />
-                                                    <circle
-                                                        cx="80"
-                                                        cy="80"
-                                                        r="70"
-                                                        stroke="#22c55e"
-                                                        strokeWidth="12"
-                                                        fill="transparent"
-                                                        strokeDasharray={440}
-                                                        strokeDashoffset={440 - (440 * analysis.report_data.premium.views_forecast.avg_viral_probability / 100)}
-                                                        strokeLinecap="round"
-                                                        className="transition-all duration-1000 ease-out"
-                                                    />
-                                                </svg>
-                                                <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                                    <span className="text-5xl font-bold">{analysis.report_data.premium.views_forecast.avg_viral_probability}%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p className="text-slate-400">Likelihood of outperforming channel average <span className="text-amber-500 text-sm">(Estimated)</span></p>
-                                    </div>
+                            {/* Views Forecast - Per Video Breakout */}
+                            {analysis.report_data.premium.views_forecast && (() => {
+                                const forecasts = analysis.report_data.premium.views_forecast.forecasts || [];
 
-                                    <div className="space-y-4">
-                                        {analysis.report_data.premium.views_forecast.forecasts.slice(0, 3).map((forecast, i) => (
-                                            <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
-                                                <div className="flex-1 mr-4 overflow-hidden">
-                                                    <h4 className="font-medium text-slate-900 truncate mb-1">{forecast.video_title}</h4>
-                                                    <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${forecast.trajectory_type === 'VIRAL' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                        {forecast.trajectory_type}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-xl font-bold text-slate-900">{(forecast.predicted_30d_views / 1000).toFixed(1)}k</div>
-                                                    <div className="text-xs text-slate-400 uppercase">30 Days</div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                // Check if we have any recent enough videos to analyze
+                                // If 3rd video is older than 90 days from now, show "not enough recent data"
+                                const hasRecentVideos = forecasts.length >= 1;
+
+                                if (!hasRecentVideos) {
+                                    return (
+                                        <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200 text-center">
+                                            <h3 className="text-2xl font-serif font-medium text-slate-900 mb-4">Video Performance Forecast</h3>
+                                            <p className="text-slate-500">Not enough recent video data to generate forecasts. Upload more videos to see performance predictions.</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                                        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
+                                            <h3 className="text-2xl font-serif font-medium text-slate-900">Recent Video Performance</h3>
+                                            <p className="text-slate-500 mt-2">How each of your recent videos is tracking against your channel average</p>
+                                        </div>
+                                        <div className="divide-y divide-slate-100">
+                                            {forecasts.map((forecast, i) => {
+                                                const prob = forecast.viral_probability || 0;
+                                                const trajectoryColors: Record<string, { bg: string; text: string; border: string }> = {
+                                                    'viral': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+                                                    'breakout': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                                                    'performing': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+                                                    'underperforming': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+                                                    'steady': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
+                                                };
+                                                const colors = trajectoryColors[forecast.trajectory_type] || trajectoryColors['steady'];
+
+                                                return (
+                                                    <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                                                                <div className="relative w-24 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100">
+                                                                    <img
+                                                                        src={forecast.thumbnail_url || (forecast.video_id ? `https://img.youtube.com/vi/${forecast.video_id}/mqdefault.jpg` : undefined)}
+                                                                        alt={forecast.video_title}
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={(e) => {
+                                                                            (e.target as HTMLImageElement).style.display = 'none';
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="font-medium text-slate-900 truncate mb-2">{forecast.video_title}</h4>
+                                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                                        <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
+                                                                            {forecast.trajectory_type?.replace('_', ' ') || 'Analyzing'}
+                                                                        </span>
+                                                                        <span className="text-sm text-slate-500">
+                                                                            {forecast.vs_channel_avg || 'Calculating...'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className={`text-2xl font-bold ${prob >= 60 ? 'text-green-600' : prob >= 30 ? 'text-amber-600' : 'text-slate-600'}`}>
+                                                                        {prob.toFixed(0)}%
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-xs text-slate-400 uppercase font-medium">
+                                                                    Breakout Chance
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                                                            <div className="bg-slate-50 rounded-xl px-4 py-3">
+                                                                <div className="text-slate-400 text-xs uppercase font-medium mb-1">7-Day Forecast</div>
+                                                                <div className="font-bold text-slate-900">{(forecast.predicted_7d_views / 1000).toFixed(1)}k views</div>
+                                                            </div>
+                                                            <div className="bg-slate-50 rounded-xl px-4 py-3">
+                                                                <div className="text-slate-400 text-xs uppercase font-medium mb-1">30-Day Forecast</div>
+                                                                <div className="font-bold text-slate-900">{(forecast.predicted_30d_views / 1000).toFixed(1)}k views</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="p-4 bg-slate-50 border-t border-slate-100">
+                                            <p className="text-xs text-slate-400 text-center">
+                                                Breakout chance = probability of exceeding your channel's average performance <span className="text-amber-500">(Est.)</span>
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             {/* Hook Analysis */}
                             {analysis.report_data.premium.hook_analysis && (
-                                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-[32px] p-8 border border-amber-100">
-                                    <h3 className="text-2xl font-serif font-medium text-slate-900 mb-2">🎣 Hook Analysis</h3>
+                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><Zap className="w-5 h-5 text-amber-600" /></div>
+                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Hook Analysis</h3>
+                                    </div>
                                     <p className="text-sm text-slate-500 mb-6">First 60 seconds patterns that drive views</p>
 
                                     <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -1087,35 +1153,36 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                     )}
 
-                                    {analysis.report_data.premium.hook_analysis.recommendations && (
-                                        <div className="bg-amber-100/50 rounded-xl p-4">
-                                            <h4 className="font-semibold text-amber-800 mb-2">💡 Recommendations</h4>
-                                            <ul className="space-y-1 text-sm text-amber-900">
-                                                {analysis.report_data.premium.hook_analysis.recommendations.map((rec, i) => (
-                                                    <li key={i}>• {rec}</li>
-                                                ))}
-                                            </ul>
+                                    <div className="bg-slate-100 rounded-xl p-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Lightbulb className="w-4 h-4 text-slate-600" />
+                                            <h4 className="font-semibold text-slate-800">Recommendations</h4>
                                         </div>
-                                    )}
+                                        <ul className="space-y-1 text-sm text-amber-900">
+                                            {analysis.report_data.premium.hook_analysis.recommendations.map((rec, i) => (
+                                                <li key={i}>• {rec}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Color Insights */}
                             {analysis.report_data.premium.color_insights && (
-                                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-[32px] p-8 border border-purple-100">
-                                    <h3 className="text-2xl font-serif font-medium text-slate-900 mb-2">🎨 Thumbnail Color Insights</h3>
+                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center"><Sparkles className="w-5 h-5 text-purple-600" /></div>
+                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Color Insights</h3>
+                                    </div>
                                     <p className="text-sm text-slate-500 mb-6">Color patterns that drive the most views</p>
 
                                     {analysis.report_data.premium.color_insights.top_performing_colors && (
                                         <div className="mb-6">
                                             <h4 className="font-semibold text-slate-900 mb-3">Top Colors</h4>
                                             <div className="flex gap-3">
-                                                {analysis.report_data.premium.color_insights.top_performing_colors.slice(0, 5).map((color, i) => (
+                                                {analysis.report_data.premium.color_insights.top_performing_colors.map((color, i) => (
                                                     <div key={i} className="flex flex-col items-center">
-                                                        <div
-                                                            className="w-12 h-12 rounded-xl border-2 border-white shadow-md"
-                                                            style={{ backgroundColor: color }}
-                                                        />
+                                                        <div className="w-12 h-12 rounded-xl border-2 border-white shadow-md" style={{ backgroundColor: color }} />
                                                         <span className="text-xs text-slate-500 mt-1">{color}</span>
                                                     </div>
                                                 ))}
@@ -1134,23 +1201,27 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                     )}
 
-                                    {analysis.report_data.premium.color_insights.color_recommendations && (
-                                        <div className="bg-purple-100/50 rounded-xl p-4">
-                                            <h4 className="font-semibold text-purple-800 mb-2">💡 Color Recommendations</h4>
-                                            <ul className="space-y-1 text-sm text-purple-900">
-                                                {analysis.report_data.premium.color_insights.color_recommendations.map((rec, i) => (
-                                                    <li key={i}>• {rec}</li>
-                                                ))}
-                                            </ul>
+                                    <div className="bg-slate-100 rounded-xl p-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Lightbulb className="w-4 h-4 text-slate-600" />
+                                            <h4 className="font-semibold text-slate-800">Color Recommendations</h4>
                                         </div>
-                                    )}
+                                        <ul className="space-y-1 text-sm text-slate-700">
+                                            {analysis.report_data.premium.color_insights.color_recommendations.map((rec, i) => (
+                                                <li key={i}>• {rec}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Publish Times */}
                             {analysis.report_data.premium.publish_times && (
-                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-[32px] p-8 border border-blue-100">
-                                    <h3 className="text-2xl font-serif font-medium text-slate-900 mb-2">⏰ Best Time to Post</h3>
+                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center"><Clock className="w-5 h-5 text-blue-600" /></div>
+                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Best Time to Post</h3>
+                                    </div>
                                     <p className="text-sm text-slate-500 mb-6">Optimal upload windows based on your channel history</p>
 
                                     <div className="grid md:grid-cols-2 gap-8 mb-6">
@@ -1177,23 +1248,24 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                     </div>
 
                                     {/* Detailed Schedule */}
-                                    {analysis.report_data.premium.publish_times.recommendations && (
-                                        <div className="bg-blue-100/50 rounded-xl p-4">
-                                            <h4 className="font-semibold text-blue-800 mb-3">💡 Recommended Schedule</h4>
-                                            <div className="space-y-3">
-                                                {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
-                                                    <div key={i} className="flex items-start gap-3 text-sm">
-                                                        <div className="bg-white text-blue-600 font-bold px-2 py-1 rounded border border-blue-200 text-xs shrink-0">
-                                                            {rec.day} {rec.hour}:00 UTC
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-blue-900 block">{rec.reasoning}</span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                    <div className="bg-slate-100 rounded-xl p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Lightbulb className="w-4 h-4 text-slate-600" />
+                                            <h4 className="font-semibold text-slate-800">Recommended Schedule</h4>
                                         </div>
-                                    )}
+                                        <div className="space-y-3">
+                                            {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
+                                                <div key={i} className="flex items-start gap-3 text-sm">
+                                                    <div className="bg-white text-blue-600 font-bold px-2 py-1 rounded border border-blue-200 text-xs shrink-0">
+                                                        {rec.day} {rec.hour}:00 UTC
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-blue-900 block">{rec.reasoning}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -1223,8 +1295,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                         </div>
                     )}
                 </div>
-            </main >
-        </div >
+            </main>
+        </div>
     );
 }
-

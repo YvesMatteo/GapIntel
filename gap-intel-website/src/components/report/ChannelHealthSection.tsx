@@ -10,7 +10,7 @@ interface ChannelHealthData {
     satisfaction: number;
     seo: number;
     growth: number;
-    ctr: number;
+    titlePotential: number;
 }
 
 interface ChannelHealthSectionProps {
@@ -25,7 +25,7 @@ export function ChannelHealthSection({ health, channelName, topInsight }: Channe
         { label: 'Satisfaction', score: health.satisfaction, icon: <Sparkles className="w-4 h-4" /> },
         { label: 'SEO', score: health.seo, icon: <Target className="w-4 h-4" /> },
         { label: 'Growth', score: health.growth, icon: <TrendingUp className="w-4 h-4" /> },
-        { label: 'CTR', score: health.ctr, icon: <Zap className="w-4 h-4" /> },
+        { label: 'Title Potential', score: health.titlePotential, icon: <Zap className="w-4 h-4" /> },
     ];
 
     return (

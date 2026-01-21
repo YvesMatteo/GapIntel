@@ -6,6 +6,7 @@ Detects success signals ("it worked", "thanks this helped") and confusion signal
 
 Formula:
 SI = (Engagement_Quality × 0.6) + (Retention_Proxy × 0.3) + (Implementation_Success × 0.1)
+Note: Weights are heuristic estimates based on internal testing, not peer-reviewed research.
 """
 
 import re
@@ -152,6 +153,7 @@ class SatisfactionAnalyzer:
         )
         
         # 8. Final Satisfaction Index formula
+        # Weights (0.6, 0.3, 0.1) are heuristic estimates prioritizing engagement quality.
         si = (engagement_quality * 0.6) + (retention_proxy * 0.3) + (implementation_success * 0.1)
         si = min(100, max(0, si))  # Clamp to 0-100
         
@@ -257,6 +259,7 @@ class SatisfactionAnalyzer:
         confusion_rate = (confusion / total) * 100
         
         # Net score: success minus confusion penalty
+        # Penalty multiplier (3x) is heuristic, assuming confusion is more damaging than success is helpful.
         score = 50 + (success_rate * 2) - (confusion_rate * 3)
         return max(0, min(100, score))
     
@@ -267,6 +270,7 @@ class SatisfactionAnalyzer:
         
         confusion_rate = confusion_count / total
         # Low confusion = high clarity
+        # Multiplier 500 is a heuristic scaling factor to normalize low confusion rates to a 0-100 scale.
         return max(0, 100 - (confusion_rate * 500))
     
     def _generate_recommendations(self, si: float, clarity: float,

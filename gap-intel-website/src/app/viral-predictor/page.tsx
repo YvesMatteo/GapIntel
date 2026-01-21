@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
     Sparkles, TrendingUp, AlertCircle, ArrowRight, Zap, Target, PenTool,
     Type, BarChart3, Lightbulb, CheckCircle, XCircle, Info, RefreshCw,
-    ChevronRight, Copy, Check
+    ChevronRight, Copy, Check, Ruler, MousePointerClick, Crosshair
 } from "lucide-react";
 import {
     analyzeTitle,
@@ -144,12 +144,12 @@ function ViralPredictorContent() {
     }
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-purple-50/50 via-white to-[#FAFAFA] pt-24 pb-20">
+        <main className="min-h-screen bg-[#FAFAFA] pt-24 pb-20">
             <div className="max-w-6xl mx-auto px-6">
 
                 {/* Header */}
                 <div className="mb-12 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-100 text-purple-700 text-sm font-medium mb-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 text-slate-700 text-sm font-medium mb-4 border border-slate-200">
                         <Sparkles className="w-4 h-4" /> Premium Tool
                     </div>
                     <h1 className="text-4xl md:text-5xl font-serif font-medium text-slate-900 mb-4">
@@ -165,7 +165,7 @@ function ViralPredictorContent() {
 
                     {/* Input Panel */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white rounded-[32px] shadow-xl shadow-purple-100/50 border border-slate-100 p-8 sticky top-24">
+                        <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sticky top-24">
                             <div className="space-y-6">
 
                                 {/* Title Input with Live Counter */}
@@ -181,7 +181,7 @@ function ViralPredictorContent() {
                                                 : 'text-slate-400'
                                             }`}>
                                             {title.length}/60 chars
-                                            {title.length >= 50 && title.length <= 60 && ' ✓'}
+                                            {title.length >= 50 && title.length <= 60 && <Check className="w-3 h-3 text-green-500 ml-1 inline" />}
                                         </span>
                                     </div>
                                     <input
@@ -259,10 +259,10 @@ function ViralPredictorContent() {
                                 </div>
 
                                 {/* Research Note */}
-                                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                                     <div className="flex items-start gap-2">
-                                        <Lightbulb className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
-                                        <p className="text-xs text-purple-700">
+                                        <Lightbulb className="w-4 h-4 text-slate-600 mt-0.5 shrink-0" />
+                                        <p className="text-xs text-slate-600">
                                             <strong>Pro Tip:</strong> Number hooks ("7 Ways...") get 3× better CTR.
                                             Keep titles 50-60 characters for optimal display.
                                         </p>
@@ -278,7 +278,7 @@ function ViralPredictorContent() {
                         {/* Empty State */}
                         {title.length === 0 && (
                             <div className="bg-white/50 border border-slate-200/50 rounded-[32px] p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-                                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-purple-200 mb-6">
+                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-6">
                                     <Type className="w-10 h-10" />
                                 </div>
                                 <h3 className="text-xl font-medium text-slate-900 mb-2">Start Typing</h3>
@@ -293,7 +293,7 @@ function ViralPredictorContent() {
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
                                 {/* Viral Score Hero */}
-                                <div className={`bg-gradient-to-br ${getScoreBg(analysis.overallScore)} rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl`}>
+                                <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl">
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -mr-32 -mt-32" />
 
                                     <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
@@ -374,14 +374,14 @@ function ViralPredictorContent() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {/* Title Hook */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                                        <div className="text-2xl mb-2">{analysis.hookEmoji}</div>
+                                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2"><Sparkles className="w-4 h-4 text-slate-600" /></div>
                                         <p className="text-sm text-slate-500 mb-1">Hook Strength</p>
                                         <div className="text-2xl font-bold text-slate-900">
                                             {analysis.thss.toFixed(1)}<span className="text-sm text-slate-400 font-normal">/10</span>
                                         </div>
                                         <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-purple-500 rounded-full transition-all"
+                                                className="h-full bg-slate-700 rounded-full transition-all"
                                                 style={{ width: `${analysis.thss * 10}%` }}
                                             />
                                         </div>
@@ -389,7 +389,7 @@ function ViralPredictorContent() {
 
                                     {/* CTR Boost */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                                        <div className="text-2xl mb-2">📈</div>
+                                        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center mb-2"><TrendingUp className="w-4 h-4 text-green-600" /></div>
                                         <p className="text-sm text-slate-500 mb-1">CTR Boost</p>
                                         <div className="text-2xl font-bold text-green-600">
                                             +{analysis.ctrBoost}%
@@ -399,7 +399,7 @@ function ViralPredictorContent() {
 
                                     {/* Length Score */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                                        <div className="text-2xl mb-2">📏</div>
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-2"><Ruler className="w-4 h-4 text-blue-600" /></div>
                                         <p className="text-sm text-slate-500 mb-1">Title Length</p>
                                         <div className={`text-2xl font-bold ${analysis.lengthStatus === 'optimal' ? 'text-green-600' :
                                             analysis.lengthStatus === 'truncated' ? 'text-red-600' : 'text-yellow-600'
@@ -407,15 +407,21 @@ function ViralPredictorContent() {
                                             {analysis.lengthValue} chars
                                         </div>
                                         <p className="text-xs text-slate-400 mt-2">
-                                            {analysis.lengthStatus === 'optimal' ? '✓ Perfect' :
-                                                analysis.lengthStatus === 'truncated' ? '⚠️ Will truncate' :
-                                                    analysis.lengthStatus === 'short' ? '↑ Could be longer' : '↓ Slightly long'}
+                                            {analysis.lengthStatus === 'optimal' ? (
+                                                <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Perfect</span>
+                                            ) : analysis.lengthStatus === 'truncated' ? (
+                                                <span className="flex items-center gap-1.5"><AlertCircle className="w-4 h-4" /> Will truncate</span>
+                                            ) : analysis.lengthStatus === 'short' ? (
+                                                '↑ Could be longer'
+                                            ) : (
+                                                '↓ Slightly long'
+                                            )}
                                         </p>
                                     </div>
 
                                     {/* Structure */}
                                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                                        <div className="text-2xl mb-2">🎯</div>
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center mb-2"><Target className="w-4 h-4 text-indigo-600" /></div>
                                         <p className="text-sm text-slate-500 mb-1">Structure</p>
                                         <div className="text-2xl font-bold text-slate-900">
                                             {analysis.tse.toFixed(1)}<span className="text-sm text-slate-400 font-normal">/10</span>
@@ -472,8 +478,8 @@ function ViralPredictorContent() {
                                 {alternatives.length > 0 && (
                                     <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
                                         <div className="flex items-center gap-3 mb-5">
-                                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                                                <RefreshCw className="w-5 h-5 text-purple-600" />
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                                                <RefreshCw className="w-5 h-5 text-slate-600" />
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-semibold text-slate-900">Alternative Titles</h3>
@@ -503,23 +509,23 @@ function ViralPredictorContent() {
                                             {alternatives.map((alt, i) => (
                                                 <div
                                                     key={i}
-                                                    className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 hover:bg-purple-50 transition group"
+                                                    className="bg-slate-50 rounded-xl p-4 border border-slate-200 hover:bg-slate-100 transition group"
                                                 >
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-lg">{alt.emoji}</span>
-                                                            <span className="text-xs font-medium text-purple-600 uppercase tracking-wider">
+                                                            <div className="w-6 h-6 rounded-md bg-slate-200 flex items-center justify-center"><Sparkles className="w-3 h-3 text-slate-600" /></div>
+                                                            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
                                                                 {alt.hookName}
                                                             </span>
                                                         </div>
                                                         <button
                                                             onClick={() => handleCopyTitle(alt.title, i)}
-                                                            className="opacity-0 group-hover:opacity-100 transition p-2 hover:bg-purple-100 rounded-lg"
+                                                            className="opacity-0 group-hover:opacity-100 transition p-2 hover:bg-slate-200 rounded-lg"
                                                         >
                                                             {copiedIndex === i ? (
                                                                 <Check className="w-4 h-4 text-green-600" />
                                                             ) : (
-                                                                <Copy className="w-4 h-4 text-purple-600" />
+                                                                <Copy className="w-4 h-4 text-slate-600" />
                                                             )}
                                                         </button>
                                                     </div>

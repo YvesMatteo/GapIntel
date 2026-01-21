@@ -113,8 +113,9 @@ class PremiumReportGenerator:
         findings = []
         
         if results.get('thumbnail_analysis'):
-            ctr = results['thumbnail_analysis'].get('avg_ctr', 4.0)
-            findings.append(f"Average CTR potential: {ctr:.1f}%")
+            score = results['thumbnail_analysis'].get('avg_quality_score')
+            if score:
+                findings.append(f"Average Thumbnail Quality: {score:.1f}/100")
         
         if results.get('competitor_analysis'):
             comp_count = len(results['competitor_analysis'].get('competitors', []))
@@ -174,15 +175,15 @@ class PremiumReportGenerator:
         else:
             scores['engagement_rate'] = 50
         
-        # Growth trajectory (placeholder)
-        scores['growth_trajectory'] = 65
+        # Growth trajectory (requires historical data)
+        # scores['growth_trajectory'] = 65  # Removed placeholder
         
         # Thumbnail effectiveness
         if results.get('thumbnail_analysis'):
-            ctr = results['thumbnail_analysis'].get('avg_ctr', 4.0)
-            scores['thumbnail_effectiveness'] = min(100, int(ctr * 12))
+            ctr_score = results['thumbnail_analysis'].get('quality_score', 0)
+            scores['thumbnail_effectiveness'] = ctr_score
         else:
-            scores['thumbnail_effectiveness'] = 55
+            scores['thumbnail_effectiveness'] = 50
         
         # Competitive position
         if results.get('competitor_analysis'):
@@ -247,14 +248,14 @@ class PremiumReportGenerator:
             'type': 'thumbnail_analysis',
             'content': {
                 'analyzed_thumbnails': thumb.get('count', 0),
-                'avg_predicted_ctr': thumb.get('avg_ctr', 4.0),
+                'avg_quality_score': thumb.get('avg_quality_score', 0),
                 'common_patterns': thumb.get('patterns', []),
                 'improvement_opportunities': thumb.get('improvements', []),
                 'best_practices': [
-                    "Use faces covering 15-30% of thumbnail",
-                    "Include 2-4 words of text with high contrast",
-                    "Use warm colors (red, yellow, orange) as accents",
-                    "Ensure readability at mobile scale"
+                    "Use high contrast text for readability",
+                    "Ensure main subject is clearly visible",
+                    "Use complementary colors to make elements pop",
+                    "Test readability at mobile scale"
                 ],
                 'ab_test_suggestions': thumb.get('ab_suggestions', [])
             }
@@ -339,12 +340,7 @@ class PremiumReportGenerator:
                     {'day': 'Thursday', 'hour_utc': 14},
                     {'day': 'Saturday', 'hour_utc': 10}
                 ]),
-                'content_mix': {
-                    'educational': '40%',
-                    'entertainment': '30%',
-                    'trending': '20%',
-                    'community': '10%'
-                }
+                'content_mix': {}  # Dynamic mix removed until sufficient data available
             }
         }
     
@@ -401,7 +397,7 @@ class PremiumReportGenerator:
                 'immediate_actions': [a for a in actions if a['priority'] == 1],
                 'this_week': [a for a in actions if a['priority'] == 2],
                 'this_month': [a for a in actions if a['priority'] == 3],
-                'estimated_impact': "Following these actions could increase views by 30-50%"
+                'estimated_impact': "Implementing these changes can significantly improve channel performance."
             }
         }
     
@@ -417,8 +413,7 @@ class PremiumReportGenerator:
             scores.append(min(100, int(avg_views / 1000)))
         
         if results.get('thumbnail_analysis'):
-            ctr = results['thumbnail_analysis'].get('avg_ctr', 4.0)
-            scores.append(min(100, int(ctr * 12)))
+            scores.append(results['thumbnail_analysis'].get('quality_score', 50))
         
         return int(sum(scores) / len(scores)) if scores else 50
     
@@ -440,8 +435,8 @@ class PremiumReportGenerator:
     def _get_primary_recommendation(self, results: Dict) -> str:
         """Get the single most important recommendation."""
         # Check for low-hanging fruit
-        if results.get('thumbnail_analysis', {}).get('avg_ctr', 5) < 4:
-            return "Focus on improving thumbnails - this is your biggest opportunity for quick growth"
+        if results.get('thumbnail_analysis', {}).get('avg_quality_score', 50) < 60:
+            return "Focus on improving thumbnails - high quality thumbnails are crucial for growth"
         
         if results.get('gap_analysis', {}).get('quick_wins'):
             return f"Create content on: {results['gap_analysis']['quick_wins'][0]}"

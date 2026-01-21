@@ -1027,6 +1027,141 @@ async def youtube_analytics_collect(
         }
 
 
+@app.get("/api/youtube-analytics/dashboard")
+async def youtube_analytics_dashboard(
+    req: Request,
+    authenticated: bool = Depends(verify_api_key)
+):
+    """
+    Get channel analytics dashboard data for a connected user.
+    
+    Query params:
+    - user_id: The user's Supabase user ID
+    - days: Number of days of data to fetch (default 28)
+    
+    Returns:
+    - Channel overview (views, watch time, subscribers gained)
+    - Top videos by performance
+    - CTR summary
+    """
+    user_id = req.query_params.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id parameter required")
+    
+    days = int(req.query_params.get("days", 28))
+    
+    try:
+        from premium.youtube_analytics_oauth import YouTubeAnalyticsOAuth
+        from premium.youtube_analytics_fetcher import YouTubeAnalyticsFetcher
+        from datetime import datetime, timedelta
+        
+        # Get tokens
+        oauth = YouTubeAnalyticsOAuth()
+        tokens = oauth.get_tokens(user_id)
+        
+        if not tokens:
+            return {
+                "status": "not_connected",
+                "message": "YouTube Analytics not connected"
+            }
+        
+        # Create fetcher with access token
+        fetcher = YouTubeAnalyticsFetcher(tokens.access_token)
+        
+        # Calculate date range
+        end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        
+        # Fetch channel overview metrics
+        channel_id = tokens.channel_id
+        
+        # Get overall channel stats
+        overview_params = {
+            'ids': f'channel=={channel_id}',
+            'startDate': start_date,
+            'endDate': end_date,
+            'metrics': 'views,estimatedMinutesWatched,subscribersGained,subscribersLost,averageViewDuration',
+        }
+        
+        overview_data = fetcher._make_request(overview_params)
+        
+        # Initialize defaults
+        total_views = 0
+        watch_time_minutes = 0
+        subs_gained = 0
+        subs_lost = 0
+        avg_view_duration = 0
+        
+        if overview_data and overview_data.get('rows'):
+            row = overview_data['rows'][0]
+            total_views = int(row[0]) if len(row) > 0 else 0
+            watch_time_minutes = int(row[1]) if len(row) > 1 else 0
+            subs_gained = int(row[2]) if len(row) > 2 else 0
+            subs_lost = int(row[3]) if len(row) > 3 else 0
+            avg_view_duration = int(row[4]) if len(row) > 4 else 0
+        
+        # Fetch top videos
+        top_videos_params = {
+            'ids': f'channel=={channel_id}',
+            'startDate': start_date,
+            'endDate': end_date,
+            'metrics': 'views,estimatedMinutesWatched,averageViewDuration,subscribersGained',
+            'dimensions': 'video',
+            'sort': '-views',
+            'maxResults': 10
+        }
+        
+        top_videos_data = fetcher._make_request(top_videos_params)
+        
+        top_videos = []
+        if top_videos_data and top_videos_data.get('rows'):
+            for row in top_videos_data['rows']:
+                video_id = row[0]
+                video_views = int(row[1]) if len(row) > 1 else 0
+                video_watch_time = int(row[2]) if len(row) > 2 else 0
+                video_avg_duration = int(row[3]) if len(row) > 3 else 0
+                video_subs = int(row[4]) if len(row) > 4 else 0
+                
+                top_videos.append({
+                    'video_id': video_id,
+                    'views': video_views,
+                    'watch_time_minutes': video_watch_time,
+                    'avg_view_duration_seconds': video_avg_duration,
+                    'subscribers_gained': video_subs
+                })
+        
+        # Get CTR summary if available
+        ctr_summary = fetcher.get_channel_ctr_summary(channel_id, days=days)
+        
+        return {
+            "status": "success",
+            "channel_id": channel_id,
+            "date_range": {
+                "start": start_date,
+                "end": end_date,
+                "days": days
+            },
+            "overview": {
+                "total_views": total_views,
+                "watch_time_hours": round(watch_time_minutes / 60, 1),
+                "subscribers_gained": subs_gained,
+                "subscribers_lost": subs_lost,
+                "net_subscribers": subs_gained - subs_lost,
+                "avg_view_duration_seconds": avg_view_duration
+            },
+            "ctr_summary": ctr_summary.to_dict() if ctr_summary else None,
+            "top_videos": top_videos
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ YouTube Analytics dashboard error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/ctr-model/stats")
 async def ctr_model_stats(
     authenticated: bool = Depends(verify_api_key)

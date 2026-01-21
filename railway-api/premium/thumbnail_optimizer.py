@@ -36,8 +36,7 @@ class ABTestSuggestion:
 @dataclass 
 class ThumbnailOptimizationResult:
     """Full thumbnail optimization analysis."""
-    predicted_ctr: float
-    channel_avg_ctr: float
+    quality_score: int  # 0-100
     potential_improvement: str
     
     score_breakdown: Dict[str, int]
@@ -48,8 +47,7 @@ class ThumbnailOptimizationResult:
     
     def to_dict(self) -> Dict:
         return {
-            'predicted_ctr': self.predicted_ctr,
-            'channel_avg_ctr': self.channel_avg_ctr,
+            'quality_score': self.quality_score,
             'potential_improvement': self.potential_improvement,
             'score_breakdown': self.score_breakdown,
             'issues': [asdict(i) for i in self.issues],
@@ -106,12 +104,13 @@ class ThumbnailOptimizer:
         Returns:
             ThumbnailOptimizationResult with full analysis
         """
-        # Get CTR prediction
+        # Get Quality Score
         if self.ctr_predictor:
             prediction = self.ctr_predictor.predict(thumbnail_features, title)
-            predicted_ctr = prediction.predicted_ctr
+            # Convert CTR to score (heuristic mapping)
+            quality_score = min(100, int(prediction.predicted_ctr * 10))
         else:
-            predicted_ctr = self._estimate_ctr(thumbnail_features, title)
+            quality_score = self._estimate_quality_score(thumbnail_features, title)
         
         # Score breakdown
         scores = self._calculate_scores(thumbnail_features)
@@ -122,16 +121,19 @@ class ThumbnailOptimizer:
         # Generate A/B test suggestions
         ab_suggestions = self._generate_ab_tests(thumbnail_features, title, issues)
         
-        # Calculate potential improvement
-        max_improvement = sum(s.expected_ctr_lift_pct for s in ab_suggestions[:3]) if ab_suggestions else 0
-        potential = f"+{max_improvement}%" if max_improvement > 0 else "Already optimized"
+        # Calculate potential improvement (Qualitative)
+        if quality_score < 50:
+            potential = "High"
+        elif quality_score < 75:
+            potential = "Moderate"
+        else:
+            potential = "Low"
         
         # Generate optimized concept
         concept = self._generate_optimized_concept(thumbnail_features, title, topic)
         
         return ThumbnailOptimizationResult(
-            predicted_ctr=predicted_ctr,
-            channel_avg_ctr=self.channel_avg_ctr,
+            quality_score=quality_score,
             potential_improvement=potential,
             score_breakdown=scores,
             issues=issues,
@@ -139,30 +141,30 @@ class ThumbnailOptimizer:
             optimized_concept=concept
         )
     
-    def _estimate_ctr(self, features: Dict, title: str) -> float:
-        """Basic CTR estimation without ML model."""
-        base_ctr = 4.0
+    def _estimate_quality_score(self, features: Dict, title: str) -> int:
+        """Estimate thumbnail quality score (0-100)."""
+        base_score = 50
         
         # Face bonus
         if features.get('faces_are_large'):
-            base_ctr += 1.5
+            base_score += 15
         elif features.get('face_count', 0) > 0:
-            base_ctr += 0.7
+            base_score += 10
         
         # Text bonus
         word_count = features.get('word_count', 0)
         if 2 <= word_count <= 4:
-            base_ctr += 0.5
+            base_score += 10
         elif word_count > 6:
-            base_ctr -= 0.3
+            base_score -= 10
         
         # Color bonus
         if features.get('has_red_accent'):
-            base_ctr += 0.3
+            base_score += 5
         if features.get('contrast_score', 0) > 0.25:
-            base_ctr += 0.3
+            base_score += 10
         
-        return round(max(1.0, min(12.0, base_ctr)), 1)
+        return int(max(0, min(100, base_score)))
     
     def _calculate_scores(self, features: Dict) -> Dict[str, int]:
         """Calculate component scores 0-100."""
@@ -214,15 +216,15 @@ class ThumbnailOptimizer:
             issues.append(ThumbnailIssue(
                 issue="No face detected",
                 severity="high",
-                fix="Add a prominent human face - faces increase CTR by 30-50%",
-                expected_improvement="+30%"
+                fix="Add a prominent human face to increase engagement",
+                expected_improvement="High"
             ))
         elif not features.get('faces_are_large'):
             issues.append(ThumbnailIssue(
                 issue="Face is too small",
                 severity="medium",
                 fix="Make face larger - aim for at least 15% of thumbnail area",
-                expected_improvement="+15%"
+                expected_improvement="Medium"
             ))
         
         if not features.get('has_eye_contact') and features.get('face_count', 0) > 0:
@@ -384,10 +386,7 @@ class ThumbnailOptimizer:
             'text_overlay': suggested_text,
             'layout_description': layout,
             'face_recommendation': "Close-up face with surprised/excited expression, direct eye contact",
-            'predicted_ctr_range': [
-                round(self.channel_avg_ctr * 1.2, 1),
-                round(self.channel_avg_ctr * 1.8, 1)
-            ]
+            # 'predicted_ctr_range': removed as unscientific without model
         }
 
 
@@ -435,7 +434,7 @@ if __name__ == "__main__":
     result = optimizer.analyze_and_optimize(test_features, "This Is The Ultimate Complete Tutorial Guide")
     
     print(f"\n📊 Optimization Results:")
-    print(f"   Predicted CTR: {result.predicted_ctr}%")
+    print(f"   Quality Score: {result.quality_score}/100")
     print(f"   Potential Improvement: {result.potential_improvement}")
     
     print(f"\n   🔍 Issues Found:")

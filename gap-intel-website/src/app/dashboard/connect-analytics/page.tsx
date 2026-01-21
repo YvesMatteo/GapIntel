@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import ChannelAnalytics from "@/components/ChannelAnalytics";
 
 interface ConnectionStatus {
     status: "connected" | "not_connected";
@@ -445,6 +446,18 @@ function ConnectAnalyticsContent() {
                             )}
                         </div>
                     </motion.div>
+
+                    {/* Channel Analytics Dashboard */}
+                    {isConnected && user && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 }}
+                            className="mb-12"
+                        >
+                            <ChannelAnalytics userId={user.id} />
+                        </motion.div>
+                    )}
 
                     {/* Model Stats (if connected and has data) */}
                     {modelStats && modelStats.training_data && (

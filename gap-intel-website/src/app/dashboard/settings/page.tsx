@@ -7,30 +7,35 @@ import Image from "next/image";
 import { User, Mail, Shield, Trash2, Globe, Check, Loader2 } from "lucide-react";
 
 const LANGUAGE_OPTIONS = [
-    { code: "en", name: "English", flag: "🇬🇧" },
-    { code: "de", name: "Deutsch", flag: "🇩🇪" },
-    { code: "fr", name: "Français", flag: "🇫🇷" },
-    { code: "it", name: "Italiano", flag: "🇮🇹" },
-    { code: "es", name: "Español", flag: "🇪🇸" },
+    { code: "en", name: "English", abbr: "EN" },
+    { code: "de", name: "Deutsch", abbr: "DE" },
+    { code: "fr", name: "Français", abbr: "FR" },
+    { code: "it", name: "Italiano", abbr: "IT" },
+    { code: "es", name: "Español", abbr: "ES" },
 ];
 
 export default function SettingsPage() {
     const { user, signOut } = useAuth();
     const [deleteConfirm, setDeleteConfirm] = useState(false);
-    const [preferredLanguage, setPreferredLanguage] = useState("en");
+    const [preferredLanguage, setPreferredLanguage] = useState<string | null>(null);
     const [savingLanguage, setSavingLanguage] = useState(false);
     const [languageSaved, setLanguageSaved] = useState(false);
+    const [loadingLanguage, setLoadingLanguage] = useState(true);
 
     useEffect(() => {
         // Load preferred language on mount
+        setLoadingLanguage(true);
         fetch("/api/user/settings")
             .then(res => res.json())
             .then(data => {
-                if (data.preferred_language) {
-                    setPreferredLanguage(data.preferred_language);
-                }
+                setPreferredLanguage(data.preferred_language || "en");
             })
-            .catch(console.error);
+            .catch(() => {
+                setPreferredLanguage("en");
+            })
+            .finally(() => {
+                setLoadingLanguage(false);
+            });
     }, []);
 
     const handleLanguageChange = async (langCode: string) => {
@@ -146,21 +151,32 @@ export default function SettingsPage() {
                             Choose the language for your analysis reports. All AI-generated insights, titles, and recommendations will be in this language.
                         </p>
 
-                        <div className="grid grid-cols-5 gap-3">
-                            {LANGUAGE_OPTIONS.map((lang) => (
-                                <button
-                                    key={lang.code}
-                                    onClick={() => handleLanguageChange(lang.code)}
-                                    className={`flex flex-col items-center p-3 rounded-xl border-2 transition ${preferredLanguage === lang.code
-                                            ? 'bg-blue-50 border-blue-400 text-blue-700'
-                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                                        }`}
-                                >
-                                    <span className="text-2xl mb-1">{lang.flag}</span>
-                                    <span className="text-xs font-medium">{lang.name}</span>
-                                </button>
-                            ))}
-                        </div>
+                        {loadingLanguage ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-5 gap-3">
+                                {LANGUAGE_OPTIONS.map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => handleLanguageChange(lang.code)}
+                                        disabled={savingLanguage}
+                                        className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${preferredLanguage === lang.code
+                                            ? 'bg-slate-900 border-slate-900 text-white'
+                                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-100'
+                                            } ${savingLanguage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <span className={`text-sm font-bold mb-1 ${preferredLanguage === lang.code ? 'text-white' : 'text-slate-700'}`}>
+                                            {lang.abbr}
+                                        </span>
+                                        <span className={`text-xs font-medium ${preferredLanguage === lang.code ? 'text-slate-300' : 'text-slate-500'}`}>
+                                            {lang.name}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Email Section */}

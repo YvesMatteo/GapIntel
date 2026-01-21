@@ -11,6 +11,8 @@ from premium.ml_models.viral_predictor import ViralPredictor
 from premium.ml_models.ctr_predictor import CTRPredictor
 from premium.ml_models.views_predictor import ViewsVelocityPredictor
 from premium.ml_models.sentiment_engine import SentimentEngine
+from premium.report_generator import PremiumReportGenerator
+from premium.thumbnail_optimizer import ThumbnailOptimizer
 
 class TestScientificValidity(unittest.TestCase):
     
@@ -110,6 +112,44 @@ class TestScientificValidity(unittest.TestCase):
         # Check that we have categories
         categories = [r.get('category') for r in results]
         self.assertTrue(any(c for c in categories), "No categories detected")
+        
+    def test_report_claims_scientific(self):
+        """Verify report generator avoids unscientific claims."""
+        generator = PremiumReportGenerator()
+        
+        # Test 1: Action Items Impact
+        results = {
+            'thumbnail_analysis': {'improvements': ['Fix thumb']},
+            'gap_analysis': {'quick_wins': ['Video 1']}
+        }
+        section = generator._generate_action_items(results)
+        impact_text = section['content']['estimated_impact']
+        
+        print(f"   [Report] Impact Text: {impact_text}")
+        self.assertNotIn("30-50%", impact_text, "Found unscientific 30-50% claim")
+        self.assertNotIn("increase views by", impact_text, "Found specific view increase claim")
+        
+        # Test 2: Thumbnail Recommendations
+        results = {'thumbnail_analysis': {'avg_quality_score': 40}}
+        rec = generator._get_primary_recommendation(results)
+        print(f"   [Report] Recommendation: {rec}")
+        self.assertIn("quality", rec.lower(), "Should mention quality, not CTR")
+        self.assertNotIn("biggest opportunity", rec, "Avoid hyperbole")
+
+    def test_thumbnail_optimizer_metrics(self):
+        """Verify thumbnail optimizer uses Quality Score, not predicted CTR."""
+        optimizer = ThumbnailOptimizer()
+        features = {'face_count': 1}
+        result = optimizer.analyze_and_optimize(features, "Test Title")
+        
+        self.assertTrue(hasattr(result, 'quality_score'), "Result missing quality_score")
+        print(f"   [Thumb] Quality Score: {result.quality_score}")
+        
+        # Verify heuristic result is within 0-100
+        self.assertTrue(0 <= result.quality_score <= 100, "Quality score out of range")
+        
+        # Verify potential improvement is qualitative
+        self.assertIn(result.potential_improvement, ["High", "Moderate", "Low"], "Improvement should be qualitative")
         
 if __name__ == '__main__':
     unittest.main()

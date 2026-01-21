@@ -31,7 +31,7 @@ class ThumbnailAnalysis:
     strengths: List[str] = None
     
     overall_score: int = 0
-    predicted_ctr: float = 4.0
+    quality_score: int = 50  # 0-100 score instead of CTR prediction
     
     def __post_init__(self):
         if self.dominant_colors is None:
@@ -90,7 +90,7 @@ Return a JSON object with these exact fields:
     "strengths": ["strength1", "strength2"],
     
     "overall_score": 1-100 (thumbnail quality score),
-    "predicted_ctr": 1.0-12.0 (estimated click-through rate %)
+    "quality_score": 1-100 (visual appeal and clickability score)
 }}
 
 Be accurate and specific. Only report issues that actually exist in this thumbnail.
@@ -146,7 +146,7 @@ Return ONLY the JSON object, no other text."""
             issues=data.get("issues", []),
             strengths=data.get("strengths", []),
             overall_score=data.get("overall_score", 50),
-            predicted_ctr=data.get("predicted_ctr", 4.0)
+            quality_score=data.get("quality_score", 50)
         )
         
     except json.JSONDecodeError as e:
@@ -206,19 +206,17 @@ def analyze_thumbnails_batch(
                 "fix": issue.get("fix", "Review thumbnail")
             })
         
-        # Calculate potential improvement
+        # Calculate potential improvement (Qualitative)
         if analysis.overall_score < 50:
-            potential = "+50%"
+            potential = "High"
         elif analysis.overall_score < 70:
-            potential = "+30%"
-        elif analysis.overall_score < 85:
-            potential = "+15%"
+            potential = "Moderate"
         else:
-            potential = "+5%"
+            potential = "Low"
         
         return {
             "video_title": title,
-            "predicted_ctr": round(analysis.predicted_ctr, 1),
+            "quality_score": analysis.quality_score,
             "potential_improvement": potential,
             "score_breakdown": {
                 "face_impact": 90 if analysis.face_is_large else (60 if analysis.has_face else 20),

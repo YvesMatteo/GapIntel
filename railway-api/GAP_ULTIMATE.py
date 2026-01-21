@@ -1125,20 +1125,45 @@ def run_premium_analysis(
         if not limits['views_forecast']: return 'views_forecast', None
         try:
             print("   📈 [Parallel] Running Views Forecasting...")
-            from datetime import datetime
+            from datetime import datetime, timedelta
             forecasts = []
             all_v = [v.get('video_info', {}).get('view_count', 0) for v in videos_data if v.get('video_info', {}).get('view_count')]
             avg_v = sum(all_v) / len(all_v) if all_v else 10000
-            for v in videos_data[:3]:
+            
+            # Filter to videos from last 14 days only
+            now = datetime.now()
+            cutoff_date = now - timedelta(days=14)
+            recent_videos = []
+            
+            for v in videos_data:
+                vi = v.get('video_info', {})
+                ud = vi.get('upload_date', '') or vi.get('published_at', '')
+                if not ud:
+                    continue
+                try:
+                    if len(ud) == 8:  # YYYYMMDD format
+                        p_date = datetime.strptime(ud, '%Y%m%d')
+                    else:
+                        p_date = datetime.fromisoformat(ud.replace('Z', '+00:00')).replace(tzinfo=None)
+                    
+                    if p_date >= cutoff_date:
+                        recent_videos.append((v, p_date))
+                except:
+                    continue
+            
+            # Sort by date descending (newest first)
+            recent_videos.sort(key=lambda x: x[1], reverse=True)
+            
+            # If we don't have at least 1 video in last 14 days, return None
+            if len(recent_videos) < 1:
+                print("   ⚠️ No videos in last 14 days for forecast")
+                return 'views_forecast', None
+            
+            for v, p_date in recent_videos[:5]:  # Max 5 recent videos
                 vi = v.get('video_info', {})
                 vc = vi.get('view_count') or 0
-                ud = vi.get('upload_date', '')
-                days = 30
-                if ud:
-                    try:
-                        p_date = datetime.strptime(ud, '%Y%m%d') if len(ud)==8 else datetime.fromisoformat(ud.replace('Z', '+00:00'))
-                        days = max(1, (datetime.now() - p_date.replace(tzinfo=None)).days)
-                    except: pass
+                days = max(1, (now - p_date).days)
+                
                 predictor = ViewsVelocityPredictor()
                 pred = predictor.predict_from_current_state(current_views=vc, days_since_upload=days, channel_avg_views=avg_v)
                 vs = "Within normal range"
@@ -1146,13 +1171,17 @@ def run_premium_analysis(
                 elif vc < avg_v * 0.8: vs = f"{int((1-vc/avg_v)*100)}% below average"
                 forecasts.append({
                     'video_title': vi.get('title', ''),
+                    'video_id': vi.get('video_id', ''),
+                    'upload_date': p_date.strftime('%Y-%m-%d'),
+                    'days_since_upload': days,
+                    'current_views': vc,
                     'predicted_7d_views': max(pred.predicted_7d_views, 100),
                     'predicted_30d_views': max(pred.predicted_30d_views, 100),
                     'viral_probability': round(pred.viral_probability * 100, 1),
                     'trajectory_type': pred.trajectory_type,
                     'vs_channel_avg': vs
                 })
-            return 'views_forecast', {'forecasts': forecasts, 'avg_viral_probability': round(sum(f['viral_probability'] for f in forecasts)/len(forecasts), 1) if forecasts else 0}
+            return 'views_forecast', {'forecasts': forecasts, 'avg_viral_probability': round(sum(f['viral_probability'] for f in forecasts)/len(forecasts), 1) if forecasts else 0, 'videos_in_last_14_days': len(forecasts)}
         except Exception as e: print(f"   ⚠️ Views Task failed: {e}")
         return 'views_forecast', None
 
@@ -1306,9 +1335,11 @@ def run_premium_analysis(
             charts['hook_patterns'] = viz.create_bar_chart([{'label': p['pattern'], 'value': p['avg_views']} for p in premium_data['hook_analysis']['best_patterns'][:5]], "Hook Performance").to_dict()
         if premium_data.get('color_insights') and premium_data['color_insights'].get('top_performing_colors'):
             charts['top_colors'] = viz.create_color_palette_chart(premium_data['color_insights']['top_performing_colors'][:5], "Top Colors").to_dict()
-        if premium_data.get('ctr_prediction') and premium_data['ctr_prediction'].get('channel_avg_predicted_ctr'):
-            avg = premium_data['ctr_prediction']['channel_avg_predicted_ctr']
-            charts['ctr_gauge'] = viz.create_score_gauge(avg * 100, 15, f"Avg CTR: {avg:.1%}").to_dict()
+        if premium_data.get('thumbnail_analysis') and premium_data['thumbnail_analysis'].get('videos_analyzed'):
+            # Calculate average quality score from analyzed videos
+            thumbs = premium_data['thumbnail_analysis']['videos_analyzed']
+            avg_score = sum(t.get('quality_score', 0) for t in thumbs) / len(thumbs) if thumbs else 0
+            charts['ctr_gauge'] = viz.create_score_gauge(avg_score, 50, f"Avg Quality: {avg_score:.0f}/100").to_dict()
         premium_data['visual_charts'] = charts
     except Exception as e: print(f"   ⚠️ Charts failed: {e}")
 
