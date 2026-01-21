@@ -573,15 +573,7 @@ export default function Home() {
         </FloatingStat>
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <FadeIn>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-sm font-medium text-slate-600 mb-8 backdrop-blur-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-              Now analyzing shorts & thumbnails v2.0
-            </div>
-          </FadeIn>
+
 
           <FadeIn delay={0.1}>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif font-medium tracking-tight leading-[1.1] md:leading-[1] text-slate-900 mb-6 md:mb-8">
