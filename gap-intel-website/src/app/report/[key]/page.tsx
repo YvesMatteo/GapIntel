@@ -903,6 +903,45 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                         ))}
                     </div>
 
+                    {/* Videos Analyzed with Thumbnails */}
+                    {report.videosAnalyzedList.length > 0 && (
+                        <div>
+                            <h2 className="text-2xl font-serif font-medium text-slate-900 mb-6">Videos Analyzed</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {report.videosAnalyzedList.map((video, i) => (
+                                    <a
+                                        key={i}
+                                        href={video.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all overflow-hidden group"
+                                    >
+                                        <div className="relative aspect-video w-full bg-slate-100">
+                                            {video.thumbnail ? (
+                                                <img
+                                                    src={video.thumbnail}
+                                                    alt={video.title}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                                    <Play className="w-8 h-8" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-4">
+                                            <h3 className="font-medium text-slate-900 text-sm line-clamp-2 group-hover:text-blue-700 transition-colors">{video.title}</h3>
+                                            <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                                                <MessageCircle className="w-3 h-3" />
+                                                <span>{video.comments.toLocaleString()} comments</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Calculate metrics for new sections */}
                     {(() => {
                         const engagementMetrics = calculateEngagementMetrics(analysis.report_data || {});
