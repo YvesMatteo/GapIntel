@@ -79,145 +79,155 @@ interface AnalysisResult {
         sentiment_inquiry?: number;
         sentiment_success?: number;
     };
-    premium?: {
-        tier: string;
-        ctr_prediction?: {
-            channel_avg_predicted_ctr: number;
-            video_predictions: Array<{
-                video_title: string;
-                predicted_ctr: number;
-                confidence: number;
-                positive_factors: Array<{ factor: string; impact: number }>;
-                negative_factors: Array<{ factor: string; impact: number }>;
-                suggestions: string[];
-            }>;
-            top_improvement: string | null;
+    premium?: PremiumData;
+}
+
+// Helper Interfaces for Premium Data
+interface CTRPrediction {
+    channel_avg_predicted_ctr: number;
+    video_predictions: Array<{
+        video_title: string;
+        predicted_ctr: number;
+        confidence: number;
+        positive_factors: Array<{ factor: string; impact: number }>;
+        negative_factors: Array<{ factor: string; impact: number }>;
+        suggestions: string[];
+    }>;
+    top_improvement: string | null;
+}
+
+interface ThumbnailAnalysis {
+    mode: 'basic' | 'advanced';
+    videos_analyzed: Array<{
+        video_id?: string;
+        video_title: string;
+        thumbnail_url?: string;
+        quality_score: number;
+        potential_improvement: string;
+        strengths?: string[];
+        issues: Array<{ issue: string; severity: string; fix: string }>;
+        ab_test_suggestions?: Array<{ variant: string; description: string; expected_lift: string }>;
+    }>;
+}
+
+interface PremiumData {
+    tier: string;
+    ctr_prediction?: CTRPrediction;
+    thumbnail_analysis?: ThumbnailAnalysis;
+    views_forecast?: {
+        forecasts: Array<{
+            video_title: string;
+            video_id: string;
+            thumbnail_url: string;
+            upload_date: string;
+            days_since_upload: number;
+            current_views: number;
+            predicted_7d_views: number;
+            predicted_30d_views: number;
+            viral_probability: number;
+            trajectory_type: string;
+            vs_channel_avg: string;
+        }>;
+        avg_viral_probability: number;
+        videos_in_last_14_days: number;
+    };
+    competitor_intel?: {
+        competitors_tracked: number;
+        max_allowed: number;
+        competitors: Array<{
+            channel_name: string;
+            subscriber_count: number;
+            avg_views: number;
+            avg_engagement: number;
+            upload_frequency_days: number;
+            top_formats: string[];
+            posting_days: string[];
+        }>;
+    };
+    content_clusters?: {
+        clusters: Array<{
+            id: number;
+            name: string;
+            video_count: number;
+            avg_views: number;
+            avg_engagement: number;
+            performance_score: number;
+            common_elements: string[];
+            best_performer: Record<string, unknown> | null;
+            example_titles: string[];
+            saturation_score?: number;
+            saturation_label?: string;
+        }>;
+        best_performing: string;
+        underperforming: string[];
+        gap_opportunities: string[];
+        recommendations: string[];
+        format_diversity?: {
+            score: number;
+            unique_formats: number;
+            breakdown: Array<{ name: string; count: number; pct: number }>;
+            primary_format: string;
         };
-        thumbnail_analysis?: {
-            mode: 'basic' | 'advanced';
-            videos_analyzed: Array<{
-                video_title: string;
-                video_id?: string;
-                thumbnail_url?: string;
-                predicted_ctr: number;
-                potential_improvement: string;
-                score_breakdown: Record<string, number>;
-                issues: Array<{ issue: string; severity: string; fix: string }>;
-                ab_test_suggestions?: Array<{ variant: string; description: string; expected_lift: string }>;
-                optimized_concept?: Record<string, unknown>;
-            }>;
-        };
-        views_forecast?: {
-            forecasts: Array<{
-                video_title: string;
-                video_id?: string;
-                thumbnail_url?: string;
-                predicted_7d_views: number;
-                predicted_30d_views: number;
-                viral_probability: number;
-                trajectory_type: string;
-                vs_channel_avg: string;
-            }>;
-            avg_viral_probability: number;
-        };
-        competitor_intel?: {
-            competitors_tracked: number;
-            max_allowed: number;
-            competitors: Array<{
-                channel_name: string;
-                subscriber_count: number;
-                avg_views: number;
-                avg_engagement: number;
-                upload_frequency_days: number;
-                top_formats: string[];
-                posting_days: string[];
-            }>;
-        };
-        content_clusters?: {
-            clusters: Array<{
-                id: number;
-                name: string;
-                video_count: number;
-                avg_views: number;
-                avg_engagement: number;
-                performance_score: number;
-                common_elements: string[];
-                best_performer: Record<string, unknown> | null;
-                example_titles: string[];
-                saturation_score?: number;
-                saturation_label?: string;
-            }>;
-            best_performing: string;
-            underperforming: string[];
-            gap_opportunities: string[];
-            recommendations: string[];
-            format_diversity?: {
-                score: number;
-                unique_formats: number;
-                breakdown: Array<{ name: string; count: number; pct: number }>;
-                primary_format: string;
-            };
-        };
-        publish_times?: {
-            best_days: string[];
-            best_hours_utc: number[];
-            recommendations: Array<{ day: string; hour: number; boost: string; reasoning: string }>;
-            avoid_times: Array<{ day: string; hour: number; reason: string }>;
-            content_advice: Record<string, string>;
-        };
-        hook_analysis?: {
-            videos_analyzed: number;
-            avg_hook_score: number;
-            best_patterns: Array<{ pattern: string; avg_views: number }>;
-            recommendations: string[];
-            top_hooks: Array<{ title: string; views: number; patterns: string[]; opening: string }>;
-            pattern_performance: Record<string, number>;
-        };
-        color_insights?: {
-            total_videos: number;
-            best_color_temperatures: Array<{ temperature: string; avg_views: number }>;
-            top_performing_colors: string[];
-            color_recommendations: string[];
-            temperature_performance: Record<string, number>;
-        };
-        visual_charts?: {
-            hook_patterns?: { chart_type: string; title: string; svg_data_uri: string };
-            color_temperature?: { chart_type: string; title: string; svg_data_uri: string };
-            top_colors?: { chart_type: string; title: string; svg_data_uri: string };
-            ctr_gauge?: { chart_type: string; title: string; svg_data_uri: string };
-        };
-        satisfaction_signals?: {
-            satisfaction_index: number;
-            engagement_quality: number;
-            retention_proxy: number;
-            implementation_success: number;
-            success_comments: number;
-            confusion_signals: number;
-            return_viewer_ratio: number;
-            clarity_score: number;
-            top_success?: string[];
-            top_confusion?: string[];
-            recommendations?: string[];
-        };
-        growth_patterns?: {
-            consistency_index: number;
-            avg_days_between_uploads: number;
-            upload_variance: number;
-            current_streak: number;
-            series_detected: Array<{
-                name: string;
-                video_count: number;
-                avg_views: number;
-                avg_engagement: number;
-                performance_vs_standalone: number;
-            }>;
-            series_performance_boost: number;
-            growth_trajectory: string;
-            views_growth_rate: number;
-            optimal_frequency: string;
-            consistency_impact?: string;
-            recommendations?: string[];
-        };
+    };
+    publish_times?: {
+        best_days: string[];
+        best_hours_utc: number[];
+        recommendations: Array<{ day: string; hour: number; boost: string; reasoning: string }>;
+        avoid_times: Array<{ day: string; hour: number; reason: string }>;
+        content_advice: Record<string, string>;
+    };
+    hook_analysis?: {
+        videos_analyzed: number;
+        avg_hook_score: number;
+        best_patterns: Array<{ pattern: string; avg_views: number }>;
+        recommendations: string[];
+        top_hooks: Array<{ title: string; views: number; patterns: string[]; opening: string }>;
+        pattern_performance: Record<string, number>;
+    };
+    color_insights?: {
+        total_videos?: number;
+        top_performing_colors: string[];
+        best_color_temperatures: Array<{ temperature: string; avg_views: number }>;
+        color_recommendations: string[];
+        temperature_performance?: Record<string, number>;
+    };
+    satisfaction_signals?: {
+        satisfaction_index: number;
+        engagement_quality: number;
+        retention_proxy: number;
+        implementation_success: number;
+        success_comments: number;
+        confusion_signals: number;
+        return_viewer_ratio: number;
+        clarity_score: number;
+        top_success?: string[];
+        top_confusion?: string[];
+        recommendations?: string[];
+    };
+    growth_patterns?: {
+        consistency_index: number;
+        avg_days_between_uploads: number;
+        upload_variance: number;
+        current_streak: number;
+        series_detected: Array<{
+            name: string;
+            video_count: number;
+            avg_views: number;
+            avg_engagement: number;
+            performance_vs_standalone: number;
+        }>;
+        series_performance_boost: number;
+        growth_trajectory: string;
+        views_growth_rate: number;
+        optimal_frequency: string;
+        consistency_impact?: string;
+        recommendations?: string[];
+    };
+    visual_charts?: {
+        hook_patterns?: { chart_type: string; title: string; svg_data_uri: string } | Record<string, any>;
+        color_temperature?: { chart_type: string; title: string; svg_data_uri: string } | Record<string, any>;
+        top_colors?: { chart_type: string; title: string; svg_data_uri: string } | Record<string, any>;
+        ctr_gauge?: { chart_type: string; title: string; svg_data_uri: string } | Record<string, any>;
     };
 }
 
@@ -1081,9 +1091,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             </div>
 
                             {/* Thumbnail Analysis */}
-                            {analysis.report_data.premium.thumbnail_analysis &&
-                             analysis.report_data.premium.thumbnail_analysis.videos_analyzed &&
-                             analysis.report_data.premium.thumbnail_analysis.videos_analyzed.length > 0 && (
+                            {(analysis.report_data.premium.ctr_prediction || analysis.report_data.premium.thumbnail_analysis) && (
                                 <section className="mb-8">
                                     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                                         <div className="p-6 border-b border-slate-100">
@@ -1093,50 +1101,79 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                 </div>
                                                 <div>
                                                     <h3 className="text-lg font-semibold text-slate-900">Thumbnail Analysis</h3>
-                                                    <p className="text-sm text-slate-500">CTR predictions for your recent thumbnails</p>
+                                                    <p className="text-sm text-slate-500">AI-predicted CTR and design critique</p>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="divide-y divide-slate-100">
-                                            {analysis.report_data.premium.thumbnail_analysis.videos_analyzed.filter(v => v).slice(0, 4).map((video, i) => (
-                                                <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
-                                                    <div className="flex gap-5">
-                                                        <SafeThumbnailLarge
-                                                            videoId={video.video_id}
-                                                            thumbnailUrl={video.thumbnail_url}
-                                                            alt={video.video_title}
-                                                        />
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{video.video_title}</h4>
-                                                            {video.predicted_ctr !== undefined && video.predicted_ctr !== null ? (
-                                                                <div className="flex items-baseline gap-2 mb-3">
-                                                                    <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
-                                                                    <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-baseline gap-2 mb-3">
-                                                                    <span className="text-sm text-slate-400">CTR analysis pending</span>
-                                                                </div>
-                                                            )}
-                                                            {video.issues && video.issues.length > 0 ? (
-                                                                <div className="space-y-2">
-                                                                    {video.issues.slice(0, 2).map((issue, j) => (
-                                                                        <div key={j} className="flex gap-2 text-xs">
-                                                                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                                                                            <span className="text-slate-600">{issue.issue}</span>
+                                            {/* Combine CTR and Thumbnail Analysis data */}
+                                            {(() => {
+                                                const ctrData = analysis.report_data?.premium?.ctr_prediction?.video_predictions || [];
+                                                const thumbData = analysis.report_data?.premium?.thumbnail_analysis?.videos_analyzed || [];
+
+                                                // Create a list of items to display, prioritizing CTR data availability
+                                                const displayItems = ctrData.length > 0 ? ctrData : thumbData.map(t => ({
+                                                    video_title: t.video_title,
+                                                    predicted_ctr: null as number | null
+                                                }));
+
+                                                return displayItems.slice(0, 4).map((item, i) => {
+                                                    // Find matching thumbnail analysis implementation data
+                                                    // Try to match by rough title similarity as fallback or exact string
+                                                    const matchingThumb = thumbData.find(t => t.video_title === item.video_title) || thumbData[i];
+
+                                                    // Use video ID from matching thumb or fallback
+                                                    const videoId = matchingThumb?.video_id;
+                                                    const thumbUrl = matchingThumb?.thumbnail_url;
+
+                                                    // Determine issues to show
+                                                    const issues = matchingThumb?.issues || [];
+                                                    const ctr = (item as any).predicted_ctr; // Cast because item might be from thumbData mapped
+
+                                                    return (
+                                                        <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                            <div className="flex gap-5">
+                                                                <SafeThumbnailLarge
+                                                                    videoId={videoId}
+                                                                    thumbnailUrl={thumbUrl}
+                                                                    alt={item.video_title}
+                                                                />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{item.video_title}</h4>
+
+                                                                    {ctr !== undefined && ctr !== null ? (
+                                                                        <div className="flex items-baseline gap-2 mb-3">
+                                                                            <span className="text-2xl font-bold text-purple-600">{(ctr * 100).toFixed(1)}%</span>
+                                                                            <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
                                                                         </div>
-                                                                    ))}
+                                                                    ) : (
+                                                                        <div className="flex items-baseline gap-2 mb-3">
+                                                                            <span className="text-sm text-slate-400">CTR analysis pending</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Display Issues or Quality Score */}
+                                                                    {issues.length > 0 ? (
+                                                                        <div className="space-y-2">
+                                                                            {issues.slice(0, 2).map((issue, j) => (
+                                                                                <div key={j} className="flex gap-2 text-xs">
+                                                                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                                                                    <span className="text-slate-600">{issue.issue}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : matchingThumb?.quality_score && matchingThumb.quality_score > 70 ? (
+                                                                        <div className="flex items-center gap-2 text-xs text-emerald-600">
+                                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                                            <span>Great thumbnail quality ({matchingThumb.quality_score}/100)</span>
+                                                                        </div>
+                                                                    ) : null}
                                                                 </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-2 text-xs text-emerald-600">
-                                                                    <CheckCircle className="w-3.5 h-3.5" />
-                                                                    <span>Great thumbnail</span>
-                                                                </div>
-                                                            )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                    );
+                                                });
+                                            })()}
                                         </div>
                                     </div>
                                 </section>
@@ -1211,69 +1248,69 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Hook Analysis - only show if we have actual data */}
                             {analysis.report_data.premium.hook_analysis &&
-                             analysis.report_data.premium.hook_analysis.videos_analyzed > 0 && (
-                                <section className="mb-8">
-                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                                        <div className="p-6 border-b border-slate-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                                                    <Zap className="w-5 h-5 text-amber-600" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-slate-900">Hook Analysis</h3>
-                                                    <p className="text-sm text-slate-500">Opening patterns that drive retention</p>
+                                analysis.report_data.premium.hook_analysis.videos_analyzed > 0 && (
+                                    <section className="mb-8">
+                                        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                            <div className="p-6 border-b border-slate-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                                                        <Zap className="w-5 h-5 text-amber-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-lg font-semibold text-slate-900">Hook Analysis</h3>
+                                                        <p className="text-sm text-slate-500">Opening patterns that drive retention</p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="p-6">
-                                            <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                                                {analysis.report_data.premium.hook_analysis.avg_hook_score !== undefined &&
-                                                 analysis.report_data.premium.hook_analysis.avg_hook_score > 0 && (
-                                                    <div className="bg-amber-50/50 rounded-xl p-4">
-                                                        <div className="text-3xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
-                                                        <div className="text-sm text-slate-500">Average Hook Score</div>
+                                            <div className="p-6">
+                                                <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                                                    {analysis.report_data.premium.hook_analysis.avg_hook_score !== undefined &&
+                                                        analysis.report_data.premium.hook_analysis.avg_hook_score > 0 && (
+                                                            <div className="bg-amber-50/50 rounded-xl p-4">
+                                                                <div className="text-3xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
+                                                                <div className="text-sm text-slate-500">Average Hook Score</div>
+                                                            </div>
+                                                        )}
+                                                    <div className="bg-slate-50 rounded-xl p-4">
+                                                        <div className="text-3xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
+                                                        <div className="text-sm text-slate-500">Videos Analyzed</div>
+                                                    </div>
+                                                </div>
+
+                                                {analysis.report_data.premium.hook_analysis.best_patterns && (
+                                                    <div className="mb-6">
+                                                        <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Top Performing Patterns</div>
+                                                        <div className="space-y-2">
+                                                            {analysis.report_data.premium.hook_analysis.best_patterns.slice(0, 4).map((p, i) => (
+                                                                <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
+                                                                    <span className="font-medium text-slate-700 capitalize text-sm">{p.pattern}</span>
+                                                                    <span className="text-sm font-semibold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 )}
-                                                <div className="bg-slate-50 rounded-xl p-4">
-                                                    <div className="text-3xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
-                                                    <div className="text-sm text-slate-500">Videos Analyzed</div>
-                                                </div>
+
+                                                {analysis.report_data.premium.hook_analysis.recommendations && (
+                                                    <div className="bg-slate-50 rounded-xl p-4">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                                                            <span className="text-sm font-medium text-slate-700">Recommendations</span>
+                                                        </div>
+                                                        <ul className="space-y-2 text-sm text-slate-600">
+                                                            {analysis.report_data.premium.hook_analysis.recommendations.slice(0, 3).map((rec, i) => (
+                                                                <li key={i} className="flex items-start gap-2">
+                                                                    <span className="text-amber-400 mt-1">•</span>
+                                                                    <span>{rec}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
                                             </div>
-
-                                            {analysis.report_data.premium.hook_analysis.best_patterns && (
-                                                <div className="mb-6">
-                                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Top Performing Patterns</div>
-                                                    <div className="space-y-2">
-                                                        {analysis.report_data.premium.hook_analysis.best_patterns.slice(0, 4).map((p, i) => (
-                                                            <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
-                                                                <span className="font-medium text-slate-700 capitalize text-sm">{p.pattern}</span>
-                                                                <span className="text-sm font-semibold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {analysis.report_data.premium.hook_analysis.recommendations && (
-                                                <div className="bg-slate-50 rounded-xl p-4">
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <Lightbulb className="w-4 h-4 text-amber-500" />
-                                                        <span className="text-sm font-medium text-slate-700">Recommendations</span>
-                                                    </div>
-                                                    <ul className="space-y-2 text-sm text-slate-600">
-                                                        {analysis.report_data.premium.hook_analysis.recommendations.slice(0, 3).map((rec, i) => (
-                                                            <li key={i} className="flex items-start gap-2">
-                                                                <span className="text-amber-400 mt-1">•</span>
-                                                                <span>{rec}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
                                         </div>
-                                    </div>
-                                </section>
-                            )}
+                                    </section>
+                                )}
 
                             {/* Color Insights */}
                             {analysis.report_data.premium.color_insights && (
