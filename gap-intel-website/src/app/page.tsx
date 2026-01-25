@@ -453,6 +453,159 @@ const CTAVisual = () => (
   </div>
 );
 
+const FeatureSpotlight = ({ title, description, visual: Visual, align = "left", subtitle }: any) => {
+  return (
+    <div className={`flex flex-col ${align === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-12 lg:gap-20 py-12 lg:py-24`}>
+      {/* Text Side */}
+      <div className="flex-1 text-center lg:text-left">
+        <FadeIn>
+          {subtitle && (
+            <div className="inline-block px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-xs font-bold uppercase tracking-wider mb-6">
+              {subtitle}
+            </div>
+          )}
+          <h3 className="text-3xl md:text-4xl font-serif font-medium text-slate-900 mb-6 leading-tight">
+            {title}
+          </h3>
+          <p className="text-lg text-slate-500 leading-relaxed mb-8">
+            {description}
+          </p>
+        </FadeIn>
+      </div>
+
+      {/* Visual Side */}
+      <div className="flex-1 w-full relative">
+        <FadeIn delay={0.2} className="w-full">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-slate-200/50 border border-slate-200 bg-white aspect-[4/3] group">
+            <div className="absolute inset-0 bg-slate-50/50" />
+            <Visual />
+          </div>
+        </FadeIn>
+      </div>
+    </div>
+  );
+};
+
+const AnalyticsVisual = () => (
+  <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden p-8">
+    {/* Connection Animation */}
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+    <div className="relative z-10 flex items-center justify-center gap-8 mb-12">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        whileInView={{ scale: 1, opacity: 1 }}
+        className="w-20 h-20 bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center justify-center p-4 relative z-20"
+      >
+        <img src="/images/youtube-logo.png" className="w-full h-full object-contain" alt="YouTube" />
+      </motion.div>
+
+      <div className="flex gap-2 relative">
+        {[0, 1, 2].map(i => (
+          <motion.div
+            key={i}
+            className="w-3 h-3 rounded-full bg-blue-500"
+            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
+
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        whileInView={{ scale: 1, opacity: 1, transition: { delay: 0.2 } }}
+        className="w-20 h-20 bg-slate-900 rounded-2xl shadow-lg shadow-slate-900/20 flex items-center justify-center text-white p-4 relative z-20"
+      >
+        <div className="font-bold text-xl tracking-tighter">GAP</div>
+      </motion.div>
+    </div>
+
+    {/* Data Stream */}
+    <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-slate-100 p-4 relative z-10">
+      <div className="flex items-center gap-3 mb-3 border-b border-slate-50 pb-3">
+        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+          <CheckCircle2 size={16} />
+        </div>
+        <div className="flex-1">
+          <div className="text-sm font-bold text-slate-900">Connection Secure</div>
+          <div className="text-xs text-slate-500">Read-only access granted</div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-2 bg-slate-100 rounded-full w-full overflow-hidden">
+          <motion.div
+            className="h-full bg-blue-500"
+            initial={{ width: 0 }}
+            whileInView={{ width: "100%" }}
+            transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-slate-500">
+          <span>Importing retention data...</span>
+          <span>100%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const ViralPredictorVisual = () => (
+  <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-slate-900">
+    {/* Background Grid */}
+    <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#ffffff12_1px,transparent_1px),linear-gradient(to_bottom,#ffffff12_1px,transparent_1px)] bg-[size:32px_32px]" />
+
+    <div className="w-full max-w-md relative z-10 px-6">
+      <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 p-6 mb-6">
+        <div className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-4">Input Idea</div>
+        <div className="flex gap-4 items-center">
+          <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
+            <img src="/images/mrbeast_thumb.png" className="w-full h-full object-cover opacity-50" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="h-2 w-3/4 bg-slate-700 rounded-full mb-2" />
+            <div className="h-2 w-1/2 bg-slate-700 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0, y: 20 }}
+        whileInView={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", delay: 0.4 }}
+        className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-6 shadow-[0_0_50px_-12px_rgba(16,185,129,0.5)] border border-white/20 text-center relative overflow-hidden"
+      >
+        <div className="relative z-10">
+          <div className="text-emerald-100 text-sm font-medium mb-1">Viral Probability</div>
+          <div className="text-5xl font-bold text-white mb-2 tracking-tight">92<span className="text-2xl opacity-60">/100</span></div>
+          <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+            <Sparkles size={12} />
+            Potential Hit
+          </div>
+        </div>
+
+        {/* Confetti Effect */}
+        {[...Array(10)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{
+              opacity: [0, 1, 0],
+              scale: [0, 1.5, 0],
+              x: Math.random() * 200 - 100,
+              y: Math.random() * 200 - 100
+            }}
+            transition={{ duration: 2, repeat: Infinity, delay: Math.random() * 2 }}
+            style={{ left: "50%", top: "50%" }}
+          />
+        ))}
+      </motion.div>
+    </div>
+  </div>
+);
+
+
+
 export default function Home() {
   const { user } = useAuth();
   const { scrollYProgress } = useScroll();
@@ -777,6 +930,27 @@ export default function Home() {
               <VelocityVisual />
             </FeatureCard>
           </div>
+        </div>
+      </section>
+
+      {/* --- NEW SECTIONS: CONNECT & PREDICT --- */}
+      <section className="py-16 md:py-32 bg-slate-50 border-y border-slate-100/50">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <FeatureSpotlight
+            subtitle="Data Integration"
+            title="Unlock Your True Channel Potential"
+            description="Securely connect your YouTube Analytics to benchmark your performance against the algorithm's hidden standards. We strictly use read-only access to identify retention leaks, audience overlap, and engagement opportunities unique to your existing viewers."
+            visual={AnalyticsVisual}
+            align="left"
+          />
+
+          <FeatureSpotlight
+            subtitle="Pre-Production AI"
+            title="Validate Ideas Before You Record"
+            description="Stop wasting time on videos that won't perform. Our Viral Predictor scores your concepts, titles, and thumbnails against millions of viral hits, giving you a probability score of success instantly. Pivot your strategy before spending a dollar on production."
+            visual={ViralPredictorVisual}
+            align="right"
+          />
         </div>
       </section>
 
