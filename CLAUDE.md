@@ -122,19 +122,17 @@ The system includes automatic monitoring for stuck analyses:
 1. **Batch Alert** - Sent when stuck jobs are found during recovery (lists all stuck jobs)
 2. **Long-Pending Alert** - Sent for individual jobs stuck > 1 hour
 
-### Important Note on Railway Sleep
-Railway has `sleepApplication: true` in `railway.json`. This means:
-- The app goes to sleep after inactivity
-- Background job processing stops when sleeping
-- Jobs created during sleep won't process until wake-up
-- Consider disabling sleep for production if stuck jobs are frequent
+### Railway Sleep Configuration
+Railway has `sleepApplication: false` in `railway.json` (disabled Jan 2026).
+- Sleep was causing stuck jobs: frontend requests timed out before Railway could wake
+- With sleep disabled, the server is always ready to process analysis requests
+- Recovery system (5-min threshold, 3-min checks) remains as a safety net
 
 ---
 
 ## Troubleshooting Cheatsheet
 
-- **Stuck Analysis?** Run `python3 railway-api/debug_stuck_reports.py` or check queue-status endpoint
-- **Wake Up Railway?** Hit the health endpoint: `curl https://thriving-presence-production-ca4a.up.railway.app/health`
+- **Stuck Analysis?** Run `python3 railway-api/debug_stuck_reports.py` or use `/api/admin/requeue-job/{access_key}`
 - **Database Error?** Check the RLS policies in Supabase
 - **Deployment Failed?** Check Build Logs in Railway
 - **Force Railway Rebuild?** Push an empty commit: `git commit --allow-empty -m "Trigger redeploy"`
