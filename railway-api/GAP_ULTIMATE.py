@@ -90,14 +90,57 @@ def print_progress(percentage: int, phase: str):
 def get_channel_id(youtube, handle: str) -> tuple[str, str]:
     """
     Get channel ID and title from a channel handle (e.g., @Technoblade).
-    
+
+    Uses direct handle lookup instead of search to ensure exact channel match.
+
     Returns:
         Tuple of (channel_id, channel_title)
     """
     # Remove @ if present
     handle_clean = handle.lstrip('@')
-    
-    # Search for channel by handle
+
+    # Method 1: Direct handle lookup (most reliable)
+    try:
+        request = youtube.channels().list(
+            part='snippet',
+            forHandle=handle_clean
+        )
+        response = request.execute()
+        if response.get('items'):
+            channel = response['items'][0]
+            return channel['id'], channel['snippet']['title']
+    except Exception as e:
+        print(f"forHandle lookup failed: {e}", flush=True)
+
+    # Method 2: Try as username (legacy format)
+    try:
+        request = youtube.channels().list(
+            part='snippet',
+            forUsername=handle_clean
+        )
+        response = request.execute()
+        if response.get('items'):
+            channel = response['items'][0]
+            return channel['id'], channel['snippet']['title']
+    except Exception as e:
+        print(f"forUsername lookup failed: {e}", flush=True)
+
+    # Method 3: Try as direct channel ID (if user passed UC... format)
+    if handle_clean.startswith('UC') and len(handle_clean) == 24:
+        try:
+            request = youtube.channels().list(
+                part='snippet',
+                id=handle_clean
+            )
+            response = request.execute()
+            if response.get('items'):
+                channel = response['items'][0]
+                return channel['id'], channel['snippet']['title']
+        except Exception as e:
+            print(f"Channel ID lookup failed: {e}", flush=True)
+
+    # Method 4: Fallback to search (last resort, less reliable)
+    print(f"Warning: Using search fallback for @{handle_clean} - results may be inaccurate", flush=True)
     request = youtube.search().list(
         part='snippet',
         q=f"@{handle_clean}",
@@ -105,13 +148,13 @@ def get_channel_id(youtube, handle: str) -> tuple[str, str]:
         maxResults=1
     )
     response = request.execute()
-    
+
     if not response.get('items'):
         raise ValueError(f"Channel not found: @{handle_clean}")
-    
+
     channel_id = response['items'][0]['snippet']['channelId']
     channel_title = response['items'][0]['snippet']['channelTitle']
-    
+
     return channel_id, channel_title
 
 
