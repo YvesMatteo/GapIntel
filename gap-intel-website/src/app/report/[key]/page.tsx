@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, Play, MessageCircle, Sparkles, Zap, Lightbulb } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, Play, MessageCircle, Sparkles, Zap, Lightbulb, Target, Eye } from "lucide-react";
 import ReportActions from "@/components/ReportActions";
 import ReportHeader from "@/components/ReportHeader";
 import { ChannelHealthSection } from "@/components/report/ChannelHealthSection";
@@ -11,12 +11,12 @@ import { GrowthDriversSection } from "@/components/report/GrowthDriversSection";
 import { SatisfactionSection } from "@/components/report/SatisfactionSection";
 import { GrowthPatternsSection } from "@/components/report/GrowthPatternsSection";
 import { SafeThumbnail, SafeThumbnailLarge } from "@/components/SafeThumbnail";
+import { VideoCarousel } from "@/components/VideoCarousel";
 
 // Initialize Supabase client for server component
-// Safe Supabase client initialization for SSR
 const getSupabase = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use SERVICE_ROLE_KEY for server-side operations
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
         console.error("Supabase environment variables (URL or SERVICE_ROLE_KEY) are missing.");
         return null;
@@ -79,7 +79,6 @@ interface AnalysisResult {
         sentiment_inquiry?: number;
         sentiment_success?: number;
     };
-    // Premium Analysis Data
     premium?: {
         tier: string;
         ctr_prediction?: {
@@ -234,12 +233,8 @@ interface AnalysisRow {
 }
 
 async function getAnalysis(accessKey: string): Promise<AnalysisRow | null> {
-    // If no supabase, we can't fetch anything safely
     if (!supabase) {
         console.error("Supabase client not initialized. Environment variables might be missing.");
-        // Depending on context, you might want to throw an error, redirect, or return null.
-        // For a server component, `notFound()` is a Next.js way to handle this.
-        // If `notFound` is not available or desired, return null.
         return null;
     }
 
@@ -319,13 +314,11 @@ const CVR_BENCHMARKS: Record<string, { low: number; high: number; top: number; l
     review: { low: 0.3, high: 0.7, top: 1.5, label: 'Reviews' },
 };
 
-// Detect content category from video titles
 function detectContentCategory(videos: Array<{ title: string }>): string {
     if (!videos || videos.length === 0) return 'educational';
 
     const titleText = videos.filter(v => v && v.title).map(v => (v.title || '').toLowerCase()).join(' ');
 
-    // Category detection patterns
     const patterns: Record<string, RegExp[]> = {
         tutorial: [/how to/i, /tutorial/i, /guide/i, /learn/i, /step by step/i, /beginner/i, /course/i],
         gaming: [/gameplay/i, /let's play/i, /walkthrough/i, /playthrough/i, /gaming/i, /stream/i],
@@ -336,53 +329,43 @@ function detectContentCategory(videos: Array<{ title: string }>): string {
         educational: [/explained/i, /why/i, /science/i, /history/i, /lesson/i, /understand/i],
     };
 
-    // Count matches per category
     const scores: Record<string, number> = {};
     for (const [category, regexes] of Object.entries(patterns)) {
         scores[category] = regexes.filter(r => r.test(titleText)).length;
     }
 
-    // Return highest scoring category
     const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     return sorted[0][1] > 0 ? sorted[0][0] : 'educational';
 }
 
-// Helper function to calculate engagement metrics from existing data
 function calculateEngagementMetrics(result: AnalysisResult, totalViews: number = 100000) {
     try {
         const rawComments = result.pipeline_stats?.raw_comments || result.pipeline?.rawComments || 0;
         const painPoints = result.pipeline_stats?.pain_points_found || 0;
         const highSignal = result.pipeline_stats?.high_signal_comments || 0;
 
-        // Detect content category
         const videos = result.videos_analyzed || [];
         const category = detectContentCategory(videos);
         const benchmark = CVR_BENCHMARKS[category] || CVR_BENCHMARKS.educational;
 
-        // Calculate CVR (using estimated views based on comment count typical ratio)
         const estimatedViews = totalViews > 0 ? totalViews : Math.max(rawComments * 100, 10000);
         const cvr = (rawComments / estimatedViews) * 100;
 
-        // Calculate CVR vs benchmark
         const benchmarkMid = (benchmark.low + benchmark.high) / 2;
         const cvrVsBenchmark = benchmarkMid > 0 ? ((cvr - benchmarkMid) / benchmarkMid) * 100 : 0;
 
-        // Calculate Question Density
         const questionCount = (result.pipeline_stats as any)?.question_count;
         let questionDensity = 0;
 
         if (questionCount !== undefined) {
             questionDensity = rawComments > 0 ? (questionCount / rawComments) * 100 : 0;
         } else {
-            // Fallback: proxy using pain points
             questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25;
         }
 
-        // Estimate other metrics from available data
         const depthScore = Math.min(1, (highSignal / Math.max(rawComments, 1)) * 2);
-        const repeatScore = Math.min(30, 10 + (rawComments / 100)); // Estimate based on volume
+        const repeatScore = Math.min(30, 10 + (rawComments / 100));
 
-        // Sentiment estimation based on gap analysis (more true gaps = more questions = more engagement)
         const trueGaps = result.pipeline_stats?.true_gaps || 0;
         const saturated = result.pipeline_stats?.saturated || 0;
         const total = trueGaps + saturated + (result.pipeline_stats?.under_explained || 0);
@@ -424,17 +407,14 @@ function calculateEngagementMetrics(result: AnalysisResult, totalViews: number =
     }
 }
 
-// Helper function to calculate content landscape metrics
 function calculateContentLandscape(result: AnalysisResult) {
     try {
         const videos = result.videos_analyzed || [];
         const gaps = result.verified_gaps || [];
 
-        // Extract topics from video titles
         const topicCounts: Record<string, number> = {};
         videos.forEach(v => {
             if (!v) return;
-            // Simple topic extraction from title
             const title = v.title || '';
             const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 4);
             words.slice(0, 3).forEach(word => {
@@ -442,7 +422,6 @@ function calculateContentLandscape(result: AnalysisResult) {
             });
         });
 
-        // Create topic list with saturation
         const avgPerTopic = videos.length / Math.max(Object.keys(topicCounts).length, 1);
         const topics: Array<{
             name: string;
@@ -460,7 +439,6 @@ function calculateContentLandscape(result: AnalysisResult) {
                     count / avgPerTopic < 0.5 ? 'under' as const : 'balanced' as const,
             }));
 
-        // Add gaps as uncovered topics
         gaps.filter(g => g && g.status === 'TRUE_GAP').slice(0, 3).forEach(gap => {
             topics.push({
                 name: gap.topic.slice(0, 30),
@@ -470,7 +448,6 @@ function calculateContentLandscape(result: AnalysisResult) {
             });
         });
 
-        // Estimate format diversity
         let formats: Array<{ name: string; count: number; icon: string }> = [];
 
         if (result.premium?.content_clusters?.format_diversity?.breakdown) {
@@ -495,7 +472,6 @@ function calculateContentLandscape(result: AnalysisResult) {
             ];
         }
 
-        // Estimate upload consistency
         let uploadConsistency = {
             score: 65,
             avgDaysBetween: 7,
@@ -537,12 +513,10 @@ function calculateContentLandscape(result: AnalysisResult) {
     }
 }
 
-// Helper function to calculate SEO metrics from video titles
 function calculateSeoMetrics(result: AnalysisResult) {
     try {
         const videos = result.videos_analyzed || [];
 
-        // Analyze titles
         let totalTitleScore = 0;
         let keywordFirst30 = 0;
         let hookUsage = 0;
@@ -557,12 +531,10 @@ function calculateSeoMetrics(result: AnalysisResult) {
             const title = v.title || '';
             totalLength += title.length;
 
-            // Check length (optimal: 50-60)
             let lengthScore = title.length >= 50 && title.length <= 60 ? 10 :
                 title.length >= 40 && title.length <= 70 ? 8 : 5;
             if (title.length > 70) longTitles.push(title);
 
-            // Check for number hooks
             const hasNumberHook = /\d+\s*(ways|tips|secrets|rules|steps|hacks|reasons)/i.test(title);
             const hasQuestionHook = title.includes('?');
             const hasHowTo = title.toLowerCase().startsWith('how to');
@@ -575,7 +547,6 @@ function calculateSeoMetrics(result: AnalysisResult) {
 
             let hookScore = hasNumberHook ? 10 : hasQuestionHook ? 8 : hasHowTo ? 7 : 4;
 
-            // Assume keyword placement is decent if title is structured
             const keywordScore = (hasNumberHook || hasHowTo) ? 9 : 6;
             if (hasNumberHook || hasHowTo) keywordFirst30++;
 
@@ -584,7 +555,6 @@ function calculateSeoMetrics(result: AnalysisResult) {
 
         const videoCount = Math.max(videos.length, 1);
 
-        // Build issues list
         if (longTitles.length > 0) {
             issues.push({
                 type: 'Titles Too Long',
@@ -611,7 +581,7 @@ function calculateSeoMetrics(result: AnalysisResult) {
                 hookUsage: Math.round((hookUsage / videoCount) * 100),
             },
             descriptionAnalysis: {
-                avgScore: 65, // Would need description data
+                avgScore: 65,
                 frontLoadScore: 60,
                 hasTimestamps: 40,
                 hasLinks: 70,
@@ -636,13 +606,11 @@ function calculateSeoMetrics(result: AnalysisResult) {
     }
 }
 
-// Helper function to calculate growth driver status
 function calculateGrowthDrivers(result: AnalysisResult, premium: AnalysisResult['premium']) {
     try {
         const videos = result.videos_analyzed || [];
         const rawComments = result.pipeline_stats?.raw_comments || 0;
 
-        // Estimate if creator has shorts
         const hasShorts = premium?.hook_analysis?.videos_analyzed ?
             premium.hook_analysis.videos_analyzed > 0 : videos.length > 5;
 
@@ -654,7 +622,7 @@ function calculateGrowthDrivers(result: AnalysisResult, premium: AnalysisResult[
                 implemented: videos.length > 8,
             },
             seriesContent: {
-                seriesCount: Math.floor(videos.length / 5), // Estimate
+                seriesCount: Math.floor(videos.length / 5),
                 topSeries: videos[0]?.title?.split(':')[0] || 'Main Content',
                 impact: '+89% watch time',
                 implemented: videos.length > 6,
@@ -688,14 +656,12 @@ function calculateGrowthDrivers(result: AnalysisResult, premium: AnalysisResult[
     }
 }
 
-// Helper to calculate overall channel health score
 function calculateHealthScore(
     engagement: ReturnType<typeof calculateEngagementMetrics>,
     seo: ReturnType<typeof calculateSeoMetrics>,
     growth: ReturnType<typeof calculateGrowthDrivers>
 ) {
     try {
-        // Engagement score (0-100)
         const engagementScore = Math.min(100,
             (engagement.cvr * 20) +
             (engagement.questionDensity * 1.5) +
@@ -703,13 +669,9 @@ function calculateHealthScore(
             (engagement.sentiments.positive * 0.3)
         );
 
-        // Satisfaction score (based on sentiment)
         const satisfactionScore = engagement.sentiments.positive;
-
-        // SEO score
         const seoScore = seo.seoStrength;
 
-        // Growth score (based on how many drivers are implemented)
         const growthDrivers = [
             growth.uploadConsistency.implemented,
             growth.seriesContent.implemented,
@@ -718,10 +680,8 @@ function calculateHealthScore(
         ];
         const growthScore = (growthDrivers.filter(Boolean).length / growthDrivers.length) * 100;
 
-        // Title Potential score (from hook usage - not actual CTR)
         const titlePotentialScore = Math.min(100, (seo.titleAnalysis?.hookUsage || 0) + 30);
 
-        // Calculate overall (weighted average)
         const overall = (
             engagementScore * 0.25 +
             satisfactionScore * 0.25 +
@@ -730,7 +690,6 @@ function calculateHealthScore(
             titlePotentialScore * 0.15
         );
 
-        // Generate top insight
         let topInsight = '';
         if (seoScore < 60) {
             topInsight = 'Focus on title optimization with number hooks to boost CTR by 35%';
@@ -766,7 +725,6 @@ function calculateHealthScore(
 }
 
 
-
 export default async function DashboardPage({ params }: { params: Promise<{ key: string }> }) {
     const { key } = await params;
     const analysis = await getAnalysis(key);
@@ -775,15 +733,15 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
         return (
             <main className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="text-center max-w-md mx-auto px-6">
-                    <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 p-12">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6">
-                            <Search className="w-8 h-8 text-slate-400" />
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-12">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-6">
+                            <Search className="w-7 h-7 text-slate-400" />
                         </div>
-                        <h1 className="text-2xl font-serif font-medium text-slate-900 mb-4">Report Not Found</h1>
-                        <p className="text-slate-500 mb-6">
-                            We couldn't find a report with this access key.
+                        <h1 className="text-2xl font-serif font-medium text-slate-900 mb-3">Report Not Found</h1>
+                        <p className="text-slate-500 mb-8 leading-relaxed">
+                            We couldn't find a report with this access key. Please check the URL and try again.
                         </p>
-                        <Link href="/dashboard" className="inline-block bg-slate-900 text-white px-8 py-3 rounded-full font-medium hover:bg-slate-800 transition">
+                        <Link href="/dashboard" className="inline-block bg-slate-900 text-white px-8 py-3 rounded-full font-medium hover:bg-slate-800 transition-colors">
                             Back to Dashboard
                         </Link>
                     </div>
@@ -793,7 +751,6 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
     }
 
     if (analysis.status === "pending" || analysis.status === "processing") {
-        // Import dynamically for client component
         const RealtimeStatus = (await import("@/components/RealtimeStatus")).default;
 
         return (
@@ -815,13 +772,13 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
         return (
             <main className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="text-center">
-                    <div className="bg-white rounded-[32px] p-12 max-w-md mx-auto border border-slate-100 shadow-xl">
-                        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6">
-                            <AlertCircle className="w-8 h-8 text-red-500" />
+                    <div className="bg-white rounded-3xl p-12 max-w-md mx-auto border border-slate-200 shadow-sm">
+                        <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-6">
+                            <AlertCircle className="w-7 h-7 text-red-500" />
                         </div>
-                        <h1 className="text-2xl font-bold text-slate-900 mb-4">Analysis Failed</h1>
+                        <h1 className="text-2xl font-serif font-medium text-slate-900 mb-3">Analysis Failed</h1>
                         <p className="text-slate-500 mb-8">{analysis.report_data?.error || "Unknown error occurred"}</p>
-                        <Link href="/dashboard" className="text-blue-600 hover:underline">
+                        <Link href="/dashboard" className="text-slate-900 font-medium hover:underline">
                             Return to Dashboard
                         </Link>
                     </div>
@@ -833,111 +790,71 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
     const report = transformToDashboardFormat(analysis.report_data || {}, analysis.channel_name);
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-blue-100 selection:text-blue-900 relative overflow-hidden">
-            {/* Background Gradients */}
-            <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-100/40 rounded-full blur-[100px] -mr-40 -mt-40 opacity-60 mix-blend-multiply"></div>
-                <div className="absolute top-40 left-0 w-[600px] h-[600px] bg-purple-100/40 rounded-full blur-[100px] -ml-20 opacity-60 mix-blend-multiply"></div>
-                <div className="absolute bottom-0 right-20 w-[600px] h-[600px] bg-emerald-100/40 rounded-full blur-[100px] opacity-40 mix-blend-multiply"></div>
-            </div>
-
-            {/* Nav */}
+        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-blue-100 selection:text-blue-900">
             <ReportHeader accessKey={key} />
 
-            <main className="pt-24 md:pt-32 pb-20 px-4 md:px-6">
-                <div className="max-w-7xl mx-auto space-y-8">
+            <main className="pt-20 pb-24 px-4 md:px-6">
+                <div className="max-w-6xl mx-auto">
 
-                    {/* Header Section */}
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="flex items-start gap-4 md:gap-6">
-                            {/* Channel Profile Picture */}
-                            {/* Channel Profile Picture */}
-                            <div className="relative group">
-                                <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                                {analysis.channel_thumbnail ? (
-                                    <img
-                                        src={analysis.channel_thumbnail}
-                                        alt={analysis.channel_name}
-                                        className="relative w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-[6px] border-white shadow-2xl flex-shrink-0"
-                                    />
-                                ) : (
-                                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-3xl font-bold border-[6px] border-white shadow-2xl flex-shrink-0">
-                                        {(analysis.channel_name || 'C')[0].toUpperCase()}
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider mb-4 shadow-sm">
-                                    @{analysis.channel_name}
-                                </div>
-                                <h1 className="text-4xl md:text-6xl font-serif font-medium text-slate-900 mb-4 tracking-tight">
-                                    Content Strategy
-                                </h1>
-                                <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
-                                    Deep analysis of {report.videosAnalyzed} videos, audience sentiment, and missed opportunities.
-                                </p>
-                            </div>
-                        </div>
-                        <ReportActions channelName={analysis.channel_name} accessKey={key} />
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                        {[
-                            { label: "Comments Analyzed", value: report.pipeline.rawComments.toLocaleString(), icon: MessageCircle, color: "text-blue-600", bg: "bg-blue-50" },
-                            { label: "Pain Points Found", value: report.pipeline.painPoints.toLocaleString(), icon: AlertCircle, color: "text-orange-600", bg: "bg-orange-50" },
-                            { label: "Content Gaps", value: report.pipeline.trueGaps, icon: Search, color: "text-green-600", bg: "bg-green-50" },
-                            { label: "Videos Scanned", value: report.videosAnalyzed, icon: Play, color: "text-purple-600", bg: "bg-purple-50" },
-                        ].map((stat, i) => (
-                            <div key={i} className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform duration-300`}>
-                                        <stat.icon className="w-6 h-6" />
-                                    </div>
+                    {/* Hero Header */}
+                    <section className="py-12 md:py-16">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                            <div className="flex items-center gap-5">
+                                {/* Channel Avatar */}
+                                <div className="relative">
+                                    {analysis.channel_thumbnail ? (
+                                        <img
+                                            src={analysis.channel_thumbnail}
+                                            alt={analysis.channel_name}
+                                            className="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover border-2 border-white shadow-lg"
+                                        />
+                                    ) : (
+                                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 text-2xl font-serif font-medium border-2 border-white shadow-lg">
+                                            {(analysis.channel_name || 'C')[0].toUpperCase()}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
-                                    <div className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">{stat.value}</div>
-                                    <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
+                                    <div className="text-sm text-slate-500 font-medium mb-1">Channel Analysis</div>
+                                    <h1 className="text-3xl md:text-4xl font-serif font-medium text-slate-900 tracking-tight">
+                                        @{analysis.channel_name}
+                                    </h1>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-
-                    {/* Videos Analyzed with Thumbnails */}
-                    {report.videosAnalyzedList.length > 0 && (
-                        <div>
-                            <h2 className="text-2xl font-serif font-medium text-slate-900 mb-6">Videos Analyzed</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                {report.videosAnalyzedList.map((video, i) => (
-                                    <a
-                                        key={i}
-                                        href={video.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="bg-white rounded-[24px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
-                                    >
-                                        <SafeThumbnail
-                                            videoId={video.videoId}
-                                            thumbnailUrl={video.thumbnail}
-                                            alt={video.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            containerClassName="relative aspect-video w-full bg-slate-50 overflow-hidden"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10" />
-                                        <div className="p-5">
-                                            <h3 className="font-medium text-slate-900 text-sm line-clamp-2 group-hover:text-blue-600 transition-colors leading-snug">{video.title}</h3>
-                                            <div className="flex items-center gap-2 mt-3 text-xs text-slate-400 font-medium">
-                                                <MessageCircle className="w-3.5 h-3.5" />
-                                                <span>{video.comments.toLocaleString()} comments</span>
-                                            </div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
+                            <ReportActions channelName={analysis.channel_name} accessKey={key} />
                         </div>
+                    </section>
+
+                    {/* Quick Stats */}
+                    <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-12">
+                        {[
+                            { label: "Comments", value: report.pipeline.rawComments.toLocaleString(), icon: MessageCircle, accent: "bg-blue-500" },
+                            { label: "Pain Points", value: report.pipeline.painPoints.toLocaleString(), icon: AlertCircle, accent: "bg-amber-500" },
+                            { label: "Gaps Found", value: report.pipeline.trueGaps, icon: Target, accent: "bg-emerald-500" },
+                            { label: "Videos", value: report.videosAnalyzed, icon: Play, accent: "bg-violet-500" },
+                        ].map((stat, i) => (
+                            <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className={`w-2 h-2 rounded-full ${stat.accent}`} />
+                                    <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{stat.label}</span>
+                                </div>
+                                <div className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight">{stat.value}</div>
+                            </div>
+                        ))}
+                    </section>
+
+                    {/* Videos Analyzed - Carousel */}
+                    {report.videosAnalyzedList.length > 0 && (
+                        <section className="mb-16">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-serif font-medium text-slate-900">Videos Analyzed</h2>
+                                <span className="text-sm text-slate-400">{report.videosAnalyzedList.length} videos</span>
+                            </div>
+                            <VideoCarousel videos={report.videosAnalyzedList} />
+                        </section>
                     )}
 
-                    {/* Calculate metrics for new sections */}
+                    {/* Calculate all metrics */}
                     {(() => {
                         const engagementMetrics = calculateEngagementMetrics(analysis.report_data || {});
                         const contentLandscape = calculateContentLandscape(analysis.report_data || {});
@@ -947,508 +864,459 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                         return (
                             <>
-                                {/* Channel Health Score Section */}
+                                {/* Channel Health */}
                                 <ChannelHealthSection
                                     health={healthScore}
                                     channelName={analysis.channel_name}
                                     topInsight={healthScore.topInsight}
                                 />
 
-                                {/* Premium Intelligence Divider */}
-                                <div className="flex items-center gap-4 pt-8">
-                                    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
-                                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Deep Analysis</h2>
-                                    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                {/* Section Divider */}
+                                <div className="flex items-center gap-6 py-12">
+                                    <div className="h-px bg-slate-200 flex-1" />
+                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Deep Analysis</span>
+                                    <div className="h-px bg-slate-200 flex-1" />
                                 </div>
 
-                                {/* Engagement Intelligence Section */}
                                 <EngagementSection metrics={engagementMetrics} />
-
-                                {/* Content Landscape Section */}
                                 <ContentLandscapeSection data={contentLandscape} />
-
-                                {/* SEO Section */}
                                 <SeoSection data={seoMetrics} />
-
-                                {/* Growth Drivers Section */}
                                 <GrowthDriversSection data={growthDrivers} />
 
-                                {/* Satisfaction Signals Section (Skill 4) */}
                                 {analysis.report_data?.premium?.satisfaction_signals && (
                                     <>
-                                        <div className="flex items-center gap-4 pt-8">
-                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
-                                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Viewer Satisfaction</h2>
-                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                        <div className="flex items-center gap-6 py-12">
+                                            <div className="h-px bg-slate-200 flex-1" />
+                                            <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Viewer Signals</span>
+                                            <div className="h-px bg-slate-200 flex-1" />
                                         </div>
                                         <SatisfactionSection data={analysis.report_data.premium.satisfaction_signals} />
                                     </>
                                 )}
 
-                                {/* Growth Patterns Section (Skill 6) */}
                                 {analysis.report_data?.premium?.growth_patterns && (
                                     <>
-                                        <div className="flex items-center gap-4 pt-8">
-                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
-                                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Growth Patterns</h2>
-                                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
+                                        <div className="flex items-center gap-6 py-12">
+                                            <div className="h-px bg-slate-200 flex-1" />
+                                            <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Growth Patterns</span>
+                                            <div className="h-px bg-slate-200 flex-1" />
                                         </div>
                                         <GrowthPatternsSection data={analysis.report_data.premium.growth_patterns} />
                                     </>
                                 )}
-
-                                {/* Content Gaps Divider */}
-                                <div className="flex items-center gap-4 pt-8">
-                                    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
-                                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Content Opportunities</h2>
-                                    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent flex-1" />
-                                </div>
                             </>
                         );
                     })()}
 
+                    {/* Content Opportunities Section */}
+                    <div className="flex items-center gap-6 py-12">
+                        <div className="h-px bg-slate-200 flex-1" />
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Content Opportunities</span>
+                        <div className="h-px bg-slate-200 flex-1" />
+                    </div>
 
+                    {/* Top Opportunity - Hero Style */}
                     {report.topOpportunity && (
-                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-slate-900/20">
-                            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none"></div>
+                        <section className="mb-12">
+                            <div className="bg-slate-900 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden">
+                                {/* Subtle gradient overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10 pointer-events-none" />
 
-                            <div className="relative z-10 grid md:grid-cols-3 gap-12">
-                                <div className="md:col-span-2">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-wider mb-6">
-                                        Top Opportunity
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-2 mb-6">
+                                        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                            <Sparkles className="w-4 h-4 text-amber-400" />
+                                        </div>
+                                        <span className="text-sm font-medium text-white/60 uppercase tracking-wide">Top Opportunity</span>
                                     </div>
-                                    <h2 className="text-3xl md:text-4xl font-serif font-medium mb-6 leading-tight">
-                                        {report.topOpportunity.topic}
-                                    </h2>
-                                    <p className="text-slate-300 text-lg leading-relaxed mb-8">
-                                        {report.topOpportunity.reasoning}
-                                    </p>
-                                    <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                                        <div className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">SUGGESTED TITLE</div>
-                                        <div className="text-xl font-medium">{report.topOpportunity.suggestedTitle}</div>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col justify-center items-center md:items-end border-t md:border-t-0 md:border-l border-white/10 pt-8 md:pt-0 md:pl-12">
-                                    <div className="text-center md:text-right">
-                                        <div className="text-6xl font-bold text-green-400 mb-2">{report.topOpportunity.engagementPotential}</div>
-                                        <div className="text-slate-400 font-medium">Engagement Score</div>
-                                        <div className="text-xs text-slate-500 mt-2">out of 100</div>
+
+                                    <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+                                        <div className="md:col-span-2">
+                                            <h2 className="text-2xl md:text-3xl font-serif font-medium mb-4 leading-snug">
+                                                {report.topOpportunity.topic}
+                                            </h2>
+                                            <p className="text-white/60 leading-relaxed mb-8">
+                                                {report.topOpportunity.reasoning}
+                                            </p>
+                                            <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+                                                <div className="text-xs text-white/40 uppercase tracking-wide font-medium mb-2">Suggested Title</div>
+                                                <div className="text-lg font-medium">{report.topOpportunity.suggestedTitle}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-center md:justify-end">
+                                            <div className="text-center">
+                                                <div className="text-6xl font-bold text-emerald-400 mb-1">{report.topOpportunity.engagementPotential}</div>
+                                                <div className="text-sm text-white/40 font-medium">Engagement Score</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     )}
 
-                    {/* Verified Gaps */}
-                    <div>
-                        <h2 className="text-2xl font-serif font-medium text-slate-900 mb-6">Verified Content Gaps</h2>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {report.contentGaps.map((gap, i) => (
-                                <div key={i} className="bg-white/80 backdrop-blur-xl rounded-[32px] p-8 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300 group h-full flex flex-col">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="flex gap-2">
-                                            <span className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-900 border border-slate-200">
-                                                {gap.rank}
-                                            </span>
-                                            {(gap as any).mlViralScore && (
-                                                <span className="px-3 py-2 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
-                                                    <Sparkles className="w-3 h-3" />
-                                                    ML Score: {Math.round((gap as any).mlViralScore * 100)}%
+                    {/* Content Gaps Grid */}
+                    {report.contentGaps.length > 0 && (
+                        <section className="mb-16">
+                            <h2 className="text-xl font-serif font-medium text-slate-900 mb-6">Verified Content Gaps</h2>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {report.contentGaps.map((gap, i) => (
+                                    <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all group">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <span className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm font-semibold text-slate-600">
+                                                    {gap.rank}
                                                 </span>
-                                            )}
-                                        </div>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${gap.status === 'TRUE_GAP' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-purple-50 text-purple-700 border border-purple-100'}`}>
-                                            {gap.status.replace('_', ' ')}
-                                        </span>
-                                    </div>
-                                    <h3 className="text-xl font-bold text-slate-900 mb-3">{gap.topic}</h3>
-                                    <p className="text-slate-600 mb-6 flex-1">{gap.userStruggle}</p>
-
-                                    {gap.suggestedTitles[0] && (
-                                        <div className="bg-slate-50 rounded-2xl p-4 mt-auto">
-                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                                                <Play className="w-3 h-3" /> Potential Video
+                                                {(gap as any).mlViralScore && (
+                                                    <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                                                        {Math.round((gap as any).mlViralScore * 100)}% viral
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="font-medium text-slate-900 line-clamp-2">{gap.suggestedTitles[0]}</div>
+                                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${gap.status === 'TRUE_GAP'
+                                                ? 'bg-emerald-50 text-emerald-600'
+                                                : 'bg-violet-50 text-violet-600'
+                                                }`}>
+                                                {gap.status === 'TRUE_GAP' ? 'True Gap' : 'Under-explained'}
+                                            </span>
                                         </div>
-                                    )}
-                                </div>
-                            ))
-                            }
-                        </div>
-                    </div>
 
-                    {/* Premium Sections */}
+                                        <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                            {gap.topic}
+                                        </h3>
+                                        <p className="text-sm text-slate-500 mb-4 line-clamp-2">{gap.userStruggle}</p>
+
+                                        {gap.suggestedTitles[0] && (
+                                            <div className="bg-slate-50 rounded-xl p-4">
+                                                <div className="flex items-center gap-2 text-xs text-slate-400 font-medium mb-1.5">
+                                                    <Play className="w-3 h-3" />
+                                                    Video Idea
+                                                </div>
+                                                <div className="text-sm font-medium text-slate-700 line-clamp-2">{gap.suggestedTitles[0]}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Premium Intelligence */}
                     {analysis.report_data?.premium && (
-                        <div className="space-y-12 pt-16">
-                            {/* Premium Intelligence Divider */}
-                            <div className="relative py-8">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="px-6 py-2 bg-white/50 backdrop-blur-md rounded-full border border-white/50 text-sm font-medium text-slate-500 uppercase tracking-[0.2em] shadow-sm">
-                                        Premium Intelligence
-                                    </span>
-                                </div>
+                        <>
+                            <div className="flex items-center gap-6 py-12">
+                                <div className="h-px bg-slate-200 flex-1" />
+                                <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Premium Intelligence</span>
+                                <div className="h-px bg-slate-200 flex-1" />
                             </div>
 
                             {/* Thumbnail Analysis */}
                             {analysis.report_data.premium.thumbnail_analysis && (
-                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-fuchsia-50 flex items-center justify-center border border-purple-100/50">
-                                                <Sparkles className="w-6 h-6 text-purple-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Optimization</h3>
-                                                <p className="text-slate-500 mt-1">Advanced analysis of your recent thumbnails to predict click-through rate.</p>
+                                <section className="mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                        <div className="p-6 border-b border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                                                    <Eye className="w-5 h-5 text-purple-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-slate-900">Thumbnail Analysis</h3>
+                                                    <p className="text-sm text-slate-500">CTR predictions for your recent thumbnails</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80">
-                                        {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.filter(v => v).map((video, i) => (
-                                            <div key={i} className="p-6 md:p-8 hover:bg-slate-50/50 transition-all duration-300">
-                                                <div className="flex gap-4 mb-5">
-                                                    {/* Thumbnail Image */}
-                                                    <SafeThumbnailLarge
-                                                        videoId={video.video_id}
-                                                        thumbnailUrl={video.thumbnail_url}
-                                                        alt={video.video_title}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-medium text-slate-900 line-clamp-2 text-sm leading-snug">{video.video_title}</h4>
-                                                        <div className="mt-2 flex items-baseline gap-1">
-                                                            <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
-                                                            <span className="text-xs text-slate-400 font-medium uppercase">CTR <span className="text-amber-500">(Est.)</span></span>
+                                        <div className="divide-y divide-slate-100">
+                                            {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.filter(v => v).slice(0, 4).map((video, i) => (
+                                                <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                    <div className="flex gap-5">
+                                                        <SafeThumbnailLarge
+                                                            videoId={video.video_id}
+                                                            thumbnailUrl={video.thumbnail_url}
+                                                            alt={video.video_title}
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{video.video_title}</h4>
+                                                            <div className="flex items-baseline gap-2 mb-3">
+                                                                <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
+                                                                <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
+                                                            </div>
+                                                            {video.issues && video.issues.length > 0 ? (
+                                                                <div className="space-y-2">
+                                                                    {video.issues.slice(0, 2).map((issue, j) => (
+                                                                        <div key={j} className="flex gap-2 text-xs">
+                                                                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                                                            <span className="text-slate-600">{issue.issue}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2 text-xs text-emerald-600">
+                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                    <span>Great thumbnail</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {video.issues && video.issues.length > 0 ? (
-                                                    <div className="space-y-3">
-                                                        {video.issues.map((issue, j) => (
-                                                            <div key={j} className="flex gap-3 text-sm bg-amber-50/50 rounded-xl p-3 border border-amber-100/50">
-                                                                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                                                <div>
-                                                                    <span className="font-medium text-slate-700 text-xs">{issue.issue}</span>
-                                                                    <p className="text-slate-500 mt-0.5 text-xs leading-relaxed">{issue.fix}</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-green-600 font-medium bg-green-50/50 rounded-xl p-3 border border-green-100/50">
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        <span className="text-sm">Excellent thumbnail!</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                </section>
                             )}
 
-                            {/* Views Forecast - Per Video Breakout */}
-                            {analysis.report_data.premium.views_forecast && (() => {
-                                const forecasts = analysis.report_data.premium.views_forecast.forecasts || [];
-                                const hasRecentVideos = forecasts.length >= 1;
-
-                                if (!hasRecentVideos) {
-                                    return (
-                                        <div className="bg-white/80 backdrop-blur-xl rounded-[32px] p-10 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
-                                            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
-                                                <TrendingUp className="w-8 h-8 text-slate-300" />
-                                            </div>
-                                            <h3 className="text-2xl font-serif font-medium text-slate-900 mb-3">Video Performance Forecast</h3>
-                                            <p className="text-slate-500 max-w-md mx-auto">Not enough recent video data to generate forecasts. Upload more videos to see performance predictions.</p>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                                        <div className="p-8 md:p-10 border-b border-slate-100/80">
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center border border-emerald-100/50">
-                                                    <TrendingUp className="w-6 h-6 text-emerald-600" />
+                            {/* Views Forecast */}
+                            {analysis.report_data.premium.views_forecast && analysis.report_data.premium.views_forecast.forecasts?.length > 0 && (
+                                <section className="mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                        <div className="p-6 border-b border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                                                    <TrendingUp className="w-5 h-5 text-emerald-600" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-2xl font-serif font-medium text-slate-900">Recent Video Performance</h3>
-                                                    <p className="text-slate-500 mt-1">How each of your recent videos is tracking against your channel average</p>
+                                                    <h3 className="text-lg font-semibold text-slate-900">Performance Forecast</h3>
+                                                    <p className="text-sm text-slate-500">Predicted views for recent uploads</p>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="divide-y divide-slate-100/80">
-                                            {forecasts.filter(f => f).map((forecast, i) => {
+                                        <div className="divide-y divide-slate-100">
+                                            {analysis.report_data.premium.views_forecast.forecasts.filter(f => f).slice(0, 4).map((forecast, i) => {
                                                 const prob = forecast.viral_probability || 0;
-                                                const trajectoryStyles: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-                                                    'viral': { bg: 'bg-gradient-to-r from-green-50 to-emerald-50', text: 'text-green-700', border: 'border-green-200/50', glow: 'shadow-green-100' },
-                                                    'breakout': { bg: 'bg-gradient-to-r from-emerald-50 to-teal-50', text: 'text-emerald-700', border: 'border-emerald-200/50', glow: 'shadow-emerald-100' },
-                                                    'performing': { bg: 'bg-gradient-to-r from-blue-50 to-indigo-50', text: 'text-blue-700', border: 'border-blue-200/50', glow: 'shadow-blue-100' },
-                                                    'underperforming': { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', text: 'text-orange-700', border: 'border-orange-200/50', glow: 'shadow-orange-100' },
-                                                    'steady': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200/50', glow: '' },
-                                                };
-                                                const styles = trajectoryStyles[forecast.trajectory_type] || trajectoryStyles['steady'];
-
                                                 return (
-                                                    <div key={i} className="p-6 md:p-8 hover:bg-slate-50/30 transition-all duration-300">
-                                                        <div className="flex items-start justify-between gap-6">
+                                                    <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                                        <div className="flex items-start justify-between gap-4">
                                                             <div className="flex items-start gap-4 flex-1 min-w-0">
                                                                 <SafeThumbnail
                                                                     videoId={forecast.video_id}
                                                                     thumbnailUrl={forecast.thumbnail_url}
                                                                     alt={forecast.video_title}
                                                                 />
-                                                                <div className="min-w-0 flex-1">
-                                                                    <h4 className="font-medium text-slate-900 line-clamp-2 text-sm leading-snug mb-3">{forecast.video_title}</h4>
-                                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${styles.bg} ${styles.text} border ${styles.border} shadow-sm ${styles.glow}`}>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{forecast.video_title}</h4>
+                                                                    <div className="flex items-center gap-3 text-xs">
+                                                                        <span className={`px-2 py-0.5 rounded-full font-medium ${forecast.trajectory_type === 'viral' || forecast.trajectory_type === 'breakout'
+                                                                            ? 'bg-emerald-50 text-emerald-600'
+                                                                            : forecast.trajectory_type === 'underperforming'
+                                                                                ? 'bg-amber-50 text-amber-600'
+                                                                                : 'bg-slate-100 text-slate-600'
+                                                                            }`}>
                                                                             {forecast.trajectory_type?.replace('_', ' ') || 'Analyzing'}
                                                                         </span>
-                                                                        <span className="text-xs text-slate-500 font-medium">
-                                                                            {forecast.vs_channel_avg || 'Calculating...'}
-                                                                        </span>
+                                                                        <span className="text-slate-400">{forecast.vs_channel_avg}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right shrink-0">
-                                                                <div className={`text-3xl font-bold ${prob >= 60 ? 'text-emerald-600' : prob >= 30 ? 'text-amber-500' : 'text-slate-400'}`}>
+                                                                <div className={`text-2xl font-bold ${prob >= 60 ? 'text-emerald-600' : prob >= 30 ? 'text-amber-500' : 'text-slate-400'}`}>
                                                                     {prob.toFixed(0)}%
                                                                 </div>
-                                                                <div className="text-[10px] text-slate-400 uppercase font-medium tracking-wide mt-1">
-                                                                    Breakout Chance
-                                                                </div>
+                                                                <div className="text-[10px] text-slate-400 font-medium uppercase">Breakout</div>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-5 grid grid-cols-2 gap-3">
-                                                            <div className="bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100/50">
-                                                                <div className="text-slate-400 text-[10px] uppercase font-medium tracking-wide mb-1">7-Day Forecast</div>
-                                                                <div className="font-bold text-slate-900">{(forecast.predicted_7d_views / 1000).toFixed(1)}k views</div>
+                                                        <div className="mt-4 grid grid-cols-2 gap-3">
+                                                            <div className="bg-slate-50 rounded-xl px-4 py-2.5">
+                                                                <div className="text-[10px] text-slate-400 uppercase font-medium mb-0.5">7-Day</div>
+                                                                <div className="font-semibold text-slate-900">{(forecast.predicted_7d_views / 1000).toFixed(1)}k</div>
                                                             </div>
-                                                            <div className="bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100/50">
-                                                                <div className="text-slate-400 text-[10px] uppercase font-medium tracking-wide mb-1">30-Day Forecast</div>
-                                                                <div className="font-bold text-slate-900">{(forecast.predicted_30d_views / 1000).toFixed(1)}k views</div>
+                                                            <div className="bg-slate-50 rounded-xl px-4 py-2.5">
+                                                                <div className="text-[10px] text-slate-400 uppercase font-medium mb-0.5">30-Day</div>
+                                                                <div className="font-semibold text-slate-900">{(forecast.predicted_30d_views / 1000).toFixed(1)}k</div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100/80">
-                                            <p className="text-[11px] text-slate-400 text-center">
-                                                Breakout chance = probability of exceeding your channel's average performance <span className="text-amber-500">(Est.)</span>
-                                            </p>
-                                        </div>
                                     </div>
-                                );
-                            })()}
+                                </section>
+                            )}
 
                             {/* Hook Analysis */}
                             {analysis.report_data.premium.hook_analysis && (
-                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center border border-amber-100/50">
-                                                <Zap className="w-6 h-6 text-amber-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Hook Analysis</h3>
-                                                <p className="text-slate-500 mt-1">First 60 seconds patterns that drive views</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="p-8 md:p-10">
-                                        <div className="grid md:grid-cols-2 gap-4 mb-8">
-                                            <div className="bg-gradient-to-br from-amber-50/50 to-orange-50/30 rounded-2xl p-6 border border-amber-100/50">
-                                                <div className="text-4xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
-                                                <div className="text-sm text-slate-500 font-medium">Average Hook Score</div>
-                                            </div>
-                                            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100/50">
-                                                <div className="text-4xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
-                                                <div className="text-sm text-slate-500 font-medium">Videos Analyzed</div>
-                                            </div>
-                                        </div>
-
-                                        {analysis.report_data.premium.hook_analysis.best_patterns && (
-                                            <div className="mb-8">
-                                                <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-4">Top Performing Hook Patterns</h4>
-                                                <div className="space-y-2">
-                                                    {analysis.report_data.premium.hook_analysis.best_patterns.map((p, i) => (
-                                                        <div key={i} className="flex items-center justify-between bg-slate-50/80 rounded-xl px-5 py-4 border border-slate-100/50 hover:bg-slate-50 transition-colors">
-                                                            <span className="font-medium text-slate-700 capitalize">{p.pattern}</span>
-                                                            <span className="text-sm font-bold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg views</span>
-                                                        </div>
-                                                    ))}
+                                <section className="mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                        <div className="p-6 border-b border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                                                    <Zap className="w-5 h-5 text-amber-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-slate-900">Hook Analysis</h3>
+                                                    <p className="text-sm text-slate-500">Opening patterns that drive retention</p>
                                                 </div>
                                             </div>
-                                        )}
-
-                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Lightbulb className="w-4 h-4 text-amber-500" />
-                                                <h4 className="text-sm font-medium text-slate-700">Recommendations</h4>
+                                        </div>
+                                        <div className="p-6">
+                                            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                                                <div className="bg-amber-50/50 rounded-xl p-4">
+                                                    <div className="text-3xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
+                                                    <div className="text-sm text-slate-500">Average Hook Score</div>
+                                                </div>
+                                                <div className="bg-slate-50 rounded-xl p-4">
+                                                    <div className="text-3xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
+                                                    <div className="text-sm text-slate-500">Videos Analyzed</div>
+                                                </div>
                                             </div>
-                                            <ul className="space-y-2 text-sm text-slate-600">
-                                                {analysis.report_data.premium.hook_analysis.recommendations.map((rec, i) => (
-                                                    <li key={i} className="flex items-start gap-2">
-                                                        <span className="text-amber-500 mt-1">•</span>
-                                                        <span>{rec}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
+
+                                            {analysis.report_data.premium.hook_analysis.best_patterns && (
+                                                <div className="mb-6">
+                                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Top Performing Patterns</div>
+                                                    <div className="space-y-2">
+                                                        {analysis.report_data.premium.hook_analysis.best_patterns.slice(0, 4).map((p, i) => (
+                                                            <div key={i} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
+                                                                <span className="font-medium text-slate-700 capitalize text-sm">{p.pattern}</span>
+                                                                <span className="text-sm font-semibold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {analysis.report_data.premium.hook_analysis.recommendations && (
+                                                <div className="bg-slate-50 rounded-xl p-4">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Lightbulb className="w-4 h-4 text-amber-500" />
+                                                        <span className="text-sm font-medium text-slate-700">Recommendations</span>
+                                                    </div>
+                                                    <ul className="space-y-2 text-sm text-slate-600">
+                                                        {analysis.report_data.premium.hook_analysis.recommendations.slice(0, 3).map((rec, i) => (
+                                                            <li key={i} className="flex items-start gap-2">
+                                                                <span className="text-amber-400 mt-1">•</span>
+                                                                <span>{rec}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
+                                </section>
                             )}
 
                             {/* Color Insights */}
                             {analysis.report_data.premium.color_insights && (
-                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center border border-purple-100/50">
-                                                <Sparkles className="w-6 h-6 text-purple-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Color Insights</h3>
-                                                <p className="text-slate-500 mt-1">Color patterns that drive the most views</p>
+                                <section className="mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                        <div className="p-6 border-b border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+                                                    <Sparkles className="w-5 h-5 text-violet-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-slate-900">Color Insights</h3>
+                                                    <p className="text-sm text-slate-500">Thumbnail colors that perform best</p>
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="p-6">
+                                            {analysis.report_data.premium.color_insights.top_performing_colors && (
+                                                <div className="mb-6">
+                                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Top Colors</div>
+                                                    <div className="flex gap-3 flex-wrap">
+                                                        {analysis.report_data.premium.color_insights.top_performing_colors.map((color, i) => (
+                                                            <div key={i} className="flex flex-col items-center">
+                                                                <div
+                                                                    className="w-12 h-12 rounded-xl border-2 border-white shadow-md"
+                                                                    style={{ backgroundColor: color }}
+                                                                />
+                                                                <span className="text-[10px] text-slate-400 mt-1.5 font-mono">{color}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {analysis.report_data.premium.color_insights.best_color_temperatures && (
+                                                <div className="grid sm:grid-cols-3 gap-3 mb-6">
+                                                    {analysis.report_data.premium.color_insights.best_color_temperatures.map((temp, i) => (
+                                                        <div key={i} className="bg-violet-50/50 rounded-xl p-4 text-center">
+                                                            <div className="font-semibold text-violet-600 capitalize">{temp.temperature}</div>
+                                                            <div className="text-sm text-slate-500">{(temp.avg_views / 1000).toFixed(1)}K avg</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {analysis.report_data.premium.color_insights.color_recommendations && (
+                                                <div className="bg-slate-50 rounded-xl p-4">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Lightbulb className="w-4 h-4 text-violet-500" />
+                                                        <span className="text-sm font-medium text-slate-700">Recommendations</span>
+                                                    </div>
+                                                    <ul className="space-y-2 text-sm text-slate-600">
+                                                        {analysis.report_data.premium.color_insights.color_recommendations.slice(0, 3).map((rec, i) => (
+                                                            <li key={i} className="flex items-start gap-2">
+                                                                <span className="text-violet-400 mt-1">•</span>
+                                                                <span>{rec}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="p-8 md:p-10">
-                                        {analysis.report_data.premium.color_insights.top_performing_colors && (
-                                            <div className="mb-8">
-                                                <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-4">Top Colors</h4>
-                                                <div className="flex gap-4 flex-wrap">
-                                                    {analysis.report_data.premium.color_insights.top_performing_colors.map((color, i) => (
-                                                        <div key={i} className="flex flex-col items-center group">
-                                                            <div
-                                                                className="w-14 h-14 rounded-2xl border-2 border-white shadow-lg group-hover:scale-110 transition-transform duration-200"
-                                                                style={{ backgroundColor: color }}
-                                                            />
-                                                            <span className="text-[10px] text-slate-400 mt-2 font-mono">{color}</span>
+                                </section>
+                            )}
+
+                            {/* Best Time to Post */}
+                            {analysis.report_data.premium.publish_times && (
+                                <section className="mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                                        <div className="p-6 border-b border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                                                    <Clock className="w-5 h-5 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-slate-900">Best Time to Post</h3>
+                                                    <p className="text-sm text-slate-500">Optimal upload windows for your audience</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-6">
+                                            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                                                <div className="bg-blue-50/50 rounded-xl p-4">
+                                                    <div className="text-sm text-slate-500 font-medium mb-1">Best Days</div>
+                                                    <div className="text-xl font-bold text-blue-600">
+                                                        {analysis.report_data.premium.publish_times.best_days.join(", ")}
+                                                    </div>
+                                                </div>
+                                                {analysis.report_data.premium.publish_times.recommendations[0] && (
+                                                    <div className="bg-slate-50 rounded-xl p-4">
+                                                        <div className="text-sm text-slate-500 font-medium mb-1">Top Slot (UTC)</div>
+                                                        <div className="text-xl font-bold text-slate-900">
+                                                            {analysis.report_data.premium.publish_times.recommendations[0].day} @ {analysis.report_data.premium.publish_times.recommendations[0].hour}:00
+                                                        </div>
+                                                        <div className="text-xs text-emerald-600 font-medium mt-1">
+                                                            {analysis.report_data.premium.publish_times.recommendations[0].boost} boost
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-slate-50 rounded-xl p-4">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Lightbulb className="w-4 h-4 text-blue-500" />
+                                                    <span className="text-sm font-medium text-slate-700">Schedule Recommendations</span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
+                                                        <div key={i} className="flex items-center gap-3 text-sm">
+                                                            <span className="px-2 py-1 bg-white rounded-md border border-blue-100 text-blue-600 font-medium text-xs shrink-0">
+                                                                {rec.day} {rec.hour}:00
+                                                            </span>
+                                                            <span className="text-slate-600">{rec.reasoning}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {analysis.report_data.premium.color_insights.best_color_temperatures && (
-                                            <div className="grid md:grid-cols-3 gap-3 mb-8">
-                                                {analysis.report_data.premium.color_insights.best_color_temperatures.map((temp, i) => (
-                                                    <div key={i} className="bg-gradient-to-br from-purple-50/50 to-violet-50/30 rounded-2xl p-5 text-center border border-purple-100/50">
-                                                        <div className="text-lg font-bold text-purple-600 capitalize">{temp.temperature}</div>
-                                                        <div className="text-sm text-slate-500">{(temp.avg_views / 1000).toFixed(1)}K avg views</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Lightbulb className="w-4 h-4 text-purple-500" />
-                                                <h4 className="text-sm font-medium text-slate-700">Color Recommendations</h4>
-                                            </div>
-                                            <ul className="space-y-2 text-sm text-slate-600">
-                                                {analysis.report_data.premium.color_insights.color_recommendations.map((rec, i) => (
-                                                    <li key={i} className="flex items-start gap-2">
-                                                        <span className="text-purple-500 mt-1">•</span>
-                                                        <span>{rec}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
                                         </div>
                                     </div>
-                                </div>
+                                </section>
                             )}
-
-                            {/* Publish Times */}
-                            {analysis.report_data.premium.publish_times && (
-                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-100/50">
-                                                <Clock className="w-6 h-6 text-blue-600" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Best Time to Post</h3>
-                                                <p className="text-slate-500 mt-1">Optimal upload windows based on your channel history</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="p-8 md:p-10">
-                                        <div className="grid md:grid-cols-2 gap-4 mb-8">
-                                            {/* Best Days */}
-                                            <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 rounded-2xl p-6 border border-blue-100/50">
-                                                <div className="text-sm text-slate-500 font-medium mb-2">Best Days</div>
-                                                <div className="text-2xl font-bold text-blue-600">
-                                                    {analysis.report_data.premium.publish_times.best_days.join(", ")}
-                                                </div>
-                                            </div>
-
-                                            {/* Top Recommendation */}
-                                            {analysis.report_data.premium.publish_times.recommendations[0] && (
-                                                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100/50">
-                                                    <div className="text-sm text-slate-500 font-medium mb-2">Top Slot (UTC)</div>
-                                                    <div className="text-2xl font-bold text-slate-900">
-                                                        {analysis.report_data.premium.publish_times.recommendations[0].day} @ {analysis.report_data.premium.publish_times.recommendations[0].hour}:00
-                                                    </div>
-                                                    <div className="text-xs text-emerald-600 font-bold mt-2">
-                                                        {analysis.report_data.premium.publish_times.recommendations[0].boost} predicted boost
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Detailed Schedule */}
-                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <Lightbulb className="w-4 h-4 text-blue-500" />
-                                                <h4 className="text-sm font-medium text-slate-700">Recommended Schedule</h4>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
-                                                    <div key={i} className="flex items-start gap-3">
-                                                        <div className="bg-white text-blue-600 font-bold px-3 py-1.5 rounded-lg border border-blue-100/50 text-xs shrink-0 shadow-sm">
-                                                            {rec.day} {rec.hour}:00 UTC
-                                                        </div>
-                                                        <div className="text-sm text-slate-600 pt-1">
-                                                            {rec.reasoning}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Visual Charts */}
-                            {analysis.report_data.premium.visual_charts && (
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {analysis.report_data.premium.visual_charts.hook_patterns && (
-                                        <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                                            <img
-                                                src={analysis.report_data.premium.visual_charts.hook_patterns.svg_data_uri}
-                                                alt="Hook Patterns Chart"
-                                                className="w-full h-auto"
-                                            />
-                                        </div>
-                                    )}
-                                    {analysis.report_data.premium.visual_charts.color_temperature && (
-                                        <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                                            <img
-                                                src={analysis.report_data.premium.visual_charts.color_temperature.svg_data_uri}
-                                                alt="Color Temperature Chart"
-                                                className="w-full h-auto"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                        </>
                     )}
+
                 </div>
             </main>
         </div>
