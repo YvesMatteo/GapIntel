@@ -549,7 +549,7 @@ def recover_stuck_jobs():
         return
 
     # Thresholds
-    STUCK_THRESHOLD_MINUTES = 30  # Time before a job is considered stuck
+    STUCK_THRESHOLD_MINUTES = 5   # Time before a job is considered stuck (reduced from 30 to handle Railway sleep)
     ALERT_THRESHOLD_MINUTES = 60  # Time before an individual alert is sent (1 hour)
     MAX_RETRIES = 3
 
@@ -2544,10 +2544,10 @@ async def train_ml_models(
 def periodic_stuck_job_checker():
     """
     Background thread that periodically checks for stuck jobs.
-    Runs every 15 minutes to catch jobs that got stuck without server restart.
+    Runs every 3 minutes to catch jobs that got stuck (e.g., Railway sleeping).
     """
     import time
-    CHECK_INTERVAL_MINUTES = 15
+    CHECK_INTERVAL_MINUTES = 3
     
     print(f"🔄 Starting periodic stuck job checker (every {CHECK_INTERVAL_MINUTES} min)")
     
