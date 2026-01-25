@@ -151,13 +151,17 @@ export async function POST(req: NextRequest) {
         }
 
         // Trigger Railway API with retry logic for cold starts
-        const railwayUrl = process.env.RAILWAY_API_URL;
+        const railwayUrl = process.env.RAILWAY_API_URL || "https://thriving-presence-production-ca4a.up.railway.app";
         const apiSecretKey = process.env.API_SECRET_KEY;
 
         const triggerRailway = async (retries = 3, delayMs = 2000): Promise<boolean> => {
+            if (!apiSecretKey) {
+                console.error("API_SECRET_KEY not configured - Railway trigger will fail");
+            }
+
             for (let attempt = 1; attempt <= retries; attempt++) {
                 try {
-                    console.log(`Railway trigger attempt ${attempt}/${retries}`);
+                    console.log(`Railway trigger attempt ${attempt}/${retries} to ${railwayUrl}`);
 
                     // Use AbortController for timeout (30s to allow Railway to wake up)
                     const controller = new AbortController();
