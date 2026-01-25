@@ -10,7 +10,7 @@ import { SeoSection } from "@/components/report/SeoSection";
 import { GrowthDriversSection } from "@/components/report/GrowthDriversSection";
 import { SatisfactionSection } from "@/components/report/SatisfactionSection";
 import { GrowthPatternsSection } from "@/components/report/GrowthPatternsSection";
-import { SafeThumbnail, SafeThumbnailLarge } from "@/components/SafeThumbnail";
+import { SafeThumbnail } from "@/components/SafeThumbnail";
 import { VideoCarousel } from "@/components/VideoCarousel";
 
 // Initialize Supabase client for server component
@@ -1093,88 +1093,102 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             {/* Thumbnail Analysis */}
                             {(analysis.report_data.premium.ctr_prediction || analysis.report_data.premium.thumbnail_analysis) && (
                                 <section className="mb-8">
-                                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                                        <div className="p-6 border-b border-slate-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                                                    <Eye className="w-5 h-5 text-purple-600" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-slate-900">Thumbnail Analysis</h3>
-                                                    <p className="text-sm text-slate-500">AI-predicted CTR and design critique</p>
-                                                </div>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                                                <Eye className="w-5 h-5 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-slate-900">Thumbnail Analysis</h3>
+                                                <p className="text-sm text-slate-500">CTR predictions for your recent thumbnails</p>
                                             </div>
                                         </div>
-                                        <div className="divide-y divide-slate-100">
-                                            {/* Combine CTR and Thumbnail Analysis data */}
-                                            {(() => {
-                                                const ctrData = analysis.report_data?.premium?.ctr_prediction?.video_predictions || [];
-                                                const thumbData = analysis.report_data?.premium?.thumbnail_analysis?.videos_analyzed || [];
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {(() => {
+                                            const ctrData = analysis.report_data?.premium?.ctr_prediction?.video_predictions || [];
+                                            const thumbData = analysis.report_data?.premium?.thumbnail_analysis?.videos_analyzed || [];
+                                            const videosAnalyzed = analysis.report_data?.videos_analyzed || [];
 
-                                                // Create a list of items to display, prioritizing CTR data availability
-                                                const displayItems = ctrData.length > 0 ? ctrData : thumbData.map(t => ({
-                                                    video_title: t.video_title,
-                                                    predicted_ctr: null as number | null
-                                                }));
+                                            // Helper to find video ID by matching title
+                                            const findVideoId = (title: string): string | undefined => {
+                                                // Exact match first
+                                                const exactMatch = videosAnalyzed.find(v => v.title === title);
+                                                if (exactMatch?.video_id) return exactMatch.video_id;
 
-                                                return displayItems.slice(0, 4).map((item, i) => {
-                                                    // Find matching thumbnail analysis implementation data
-                                                    // Try to match by rough title similarity as fallback or exact string
-                                                    const matchingThumb = thumbData.find(t => t.video_title === item.video_title) || thumbData[i];
+                                                // Partial match - title contains or is contained
+                                                const partialMatch = videosAnalyzed.find(v =>
+                                                    v.title?.toLowerCase().includes(title.toLowerCase().slice(0, 30)) ||
+                                                    title.toLowerCase().includes(v.title?.toLowerCase().slice(0, 30) || '')
+                                                );
+                                                if (partialMatch?.video_id) return partialMatch.video_id;
 
-                                                    // Use video ID from matching thumb or fallback
-                                                    const videoId = matchingThumb?.video_id;
-                                                    const thumbUrl = matchingThumb?.thumbnail_url;
+                                                return undefined;
+                                            };
 
-                                                    // Determine issues to show
-                                                    const issues = matchingThumb?.issues || [];
-                                                    const ctr = (item as any).predicted_ctr; // Cast because item might be from thumbData mapped
+                                            // Combine data sources
+                                            const displayItems = ctrData.length > 0 ? ctrData : thumbData.map(t => ({
+                                                video_title: t.video_title,
+                                                predicted_ctr: null as number | null
+                                            }));
 
-                                                    return (
-                                                        <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
-                                                            <div className="flex gap-5">
-                                                                <SafeThumbnailLarge
-                                                                    videoId={videoId}
-                                                                    thumbnailUrl={thumbUrl}
-                                                                    alt={item.video_title}
-                                                                />
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{item.video_title}</h4>
+                                            return displayItems.slice(0, 6).map((item, i) => {
+                                                const matchingThumb = thumbData.find(t => t.video_title === item.video_title) || thumbData[i];
+                                                const videoId = matchingThumb?.video_id || findVideoId(item.video_title);
+                                                const issues = matchingThumb?.issues || [];
+                                                const ctr = (item as { predicted_ctr?: number | null }).predicted_ctr;
 
-                                                                    {ctr !== undefined && ctr !== null ? (
-                                                                        <div className="flex items-baseline gap-2 mb-3">
-                                                                            <span className="text-2xl font-bold text-purple-600">{(ctr * 100).toFixed(1)}%</span>
-                                                                            <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="flex items-baseline gap-2 mb-3">
-                                                                            <span className="text-sm text-slate-400">CTR analysis pending</span>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Display Issues or Quality Score */}
-                                                                    {issues.length > 0 ? (
-                                                                        <div className="space-y-2">
-                                                                            {issues.slice(0, 2).map((issue, j) => (
-                                                                                <div key={j} className="flex gap-2 text-xs">
-                                                                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                                                                                    <span className="text-slate-600">{issue.issue}</span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    ) : matchingThumb?.quality_score && matchingThumb.quality_score > 70 ? (
-                                                                        <div className="flex items-center gap-2 text-xs text-emerald-600">
-                                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                                            <span>Great thumbnail quality ({matchingThumb.quality_score}/100)</span>
-                                                                        </div>
-                                                                    ) : null}
+                                                return (
+                                                    <a
+                                                        key={i}
+                                                        href={videoId ? `https://youtube.com/watch?v=${videoId}` : '#'}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
+                                                    >
+                                                        <div className="relative aspect-video w-full bg-slate-100 overflow-hidden">
+                                                            <SafeThumbnail
+                                                                videoId={videoId}
+                                                                thumbnailUrl={matchingThumb?.thumbnail_url}
+                                                                alt={item.video_title}
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                                containerClassName="relative w-full h-full"
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                                            {ctr !== undefined && ctr !== null && (
+                                                                <div className="absolute top-3 left-3">
+                                                                    <div className="px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded-full shadow-lg">
+                                                                        {(ctr * 100).toFixed(1)}% CTR
+                                                                    </div>
                                                                 </div>
-                                                            </div>
+                                                            )}
                                                         </div>
-                                                    );
-                                                });
-                                            })()}
-                                        </div>
+                                                        <div className="p-4">
+                                                            <h4 className="font-medium text-slate-900 text-sm line-clamp-2 leading-snug mb-3 group-hover:text-purple-600 transition-colors">
+                                                                {item.video_title}
+                                                            </h4>
+                                                            {issues.length > 0 ? (
+                                                                <div className="space-y-1.5">
+                                                                    {issues.slice(0, 2).map((issue, j) => (
+                                                                        <div key={j} className="flex gap-2 text-xs">
+                                                                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                                                            <span className="text-slate-500 line-clamp-1">{issue.issue}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : matchingThumb?.quality_score && matchingThumb.quality_score > 70 ? (
+                                                                <div className="flex items-center gap-2 text-xs text-emerald-600">
+                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                    <span>Great thumbnail</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-xs text-slate-400">Analysis pending</div>
+                                                            )}
+                                                        </div>
+                                                    </a>
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </section>
                             )}
