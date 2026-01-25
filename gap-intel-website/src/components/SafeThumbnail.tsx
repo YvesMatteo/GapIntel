@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Play } from 'lucide-react';
 
 interface SafeThumbnailProps {
@@ -16,7 +16,7 @@ export function SafeThumbnail({
     thumbnailUrl,
     alt,
     className = "w-full h-full object-cover",
-    containerClassName = "relative w-24 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100"
+    containerClassName = "relative w-24 aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-[0_2px_8px_rgb(0,0,0,0.06)] shrink-0 bg-slate-50"
 }: SafeThumbnailProps) {
     const [hasError, setHasError] = useState(false);
 
@@ -40,7 +40,10 @@ export function SafeThumbnail({
                 src={src}
                 alt={alt}
                 className={className}
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
                 onError={() => setHasError(true)}
+                loading="lazy"
             />
         </div>
     );
@@ -57,7 +60,7 @@ export function SafeThumbnailLarge({
             videoId={videoId}
             thumbnailUrl={thumbnailUrl}
             alt={alt}
-            containerClassName="relative w-32 aspect-video rounded-lg overflow-hidden border border-slate-200 shadow-sm shrink-0 bg-slate-100"
+            containerClassName="relative w-32 aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-[0_2px_8px_rgb(0,0,0,0.06)] shrink-0 bg-slate-50"
         />
     );
 }

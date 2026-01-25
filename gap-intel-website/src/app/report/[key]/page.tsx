@@ -1,7 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, BarChart3, Calendar, ArrowRight, Play, Youtube, Eye, MessageCircle, Sparkles, Target, Zap, Users, Layers, FileText, Lightbulb } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, TrendingUp, Search, Play, MessageCircle, Sparkles, Zap, Lightbulb } from "lucide-react";
 import ReportActions from "@/components/ReportActions";
 import ReportHeader from "@/components/ReportHeader";
 import { ChannelHealthSection } from "@/components/report/ChannelHealthSection";
@@ -28,17 +27,6 @@ const getSupabase = () => {
 const supabase = getSupabase();
 
 // Types for the analysis result
-interface GapItem {
-    rank: number;
-    topic: string;
-    status: "TRUE_GAP" | "UNDER_EXPLAINED";
-    userStruggle: string;
-    engagement: number;
-    verification: string;
-    reasoning: string;
-    suggestedTitles: string[];
-}
-
 interface AnalysisResult {
     channelName?: string;
     pipeline?: {
@@ -907,32 +895,34 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                     {report.videosAnalyzedList.length > 0 && (
                         <div>
                             <h2 className="text-2xl font-serif font-medium text-slate-900 mb-6">Videos Analyzed</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                                 {report.videosAnalyzedList.map((video, i) => (
                                     <a
                                         key={i}
                                         href={video.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all overflow-hidden group"
+                                        className="bg-white rounded-[20px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:border-slate-200 hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
                                     >
-                                        <div className="relative aspect-video w-full bg-slate-100">
+                                        <div className="relative aspect-video w-full bg-slate-50 overflow-hidden">
                                             {video.thumbnail ? (
                                                 <img
                                                     src={video.thumbnail}
                                                     alt={video.title}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    referrerPolicy="no-referrer"
+                                                    loading="lazy"
                                                 />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                                    <Play className="w-8 h-8" />
+                                                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                                    <Play className="w-10 h-10" />
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="p-4">
-                                            <h3 className="font-medium text-slate-900 text-sm line-clamp-2 group-hover:text-blue-700 transition-colors">{video.title}</h3>
-                                            <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                                                <MessageCircle className="w-3 h-3" />
+                                        <div className="p-5">
+                                            <h3 className="font-medium text-slate-900 text-sm line-clamp-2 group-hover:text-blue-600 transition-colors leading-snug">{video.title}</h3>
+                                            <div className="flex items-center gap-2 mt-3 text-xs text-slate-400 font-medium">
+                                                <MessageCircle className="w-3.5 h-3.5" />
                                                 <span>{video.comments.toLocaleString()} comments</span>
                                             </div>
                                         </div>
@@ -1082,57 +1072,69 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                         </div>
                     </div>
 
-                    {/* Premium Sections using Carousel-like cards */}
+                    {/* Premium Sections */}
                     {analysis.report_data?.premium && (
-                        <div className="space-y-12 pt-12 border-t border-slate-200">
-                            <div className="flex items-center gap-4">
-                                <div className="h-px bg-slate-200 flex-1"></div>
-                                <h2 className="text-lg font-bold text-slate-400 uppercase tracking-widest">Premium Intelligence</h2>
-                                <div className="h-px bg-slate-200 flex-1"></div>
+                        <div className="space-y-12 pt-16">
+                            {/* Premium Intelligence Divider */}
+                            <div className="relative py-8">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="px-6 py-2 bg-[#FAFAFA] text-sm font-medium text-slate-400 uppercase tracking-[0.2em]">
+                                        Premium Intelligence
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Thumbnail Analysis */}
                             {analysis.report_data.premium.thumbnail_analysis && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                                    <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Optimization</h3>
-                                        <p className="text-slate-500 mt-2">AI-powered analysis of your recent thumbnails to predict click-through rate.</p>
+                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-fuchsia-50 flex items-center justify-center border border-purple-100/50">
+                                                <Sparkles className="w-6 h-6 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Optimization</h3>
+                                                <p className="text-slate-500 mt-1">AI-powered analysis of your recent thumbnails to predict click-through rate.</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-slate-100 max-h-[600px] overflow-y-auto">
+                                    <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100/80">
                                         {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.filter(v => v).map((video, i) => (
-                                            <div key={i} className="p-8 hover:bg-slate-50/30 transition-colors">
-                                                <div className="flex justify-between items-start mb-4 gap-4">
-                                                    <div className="flex items-start gap-4 flex-1">
-                                                        {/* Thumbnail Image */}
-                                                        <SafeThumbnailLarge
-                                                            videoId={video.video_id}
-                                                            thumbnailUrl={video.thumbnail_url}
-                                                            alt={video.video_title}
-                                                        />
-                                                        <div>
-                                                            <h4 className="font-bold text-slate-900 line-clamp-2">{video.video_title}</h4>
+                                            <div key={i} className="p-6 md:p-8 hover:bg-slate-50/50 transition-all duration-300">
+                                                <div className="flex gap-4 mb-5">
+                                                    {/* Thumbnail Image */}
+                                                    <SafeThumbnailLarge
+                                                        videoId={video.video_id}
+                                                        thumbnailUrl={video.thumbnail_url}
+                                                        alt={video.video_title}
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-medium text-slate-900 line-clamp-2 text-sm leading-snug">{video.video_title}</h4>
+                                                        <div className="mt-2 flex items-baseline gap-1">
+                                                            <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
+                                                            <span className="text-xs text-slate-400 font-medium uppercase">CTR <span className="text-amber-500">(Est.)</span></span>
                                                         </div>
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <div className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</div>
-                                                        <div className="text-xs text-slate-400 font-bold uppercase">CTR <span className="text-amber-500">(Est.)</span></div>
                                                     </div>
                                                 </div>
                                                 {video.issues && video.issues.length > 0 ? (
-                                                    <ul className="space-y-3">
+                                                    <div className="space-y-3">
                                                         {video.issues.map((issue, j) => (
-                                                            <li key={j} className="flex gap-3 text-sm">
-                                                                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                                                            <div key={j} className="flex gap-3 text-sm bg-amber-50/50 rounded-xl p-3 border border-amber-100/50">
+                                                                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                                                                 <div>
-                                                                    <span className="font-medium text-slate-700">{issue.issue}</span>
-                                                                    <p className="text-slate-500 mt-0.5">{issue.fix}</p>
+                                                                    <span className="font-medium text-slate-700 text-xs">{issue.issue}</span>
+                                                                    <p className="text-slate-500 mt-0.5 text-xs leading-relaxed">{issue.fix}</p>
                                                                 </div>
-                                                            </li>
+                                                            </div>
                                                         ))}
-                                                    </ul>
+                                                    </div>
                                                 ) : (
-                                                    <div className="flex items-center gap-2 text-green-600 font-medium">
-                                                        <CheckCircle className="w-5 h-5" /> Excellent thumbnail!
+                                                    <div className="flex items-center gap-2 text-green-600 font-medium bg-green-50/50 rounded-xl p-3 border border-green-100/50">
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        <span className="text-sm">Excellent thumbnail!</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1144,77 +1146,82 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             {/* Views Forecast - Per Video Breakout */}
                             {analysis.report_data.premium.views_forecast && (() => {
                                 const forecasts = analysis.report_data.premium.views_forecast.forecasts || [];
-
-                                // Check if we have any recent enough videos to analyze
-                                // If 3rd video is older than 90 days from now, show "not enough recent data"
                                 const hasRecentVideos = forecasts.length >= 1;
 
                                 if (!hasRecentVideos) {
                                     return (
-                                        <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200 text-center">
-                                            <h3 className="text-2xl font-serif font-medium text-slate-900 mb-4">Video Performance Forecast</h3>
-                                            <p className="text-slate-500">Not enough recent video data to generate forecasts. Upload more videos to see performance predictions.</p>
+                                        <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+                                            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
+                                                <TrendingUp className="w-8 h-8 text-slate-300" />
+                                            </div>
+                                            <h3 className="text-2xl font-serif font-medium text-slate-900 mb-3">Video Performance Forecast</h3>
+                                            <p className="text-slate-500 max-w-md mx-auto">Not enough recent video data to generate forecasts. Upload more videos to see performance predictions.</p>
                                         </div>
                                     );
                                 }
 
                                 return (
-                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                                        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
-                                            <h3 className="text-2xl font-serif font-medium text-slate-900">Recent Video Performance</h3>
-                                            <p className="text-slate-500 mt-2">How each of your recent videos is tracking against your channel average</p>
+                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                        <div className="p-8 md:p-10 border-b border-slate-100/80">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center border border-emerald-100/50">
+                                                    <TrendingUp className="w-6 h-6 text-emerald-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-2xl font-serif font-medium text-slate-900">Recent Video Performance</h3>
+                                                    <p className="text-slate-500 mt-1">How each of your recent videos is tracking against your channel average</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="divide-y divide-slate-100">
+                                        <div className="divide-y divide-slate-100/80">
                                             {forecasts.filter(f => f).map((forecast, i) => {
                                                 const prob = forecast.viral_probability || 0;
-                                                const trajectoryColors: Record<string, { bg: string; text: string; border: string }> = {
-                                                    'viral': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
-                                                    'breakout': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-                                                    'performing': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-                                                    'underperforming': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-                                                    'steady': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
+                                                const trajectoryStyles: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+                                                    'viral': { bg: 'bg-gradient-to-r from-green-50 to-emerald-50', text: 'text-green-700', border: 'border-green-200/50', glow: 'shadow-green-100' },
+                                                    'breakout': { bg: 'bg-gradient-to-r from-emerald-50 to-teal-50', text: 'text-emerald-700', border: 'border-emerald-200/50', glow: 'shadow-emerald-100' },
+                                                    'performing': { bg: 'bg-gradient-to-r from-blue-50 to-indigo-50', text: 'text-blue-700', border: 'border-blue-200/50', glow: 'shadow-blue-100' },
+                                                    'underperforming': { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', text: 'text-orange-700', border: 'border-orange-200/50', glow: 'shadow-orange-100' },
+                                                    'steady': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200/50', glow: '' },
                                                 };
-                                                const colors = trajectoryColors[forecast.trajectory_type] || trajectoryColors['steady'];
+                                                const styles = trajectoryStyles[forecast.trajectory_type] || trajectoryStyles['steady'];
 
                                                 return (
-                                                    <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
-                                                        <div className="flex items-start justify-between gap-4">
+                                                    <div key={i} className="p-6 md:p-8 hover:bg-slate-50/30 transition-all duration-300">
+                                                        <div className="flex items-start justify-between gap-6">
                                                             <div className="flex items-start gap-4 flex-1 min-w-0">
                                                                 <SafeThumbnail
                                                                     videoId={forecast.video_id}
                                                                     thumbnailUrl={forecast.thumbnail_url}
                                                                     alt={forecast.video_title}
                                                                 />
-                                                                <div className="min-w-0">
-                                                                    <h4 className="font-medium text-slate-900 truncate mb-2">{forecast.video_title}</h4>
-                                                                    <div className="flex items-center gap-3 flex-wrap">
-                                                                        <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <h4 className="font-medium text-slate-900 line-clamp-2 text-sm leading-snug mb-3">{forecast.video_title}</h4>
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${styles.bg} ${styles.text} border ${styles.border} shadow-sm ${styles.glow}`}>
                                                                             {forecast.trajectory_type?.replace('_', ' ') || 'Analyzing'}
                                                                         </span>
-                                                                        <span className="text-sm text-slate-500">
+                                                                        <span className="text-xs text-slate-500 font-medium">
                                                                             {forecast.vs_channel_avg || 'Calculating...'}
                                                                         </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right shrink-0">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className={`text-2xl font-bold ${prob >= 60 ? 'text-green-600' : prob >= 30 ? 'text-amber-600' : 'text-slate-600'}`}>
-                                                                        {prob.toFixed(0)}%
-                                                                    </div>
+                                                                <div className={`text-3xl font-bold ${prob >= 60 ? 'text-emerald-600' : prob >= 30 ? 'text-amber-500' : 'text-slate-400'}`}>
+                                                                    {prob.toFixed(0)}%
                                                                 </div>
-                                                                <div className="text-xs text-slate-400 uppercase font-medium">
+                                                                <div className="text-[10px] text-slate-400 uppercase font-medium tracking-wide mt-1">
                                                                     Breakout Chance
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                                                            <div className="bg-slate-50 rounded-xl px-4 py-3">
-                                                                <div className="text-slate-400 text-xs uppercase font-medium mb-1">7-Day Forecast</div>
+                                                        <div className="mt-5 grid grid-cols-2 gap-3">
+                                                            <div className="bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100/50">
+                                                                <div className="text-slate-400 text-[10px] uppercase font-medium tracking-wide mb-1">7-Day Forecast</div>
                                                                 <div className="font-bold text-slate-900">{(forecast.predicted_7d_views / 1000).toFixed(1)}k views</div>
                                                             </div>
-                                                            <div className="bg-slate-50 rounded-xl px-4 py-3">
-                                                                <div className="text-slate-400 text-xs uppercase font-medium mb-1">30-Day Forecast</div>
+                                                            <div className="bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100/50">
+                                                                <div className="text-slate-400 text-[10px] uppercase font-medium tracking-wide mb-1">30-Day Forecast</div>
                                                                 <div className="font-bold text-slate-900">{(forecast.predicted_30d_views / 1000).toFixed(1)}k views</div>
                                                             </div>
                                                         </div>
@@ -1222,8 +1229,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                 );
                                             })}
                                         </div>
-                                        <div className="p-4 bg-slate-50 border-t border-slate-100">
-                                            <p className="text-xs text-slate-400 text-center">
+                                        <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100/80">
+                                            <p className="text-[11px] text-slate-400 text-center">
                                                 Breakout chance = probability of exceeding your channel's average performance <span className="text-amber-500">(Est.)</span>
                                             </p>
                                         </div>
@@ -1233,149 +1240,179 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Hook Analysis */}
                             {analysis.report_data.premium.hook_analysis && (
-                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><Zap className="w-5 h-5 text-amber-600" /></div>
-                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Hook Analysis</h3>
-                                    </div>
-                                    <p className="text-sm text-slate-500 mb-6">First 60 seconds patterns that drive views</p>
-
-                                    <div className="grid md:grid-cols-2 gap-6 mb-6">
-                                        <div className="bg-white rounded-2xl p-6 border border-amber-100">
-                                            <div className="text-4xl font-bold text-amber-600 mb-2">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
-                                            <div className="text-sm text-slate-500">Average Hook Score</div>
-                                        </div>
-                                        <div className="bg-white rounded-2xl p-6 border border-amber-100">
-                                            <div className="text-4xl font-bold text-slate-900 mb-2">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
-                                            <div className="text-sm text-slate-500">Videos Analyzed</div>
-                                        </div>
-                                    </div>
-
-                                    {analysis.report_data.premium.hook_analysis.best_patterns && (
-                                        <div className="mb-6">
-                                            <h4 className="font-semibold text-slate-900 mb-3">Top Performing Hook Patterns</h4>
-                                            <div className="space-y-2">
-                                                {analysis.report_data.premium.hook_analysis.best_patterns.map((p, i) => (
-                                                    <div key={i} className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-amber-100">
-                                                        <span className="font-medium text-slate-700 capitalize">{p.pattern}</span>
-                                                        <span className="text-sm font-bold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg views</span>
-                                                    </div>
-                                                ))}
+                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center border border-amber-100/50">
+                                                <Zap className="w-6 h-6 text-amber-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Hook Analysis</h3>
+                                                <p className="text-slate-500 mt-1">First 60 seconds patterns that drive views</p>
                                             </div>
                                         </div>
-                                    )}
-
-                                    <div className="bg-slate-100 rounded-xl p-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Lightbulb className="w-4 h-4 text-slate-600" />
-                                            <h4 className="font-semibold text-slate-800">Recommendations</h4>
+                                    </div>
+                                    <div className="p-8 md:p-10">
+                                        <div className="grid md:grid-cols-2 gap-4 mb-8">
+                                            <div className="bg-gradient-to-br from-amber-50/50 to-orange-50/30 rounded-2xl p-6 border border-amber-100/50">
+                                                <div className="text-4xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
+                                                <div className="text-sm text-slate-500 font-medium">Average Hook Score</div>
+                                            </div>
+                                            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100/50">
+                                                <div className="text-4xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
+                                                <div className="text-sm text-slate-500 font-medium">Videos Analyzed</div>
+                                            </div>
                                         </div>
-                                        <ul className="space-y-1 text-sm text-amber-900">
-                                            {analysis.report_data.premium.hook_analysis.recommendations.map((rec, i) => (
-                                                <li key={i}>• {rec}</li>
-                                            ))}
-                                        </ul>
+
+                                        {analysis.report_data.premium.hook_analysis.best_patterns && (
+                                            <div className="mb-8">
+                                                <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-4">Top Performing Hook Patterns</h4>
+                                                <div className="space-y-2">
+                                                    {analysis.report_data.premium.hook_analysis.best_patterns.map((p, i) => (
+                                                        <div key={i} className="flex items-center justify-between bg-slate-50/80 rounded-xl px-5 py-4 border border-slate-100/50 hover:bg-slate-50 transition-colors">
+                                                            <span className="font-medium text-slate-700 capitalize">{p.pattern}</span>
+                                                            <span className="text-sm font-bold text-amber-600">{(p.avg_views / 1000).toFixed(1)}K avg views</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Lightbulb className="w-4 h-4 text-amber-500" />
+                                                <h4 className="text-sm font-medium text-slate-700">Recommendations</h4>
+                                            </div>
+                                            <ul className="space-y-2 text-sm text-slate-600">
+                                                {analysis.report_data.premium.hook_analysis.recommendations.map((rec, i) => (
+                                                    <li key={i} className="flex items-start gap-2">
+                                                        <span className="text-amber-500 mt-1">•</span>
+                                                        <span>{rec}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             {/* Color Insights */}
                             {analysis.report_data.premium.color_insights && (
-                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center"><Sparkles className="w-5 h-5 text-purple-600" /></div>
-                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Color Insights</h3>
+                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center border border-purple-100/50">
+                                                <Sparkles className="w-6 h-6 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Color Insights</h3>
+                                                <p className="text-slate-500 mt-1">Color patterns that drive the most views</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-slate-500 mb-6">Color patterns that drive the most views</p>
+                                    <div className="p-8 md:p-10">
+                                        {analysis.report_data.premium.color_insights.top_performing_colors && (
+                                            <div className="mb-8">
+                                                <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-4">Top Colors</h4>
+                                                <div className="flex gap-4 flex-wrap">
+                                                    {analysis.report_data.premium.color_insights.top_performing_colors.map((color, i) => (
+                                                        <div key={i} className="flex flex-col items-center group">
+                                                            <div
+                                                                className="w-14 h-14 rounded-2xl border-2 border-white shadow-lg group-hover:scale-110 transition-transform duration-200"
+                                                                style={{ backgroundColor: color }}
+                                                            />
+                                                            <span className="text-[10px] text-slate-400 mt-2 font-mono">{color}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    {analysis.report_data.premium.color_insights.top_performing_colors && (
-                                        <div className="mb-6">
-                                            <h4 className="font-semibold text-slate-900 mb-3">Top Colors</h4>
-                                            <div className="flex gap-3">
-                                                {analysis.report_data.premium.color_insights.top_performing_colors.map((color, i) => (
-                                                    <div key={i} className="flex flex-col items-center">
-                                                        <div className="w-12 h-12 rounded-xl border-2 border-white shadow-md" style={{ backgroundColor: color }} />
-                                                        <span className="text-xs text-slate-500 mt-1">{color}</span>
+                                        {analysis.report_data.premium.color_insights.best_color_temperatures && (
+                                            <div className="grid md:grid-cols-3 gap-3 mb-8">
+                                                {analysis.report_data.premium.color_insights.best_color_temperatures.map((temp, i) => (
+                                                    <div key={i} className="bg-gradient-to-br from-purple-50/50 to-violet-50/30 rounded-2xl p-5 text-center border border-purple-100/50">
+                                                        <div className="text-lg font-bold text-purple-600 capitalize">{temp.temperature}</div>
+                                                        <div className="text-sm text-slate-500">{(temp.avg_views / 1000).toFixed(1)}K avg views</div>
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
-                                    {analysis.report_data.premium.color_insights.best_color_temperatures && (
-                                        <div className="grid md:grid-cols-3 gap-4 mb-6">
-                                            {analysis.report_data.premium.color_insights.best_color_temperatures.map((temp, i) => (
-                                                <div key={i} className="bg-white rounded-xl p-4 text-center border border-purple-100">
-                                                    <div className="text-lg font-bold text-purple-600 capitalize">{temp.temperature}</div>
-                                                    <div className="text-sm text-slate-500">{(temp.avg_views / 1000).toFixed(1)}K avg views</div>
-                                                </div>
-                                            ))}
+                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Lightbulb className="w-4 h-4 text-purple-500" />
+                                                <h4 className="text-sm font-medium text-slate-700">Color Recommendations</h4>
+                                            </div>
+                                            <ul className="space-y-2 text-sm text-slate-600">
+                                                {analysis.report_data.premium.color_insights.color_recommendations.map((rec, i) => (
+                                                    <li key={i} className="flex items-start gap-2">
+                                                        <span className="text-purple-500 mt-1">•</span>
+                                                        <span>{rec}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
-                                    )}
-
-                                    <div className="bg-slate-100 rounded-xl p-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Lightbulb className="w-4 h-4 text-slate-600" />
-                                            <h4 className="font-semibold text-slate-800">Color Recommendations</h4>
-                                        </div>
-                                        <ul className="space-y-1 text-sm text-slate-700">
-                                            {analysis.report_data.premium.color_insights.color_recommendations.map((rec, i) => (
-                                                <li key={i}>• {rec}</li>
-                                            ))}
-                                        </ul>
                                     </div>
                                 </div>
                             )}
 
                             {/* Publish Times */}
                             {analysis.report_data.premium.publish_times && (
-                                <div className="bg-slate-50 rounded-[32px] p-8 border border-slate-200">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center"><Clock className="w-5 h-5 text-blue-600" /></div>
-                                        <h3 className="text-2xl font-serif font-medium text-slate-900">Best Time to Post</h3>
-                                    </div>
-                                    <p className="text-sm text-slate-500 mb-6">Optimal upload windows based on your channel history</p>
-
-                                    <div className="grid md:grid-cols-2 gap-8 mb-6">
-                                        {/* Best Days */}
-                                        <div className="bg-white rounded-2xl p-6 border border-blue-100">
-                                            <div className="text-sm text-slate-500 mb-1">Best Days</div>
-                                            <div className="text-2xl font-bold text-blue-600">
-                                                {analysis.report_data.premium.publish_times.best_days.join(", ")}
+                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                    <div className="p-8 md:p-10 border-b border-slate-100/80">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-100/50">
+                                                <Clock className="w-6 h-6 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-serif font-medium text-slate-900">Best Time to Post</h3>
+                                                <p className="text-slate-500 mt-1">Optimal upload windows based on your channel history</p>
                                             </div>
                                         </div>
-
-                                        {/* Top Recommendation */}
-                                        {analysis.report_data.premium.publish_times.recommendations[0] && (
-                                            <div className="bg-white rounded-2xl p-6 border border-blue-100">
-                                                <div className="text-sm text-slate-500 mb-1">Top Slot (UTC)</div>
-                                                <div className="text-2xl font-bold text-slate-900">
-                                                    {analysis.report_data.premium.publish_times.recommendations[0].day} @ {analysis.report_data.premium.publish_times.recommendations[0].hour}:00
-                                                </div>
-                                                <div className="text-xs text-green-600 font-bold mt-1">
-                                                    {analysis.report_data.premium.publish_times.recommendations[0].boost} predicted boost
+                                    </div>
+                                    <div className="p-8 md:p-10">
+                                        <div className="grid md:grid-cols-2 gap-4 mb-8">
+                                            {/* Best Days */}
+                                            <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 rounded-2xl p-6 border border-blue-100/50">
+                                                <div className="text-sm text-slate-500 font-medium mb-2">Best Days</div>
+                                                <div className="text-2xl font-bold text-blue-600">
+                                                    {analysis.report_data.premium.publish_times.best_days.join(", ")}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
 
-                                    {/* Detailed Schedule */}
-                                    <div className="bg-slate-100 rounded-xl p-4">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <Lightbulb className="w-4 h-4 text-slate-600" />
-                                            <h4 className="font-semibold text-slate-800">Recommended Schedule</h4>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
-                                                <div key={i} className="flex items-start gap-3 text-sm">
-                                                    <div className="bg-white text-blue-600 font-bold px-2 py-1 rounded border border-blue-200 text-xs shrink-0">
-                                                        {rec.day} {rec.hour}:00 UTC
+                                            {/* Top Recommendation */}
+                                            {analysis.report_data.premium.publish_times.recommendations[0] && (
+                                                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100/50">
+                                                    <div className="text-sm text-slate-500 font-medium mb-2">Top Slot (UTC)</div>
+                                                    <div className="text-2xl font-bold text-slate-900">
+                                                        {analysis.report_data.premium.publish_times.recommendations[0].day} @ {analysis.report_data.premium.publish_times.recommendations[0].hour}:00
                                                     </div>
-                                                    <div>
-                                                        <span className="text-blue-900 block">{rec.reasoning}</span>
+                                                    <div className="text-xs text-emerald-600 font-bold mt-2">
+                                                        {analysis.report_data.premium.publish_times.recommendations[0].boost} predicted boost
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )}
+                                        </div>
+
+                                        {/* Detailed Schedule */}
+                                        <div className="bg-gradient-to-br from-slate-50 to-slate-50/50 rounded-2xl p-5 border border-slate-100/50">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <Lightbulb className="w-4 h-4 text-blue-500" />
+                                                <h4 className="text-sm font-medium text-slate-700">Recommended Schedule</h4>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {analysis.report_data.premium.publish_times.recommendations.slice(0, 3).map((rec, i) => (
+                                                    <div key={i} className="flex items-start gap-3">
+                                                        <div className="bg-white text-blue-600 font-bold px-3 py-1.5 rounded-lg border border-blue-100/50 text-xs shrink-0 shadow-sm">
+                                                            {rec.day} {rec.hour}:00 UTC
+                                                        </div>
+                                                        <div className="text-sm text-slate-600 pt-1">
+                                                            {rec.reasoning}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1385,7 +1422,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             {analysis.report_data.premium.visual_charts && (
                                 <div className="grid md:grid-cols-2 gap-6">
                                     {analysis.report_data.premium.visual_charts.hook_patterns && (
-                                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                                        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                             <img
                                                 src={analysis.report_data.premium.visual_charts.hook_patterns.svg_data_uri}
                                                 alt="Hook Patterns Chart"
@@ -1394,7 +1431,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                     )}
                                     {analysis.report_data.premium.visual_charts.color_temperature && (
-                                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                                        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                             <img
                                                 src={analysis.report_data.premium.visual_charts.color_temperature.svg_data_uri}
                                                 alt="Color Temperature Chart"
