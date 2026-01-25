@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "root-health-check",
+    "description": "Verify the root endpoint returns the correct service status and version information with a 200 HTTP status."
+  },
+  {
+    "id": "TC002",
+    "title": "railway-health-check",
+    "description": "Verify the /health endpoint returns the correct service status and service name with a 200 HTTP status."
+  },
+  {
+    "id": "TC003",
+    "title": "trigger-gap-analysis-for-youtube-channel",
+    "description": "Test the /analyze POST endpoint to ensure it correctly queues a gap analysis job for a YouTube channel with valid API key and request body, and returns queue position."
+  },
+  {
+    "id": "TC004",
+    "title": "poll-analysis-status-by-access-key",
+    "description": "Test the /status/{access_key} GET endpoint to verify it returns the correct analysis status including queued, processing, completed, or failed states."
+  },
+  {
+    "id": "TC005",
+    "title": "get-real-time-job-queue-metrics",
+    "description": "Test the /queue-status GET endpoint to ensure it returns accurate real-time job queue metrics including queue length, active jobs, and max concurrent jobs."
+  },
+  {
+    "id": "TC006",
+    "title": "initiate-youtube-analytics-oauth-flow",
+    "description": "Test the /api/youtube-analytics/authorize GET endpoint to verify it returns a valid authorization URL and state for OAuth flow initiation with a valid API key."
+  },
+  {
+    "id": "TC007",
+    "title": "check-youtube-analytics-connection-status",
+    "description": "Test the /api/youtube-analytics/status GET endpoint to verify it returns the correct connection status, channel ID, and token expiry for a given user ID."
+  },
+  {
+    "id": "TC008",
+    "title": "revoke-youtube-analytics-access",
+    "description": "Test the /api/youtube-analytics/disconnect DELETE endpoint to ensure it successfully revokes YouTube Analytics access for a user and returns a confirmation."
+  },
+  {
+    "id": "TC009",
+    "title": "check-user-subscription-tier-and-limits",
+    "description": "Test the /subscription/status GET endpoint to verify it returns the correct subscription tier, status, and remaining analyses for a user email with valid API key."
+  },
+  {
+    "id": "TC010",
+    "title": "handle-stripe-subscription-webhooks",
+    "description": "Test the /webhook/stripe-subscription POST endpoint to ensure it correctly processes Stripe webhook events and returns a 200 status."
+  }
+]

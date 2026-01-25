@@ -1,16 +1,13 @@
-# User Objective
-**Upgrade Scientific Models to v2 (Quality Features)**
+# Goal
+Fix the missing thumbnails in the GAP Intel report.
 
-The goal is to enable the ML models to predict video performance on *unseen* data (like new video ideas) by analyzing the *quality* of the creative assets, not just metadata.
+## Context
+The user reported that thumbnails are not showing up in the generated report.
+Analysis reveals that while `GAP_ULTIMATE.py` correctly fetches thumbnail URLs for all videos initially (in `get_latest_videos`), this data is **lost** for the top 5 videos that go through the transcription process (`process_video`).
 
-## Core Requirements
-1.  **Title Embeddings:** Replace simple heuristic features (length, "?") with semantic embeddings (e.g., using a small BERT model or TF-IDF/Word2Vec if lightweight). The model should understand "Minecraft Speedrun" vs "Minecraft Tutorial".
-2.  **Thumbnail Integration:** Feed extracted thumbnail features (colors, face count, text density, etc.) into the training pipeline.
-3.  **Strictly Scientific:** No heuristic "hooks" (e.g., `if '?' in title: score += 10`). The model must *learn* if questions work for that specific niche.
-4.  **Integration:** Update `scientific_trainer.py` to process these new features and `inference_engine.py` to generate them at runtime.
+`process_video` in `ingest_manager.py` attempts to re-fetch metadata but fails silently if the API call errors or if specific fields are missing, leading to incomplete `video_info` being returned.
 
-## Success Criteria
-- [ ] `ScientificTrainer` processes text embeddings and thumbnail vectors.
-- [ ] XGBoost models are retrained with these "Quality Features".
-- [ ] `ViralPredictor` can predict a view count for a *new* idea (Title + Thumbnail) that is statistically grounded.
-- [ ] Verification script proves the model differentiates between two titles for the same topic based on semantic quality.
+## Requirements
+- **Preserve Metadata**: The transcription pipeline in `GAP_ULTIMATE.py` MUST preserve the original `thumbnail_url`, `view_count`, `like_count`, and `upload_date` fetched during the initial playlist scan.
+- **Fail-safe**: Even if `process_video` fails to fetch fresh metadata, we must use the data we already have.
+- **Consistency**: Ensure transcribed videos (top 5) and comment-only videos (the rest) share the exact same metadata structure.

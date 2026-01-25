@@ -1,0 +1,17 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8000",
+  "backendAuthType": "public",
+  "executionArgs": {
+    "projectName": "AiRAG",
+    "projectPath": "/Users/yvesromano/AiRAG",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-ux22YaLRSHqBVd7V94vnkn7e_rL9twH4fn2TD7HLsod0SCoL6cpU4jbNoREqZ-rqGrtm2jwAq98rb2ZRj8oompqBaWz9P8KcYYRJkKV7VWP6f_6LWcvBeVaIKyUY5ZuXGUY"
+    }
+  },
+  "proxy": "http://add403c9-03d1-489d-8b1b-1680fbb24eaa:S22YLenccPyegOOSr1sev4zr1e8mkEyj@tun.testsprite.com:8080"
+}

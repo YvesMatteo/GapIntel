@@ -41,12 +41,12 @@ class TierLimits:
 # API calls that create reports also count towards analyses_per_month
 TIER_LIMITS = {
     SubscriptionTier.FREE: TierLimits(
-        analyses_per_month=0,
+        analyses_per_month=1,           # 1 report per month (Teaser)
         api_calls_per_day=0,
         competitor_channels=0,
         api_access=False,
-        premium_features=False,
-        report_generation=False,
+        premium_features=False,         # Blocked: Thumbnail, Viral, etc.
+        report_generation=True,         # Needs to be True to actually run the report script
         white_label=False
     ),
     SubscriptionTier.STARTER: TierLimits(

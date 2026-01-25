@@ -25,6 +25,22 @@ interface PricingTier {
 
 const pricingTiers: PricingTier[] = [
     {
+        name: "Free",
+        tierKey: "free",
+        price: "$0",
+        period: "forever",
+        description: "Experience the power of gap analysis",
+        features: [
+            "1 analysis per month",
+            "Basic Gap Analysis (Top 3)",
+            "Limited Comment Analysis",
+            "Account required"
+        ],
+        cta: "Sign Up Free",
+        color: "slate",
+        glowColor: "bg-slate-500/20"
+    },
+    {
         name: "Starter",
         tierKey: "starter",
         price: "$29",
@@ -32,8 +48,8 @@ const pricingTiers: PricingTier[] = [
         description: "Perfect for new creators testing the waters",
         features: [
             "1 analysis per month",
-            "CTR prediction engine",
-            "Thumbnail optimization tips",
+            "Full Gap Analysis (Unlimited)",
+            "Basic Thumbnail Tips",
             "3 competitor channels",
             "10 gap opportunities per video",
             "Email support"
@@ -53,12 +69,12 @@ const pricingTiers: PricingTier[] = [
         highlighted: true,
         features: [
             "5 analyses per month",
-            "ML-powered CTR prediction",
-            "Advanced thumbnail optimizer",
+            "Everything in Starter, plus:",
+            "CTR Prediction Engine",
+            "Advanced Thumbnail Optimizer",
             "Views velocity forecasting",
             "10 competitor channels",
             "Content clustering insights",
-            "Optimal publish time recommendations",
             "Priority email support"
         ],
         cta: "Upgrade to Pro",
@@ -78,10 +94,10 @@ const pricingTiers: PricingTier[] = [
             "Everything in Pro, plus:",
             "100 competitor channels",
             "Team collaboration (10 seats)",
-            "Full API access",
+            "Gamechanger: A/B Title Tester",
+            "Viral Predictor",
             "White-label reports",
-            "Custom branding",
-            "Priority support"
+            "API Access"
         ],
         cta: "Go Enterprise",
         priceId: "price_enterprise",
@@ -91,17 +107,15 @@ const pricingTiers: PricingTier[] = [
 ];
 
 const featureComparison = [
-    { feature: "Video Analyses", starter: "1/month", pro: "5/month", enterprise: "25/month" },
-    { feature: "Gap Opportunities", starter: "10/video", pro: "Unlimited", enterprise: "Unlimited" },
-    { feature: "CTR Prediction", starter: "Included", pro: "Included", enterprise: "Included" },
-    { feature: "Thumbnail Optimizer", starter: "Basic", pro: "Advanced", enterprise: "Advanced" },
-    { feature: "Views Forecasting", starter: "—", pro: "Included", enterprise: "Included" },
-    { feature: "Competitor Tracking", starter: "3 channels", pro: "10 channels", enterprise: "100 channels" },
-    { feature: "Content Clustering", starter: "—", pro: "Included", enterprise: "Included" },
-    { feature: "Publish Time Optimizer", starter: "—", pro: "Included", enterprise: "Included" },
-    { feature: "Team Members", starter: "—", pro: "—", enterprise: "10 seats" },
-    { feature: "API Access", starter: "—", pro: "—", enterprise: "Included" },
-    { feature: "White-label Reports", starter: "—", pro: "—", enterprise: "Included" },
+    { feature: "Analysis Limit", free: "1/month", starter: "1/month", pro: "5/month", enterprise: "25/month" },
+    { feature: "Gap Depth", free: "Top 3 Only", starter: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+    { feature: "Competitors", free: "—", starter: "3 channels", pro: "10 channels", enterprise: "100 channels" },
+    { feature: "Thumbnail AI", free: "—", starter: "Basic", pro: "Advanced", enterprise: "Advanced" },
+    { feature: "CTR Prediction", free: "—", starter: "—", pro: "Included", enterprise: "Included" },
+    { feature: "Viral Predictor", free: "—", starter: "—", pro: "—", enterprise: "Included" },
+    { feature: "A/B Testing", free: "—", starter: "—", pro: "—", enterprise: "Included" },
+    { feature: "Team Seats", free: "—", starter: "—", pro: "—", enterprise: "10 seats" },
+    { feature: "API Access", free: "—", starter: "—", pro: "—", enterprise: "Included" },
 ];
 
 // Tier hierarchy for upgrade/downgrade logic
@@ -196,18 +210,21 @@ export default function PricingPage() {
     };
 
     // Determine button state based on current subscription
-    const getButtonState = (tierKey: string): { text: string; disabled: boolean; variant: 'primary' | 'secondary' | 'current' } => {
+    const getButtonState = (tier: PricingTier): { text: string; disabled: boolean; variant: 'primary' | 'secondary' | 'current' } => {
         if (!user) {
+            if (tier.tierKey === 'free') {
+                return { text: "Sign Up Free", disabled: false, variant: 'primary' };
+            }
             return { text: "Sign in to Subscribe", disabled: false, variant: 'primary' };
         }
 
         const currentIndex = TIER_ORDER.indexOf(currentTier || "free");
-        const targetIndex = TIER_ORDER.indexOf(tierKey);
+        const targetIndex = TIER_ORDER.indexOf(tier.tierKey);
 
-        if (currentTier === tierKey) {
+        if (currentTier === tier.tierKey) {
             return { text: "Current Plan", disabled: true, variant: 'current' };
         } else if (targetIndex > currentIndex) {
-            return { text: `Upgrade to ${tierKey.charAt(0).toUpperCase() + tierKey.slice(1)}`, disabled: false, variant: 'primary' };
+            return { text: `Upgrade to ${tier.name}`, disabled: false, variant: 'primary' };
         } else {
             return { text: "Manage Plan", disabled: false, variant: 'secondary' };
         }
@@ -215,11 +232,15 @@ export default function PricingPage() {
 
     const handleSubscribe = async (tier: PricingTier) => {
         if (!user) {
+            if (tier.tierKey === 'free') {
+                router.push("/signup");
+                return;
+            }
             router.push("/login?redirect=/pricing");
             return;
         }
 
-        const buttonState = getButtonState(tier.tierKey);
+        const buttonState = getButtonState(tier);
 
         // If downgrade or manage, redirect to billing
         if (buttonState.variant === 'secondary' || buttonState.variant === 'current') {
@@ -373,10 +394,10 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="max-w-7xl mx-auto px-6 pb-32 relative z-10">
-                <div className="grid md:grid-cols-3 gap-8 items-start">
+            <div className="max-w-[1400px] mx-auto px-6 pb-32 relative z-10">
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
                     {pricingTiers.map((tier, index) => {
-                        const buttonState = getButtonState(tier.tierKey);
+                        const buttonState = getButtonState(tier);
                         const isCurrentPlan = currentTier === tier.tierKey;
 
                         return (
@@ -496,16 +517,19 @@ export default function PricingPage() {
                             <table className="w-full min-w-[700px]">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                                        <th className="text-left py-6 px-8 text-slate-500 font-medium font-serif italic text-lg w-1/4">Feature</th>
-                                        <th className={`text-center py-6 px-8 font-bold w-1/4 ${currentTier === "starter" ? "text-emerald-600 bg-emerald-50/50" : "text-slate-900"}`}>
+                                        <th className="text-left py-6 px-4 text-slate-500 font-medium font-serif italic text-lg w-1/5">Feature</th>
+                                        <th className={`text-center py-6 px-2 font-bold w-1/5 ${currentTier === "free" ? "text-slate-900 bg-slate-100" : "text-slate-600"}`}>
+                                            Free {currentTier === "free" && <span className="text-xs ml-1">✓</span>}
+                                        </th>
+                                        <th className={`text-center py-6 px-2 font-bold w-1/5 ${currentTier === "starter" ? "text-emerald-600 bg-emerald-50/50" : "text-slate-900"}`}>
                                             Starter {currentTier === "starter" && <span className="text-xs ml-1">✓</span>}
                                         </th>
-                                        <th className={`text-center py-6 px-8 font-bold w-1/4 relative ${currentTier === "pro" ? "text-emerald-600 bg-emerald-50/50" : "text-purple-600 bg-purple-50/30"}`}>
+                                        <th className={`text-center py-6 px-2 font-bold w-1/5 relative ${currentTier === "pro" ? "text-emerald-600 bg-emerald-50/50" : "text-purple-600 bg-purple-50/30"}`}>
                                             Pro {currentTier === "pro" && <span className="text-xs ml-1">✓</span>}
                                             <div className="absolute top-0 right-0 bottom-0 w-px bg-purple-100" />
                                             <div className="absolute top-0 left-0 bottom-0 w-px bg-purple-100" />
                                         </th>
-                                        <th className={`text-center py-6 px-8 font-bold w-1/4 ${currentTier === "enterprise" ? "text-emerald-600 bg-emerald-50/50" : "text-slate-900"}`}>
+                                        <th className={`text-center py-6 px-2 font-bold w-1/5 ${currentTier === "enterprise" ? "text-emerald-600 bg-emerald-50/50" : "text-slate-900"}`}>
                                             Enterprise {currentTier === "enterprise" && <span className="text-xs ml-1">✓</span>}
                                         </th>
                                     </tr>
@@ -513,14 +537,15 @@ export default function PricingPage() {
                                 <tbody>
                                     {featureComparison.map((row, i) => (
                                         <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors group">
-                                            <td className="py-5 px-8 text-slate-700 font-medium group-hover:text-slate-900 transition-colors">{row.feature}</td>
-                                            <td className={`text-center py-5 px-8 ${currentTier === "starter" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-500"}`}>{row.starter}</td>
-                                            <td className={`text-center py-5 px-8 font-medium border-x border-purple-50/40 relative ${currentTier === "pro" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-900 bg-purple-50/10"}`}>
+                                            <td className="py-5 px-4 text-slate-700 font-medium group-hover:text-slate-900 transition-colors text-sm">{row.feature}</td>
+                                            <td className={`text-center py-5 px-2 text-sm ${currentTier === "free" ? "text-slate-900 font-bold bg-slate-50" : "text-slate-500"}`}>{row.free}</td>
+                                            <td className={`text-center py-5 px-2 text-sm ${currentTier === "starter" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-500"}`}>{row.starter}</td>
+                                            <td className={`text-center py-5 px-2 font-medium text-sm border-x border-purple-50/40 relative ${currentTier === "pro" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-900 bg-purple-50/10"}`}>
                                                 {row.pro === "Included" ? (
                                                     <div className="flex justify-center"><CheckCircle2 className={`w-5 h-5 ${currentTier === "pro" ? "text-emerald-600 fill-emerald-100" : "text-purple-600 fill-purple-100"}`} /></div>
                                                 ) : row.pro}
                                             </td>
-                                            <td className={`text-center py-5 px-8 ${currentTier === "enterprise" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-500"}`}>
+                                            <td className={`text-center py-5 px-2 text-sm ${currentTier === "enterprise" ? "text-emerald-700 bg-emerald-50/30" : "text-slate-500"}`}>
                                                 {row.enterprise === "Included" ? (
                                                     <div className="flex justify-center"><CheckCircle2 className={`w-5 h-5 ${currentTier === "enterprise" ? "text-emerald-600 fill-emerald-100" : "text-slate-900 fill-slate-100"}`} /></div>
                                                 ) : row.enterprise}

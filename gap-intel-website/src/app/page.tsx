@@ -604,7 +604,7 @@ export default function Home() {
 
           <FadeIn delay={0.3}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-              <Link href={user ? "/dashboard" : "/signup"} className="w-full sm:w-auto">
+              <Link href={user ? "/dashboard" : "/pricing"} className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-full bg-[#1c1c1e] text-white text-base sm:text-lg font-medium hover:scale-105 hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2 group">
                   Start Analysis
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -834,7 +834,7 @@ export default function Home() {
                   Join smart creators using data instead of luck.
                   Start your free analysis today and stop guessing.
                 </p>
-                <Link href="/signup">
+                <Link href="/pricing">
                   <button className="h-14 px-8 rounded-full bg-slate-900 text-white text-lg font-medium hover:scale-105 hover:bg-slate-800 transition-all duration-300 shadow-lg shadow-slate-900/20">
                     Get Started for Free
                   </button>

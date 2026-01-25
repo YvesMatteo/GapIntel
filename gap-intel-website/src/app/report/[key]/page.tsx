@@ -301,6 +301,7 @@ function transformToDashboardFormat(result: AnalysisResult, channelName: string)
             title: v.title || 'Untitled Video',
             comments: v.comments_count || 0,
             url: v.video_id ? `https://youtube.com/watch?v=${v.video_id}` : '#',
+            videoId: v.video_id,
             thumbnail: v.thumbnail_url || (v.video_id ? `https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg` : undefined),
         })) || [],
         competitors: result.competitors || [],
@@ -832,7 +833,14 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
     const report = transformToDashboardFormat(analysis.report_data || {}, analysis.channel_name);
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-blue-100 selection:text-blue-900">
+        <div className="min-h-screen bg-[#FAFAFA] text-slate-900 selection:bg-blue-100 selection:text-blue-900 relative overflow-hidden">
+            {/* Background Gradients */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-100/40 rounded-full blur-[100px] -mr-40 -mt-40 opacity-60 mix-blend-multiply"></div>
+                <div className="absolute top-40 left-0 w-[600px] h-[600px] bg-purple-100/40 rounded-full blur-[100px] -ml-20 opacity-60 mix-blend-multiply"></div>
+                <div className="absolute bottom-0 right-20 w-[600px] h-[600px] bg-emerald-100/40 rounded-full blur-[100px] opacity-40 mix-blend-multiply"></div>
+            </div>
+
             {/* Nav */}
             <ReportHeader accessKey={key} />
 
@@ -843,26 +851,30 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div className="flex items-start gap-4 md:gap-6">
                             {/* Channel Profile Picture */}
-                            {analysis.channel_thumbnail ? (
-                                <img
-                                    src={analysis.channel_thumbnail}
-                                    alt={analysis.channel_name}
-                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-xl md:text-2xl font-bold border-4 border-white shadow-lg flex-shrink-0">
-                                    {(analysis.channel_name || 'C')[0].toUpperCase()}
-                                </div>
-                            )}
+                            {/* Channel Profile Picture */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-blue-500 rounded-full blur-lg opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                                {analysis.channel_thumbnail ? (
+                                    <img
+                                        src={analysis.channel_thumbnail}
+                                        alt={analysis.channel_name}
+                                        className="relative w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-[6px] border-white shadow-2xl flex-shrink-0"
+                                    />
+                                ) : (
+                                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-3xl font-bold border-[6px] border-white shadow-2xl flex-shrink-0">
+                                        {(analysis.channel_name || 'C')[0].toUpperCase()}
+                                    </div>
+                                )}
+                            </div>
                             <div>
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-100 text-green-700 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2">
+                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider mb-4 shadow-sm">
                                     @{analysis.channel_name}
                                 </div>
-                                <h1 className="text-3xl md:text-5xl font-serif font-medium text-slate-900 mb-2 md:mb-4">
-                                    Content Strategy Report
+                                <h1 className="text-4xl md:text-6xl font-serif font-medium text-slate-900 mb-4 tracking-tight">
+                                    Content Strategy
                                 </h1>
-                                <p className="text-base md:text-lg text-slate-500 max-w-2xl">
-                                    Detailed analysis of {report.videosAnalyzed} videos, audience sentiment, and missed opportunities.
+                                <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
+                                    Deep analysis of {report.videosAnalyzed} videos, audience sentiment, and missed opportunities.
                                 </p>
                             </div>
                         </div>
@@ -877,15 +889,15 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             { label: "Content Gaps", value: report.pipeline.trueGaps, icon: Search, color: "text-green-600", bg: "bg-green-50" },
                             { label: "Videos Scanned", value: report.videosAnalyzed, icon: Play, color: "text-purple-600", bg: "bg-purple-50" },
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white rounded-2xl p-4 md:p-6 border border-slate-100 shadow-sm flex flex-col justify-between h-28 md:h-32">
-                                <div className="flex justify-between items-start">
-                                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
-                                        <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
+                            <div key={i} className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform duration-300`}>
+                                        <stat.icon className="w-6 h-6" />
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-xl md:text-2xl font-bold text-slate-900">{stat.value}</div>
-                                    <div className="text-xs md:text-sm text-slate-500 font-medium">{stat.label}</div>
+                                    <div className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">{stat.value}</div>
+                                    <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
                                 </div>
                             </div>
                         ))}
@@ -902,23 +914,16 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         href={video.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="bg-white rounded-[20px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:border-slate-200 hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
+                                        className="bg-white rounded-[24px] border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden group"
                                     >
-                                        <div className="relative aspect-video w-full bg-slate-50 overflow-hidden">
-                                            {video.thumbnail ? (
-                                                <img
-                                                    src={video.thumbnail}
-                                                    alt={video.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                    referrerPolicy="no-referrer"
-                                                    loading="lazy"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                    <Play className="w-10 h-10" />
-                                                </div>
-                                            )}
-                                        </div>
+                                        <SafeThumbnail
+                                            videoId={video.videoId}
+                                            thumbnailUrl={video.thumbnail}
+                                            alt={video.title}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            containerClassName="relative aspect-video w-full bg-slate-50 overflow-hidden"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10" />
                                         <div className="p-5">
                                             <h3 className="font-medium text-slate-900 text-sm line-clamp-2 group-hover:text-blue-600 transition-colors leading-snug">{video.title}</h3>
                                             <div className="flex items-center gap-2 mt-3 text-xs text-slate-400 font-medium">
@@ -1039,7 +1044,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                         <h2 className="text-2xl font-serif font-medium text-slate-900 mb-6">Verified Content Gaps</h2>
                         <div className="grid md:grid-cols-2 gap-6">
                             {report.contentGaps.map((gap, i) => (
-                                <div key={i} className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-xl shadow-slate-200/50 hover:border-blue-200 transition-colors group h-full flex flex-col">
+                                <div key={i} className="bg-white/80 backdrop-blur-xl rounded-[32px] p-8 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300 group h-full flex flex-col">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="flex gap-2">
                                             <span className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-900 border border-slate-200">
@@ -1068,7 +1073,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                     )}
                                 </div>
-                            ))}
+                            ))
+                            }
                         </div>
                     </div>
 
@@ -1081,7 +1087,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                     <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
                                 </div>
                                 <div className="relative flex justify-center">
-                                    <span className="px-6 py-2 bg-[#FAFAFA] text-sm font-medium text-slate-400 uppercase tracking-[0.2em]">
+                                    <span className="px-6 py-2 bg-white/50 backdrop-blur-md rounded-full border border-white/50 text-sm font-medium text-slate-500 uppercase tracking-[0.2em] shadow-sm">
                                         Premium Intelligence
                                     </span>
                                 </div>
@@ -1089,7 +1095,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Thumbnail Analysis */}
                             {analysis.report_data.premium.thumbnail_analysis && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                                     <div className="p-8 md:p-10 border-b border-slate-100/80">
                                         <div className="flex items-start gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-50 to-fuchsia-50 flex items-center justify-center border border-purple-100/50">
@@ -1097,7 +1103,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                             </div>
                                             <div>
                                                 <h3 className="text-2xl font-serif font-medium text-slate-900">Thumbnail Optimization</h3>
-                                                <p className="text-slate-500 mt-1">AI-powered analysis of your recent thumbnails to predict click-through rate.</p>
+                                                <p className="text-slate-500 mt-1">Advanced analysis of your recent thumbnails to predict click-through rate.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1150,7 +1156,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                                 if (!hasRecentVideos) {
                                     return (
-                                        <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+                                        <div className="bg-white/80 backdrop-blur-xl rounded-[32px] p-10 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
                                             <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
                                                 <TrendingUp className="w-8 h-8 text-slate-300" />
                                             </div>
@@ -1161,7 +1167,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                 }
 
                                 return (
-                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                    <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                                         <div className="p-8 md:p-10 border-b border-slate-100/80">
                                             <div className="flex items-start gap-4">
                                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 flex items-center justify-center border border-emerald-100/50">
@@ -1240,7 +1246,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Hook Analysis */}
                             {analysis.report_data.premium.hook_analysis && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                                     <div className="p-8 md:p-10 border-b border-slate-100/80">
                                         <div className="flex items-start gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center border border-amber-100/50">
@@ -1298,7 +1304,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Color Insights */}
                             {analysis.report_data.premium.color_insights && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                                     <div className="p-8 md:p-10 border-b border-slate-100/80">
                                         <div className="flex items-start gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center border border-purple-100/50">
@@ -1359,7 +1365,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
 
                             {/* Publish Times */}
                             {analysis.report_data.premium.publish_times && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                                <div className="bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
                                     <div className="p-8 md:p-10 border-b border-slate-100/80">
                                         <div className="flex items-start gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border border-blue-100/50">
@@ -1422,7 +1428,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             {analysis.report_data.premium.visual_charts && (
                                 <div className="grid md:grid-cols-2 gap-6">
                                     {analysis.report_data.premium.visual_charts.hook_patterns && (
-                                        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                        <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                             <img
                                                 src={analysis.report_data.premium.visual_charts.hook_patterns.svg_data_uri}
                                                 alt="Hook Patterns Chart"
@@ -1431,7 +1437,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                     )}
                                     {analysis.report_data.premium.visual_charts.color_temperature && (
-                                        <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                                        <div className="bg-white/80 backdrop-blur-xl rounded-[24px] p-6 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                                             <img
                                                 src={analysis.report_data.premium.visual_charts.color_temperature.svg_data_uri}
                                                 alt="Color Temperature Chart"

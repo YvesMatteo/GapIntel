@@ -13,6 +13,7 @@ from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, validator
@@ -197,13 +198,15 @@ class AnalyzeRequest(BaseModel):
     include_shorts: bool = True
     tier: str = "starter"
     language: str = "en"  # Report language: en, de, fr, it, es
+    max_gaps: int = None
+    max_comments: int = None
     
     @validator('channel_name')
     def validate_channel_name(cls, v):
         # Remove @ and sanitize
         v = v.lstrip('@').strip()
-        # Only allow alphanumeric, underscores, hyphens
-        if not re.match(r'^[\w\-]+$', v):
+        # Only allow alphanumeric, underscores, hyphens, dots, spaces (relaxed for v2)
+        if not re.match(r'^[\w\-\.\s]+$', v):
             raise ValueError('Invalid channel name format')
         if len(v) < 1 or len(v) > 100:
             raise ValueError('Channel name must be 1-100 characters')
@@ -554,8 +557,8 @@ def recover_stuck_jobs():
     }
     
     try:
-        # Find reports stuck in "processing" status
-        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,retry_count&status=eq.processing"
+        # Find reports stuck in "processing" or "pending" status
+        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,retry_count&status=in.(processing,pending)"
         resp = requests.get(url, headers=headers)
         
         if resp.status_code != 200:
@@ -795,9 +798,12 @@ async def get_status(access_key: str):
         raise HTTPException(status_code=400, detail="Invalid access key format")
     
     analysis = fetch_analysis_status(access_key)
-    
+
     if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+        return JSONResponse(
+            status_code=404,
+            content={"status": "not_found", "access_key": access_key, "detail": "Analysis not found"}
+        )
     
     return {
         "access_key": access_key,
@@ -1252,9 +1258,11 @@ async def get_subscription_status(
         from premium.subscription_manager import get_subscription_manager
         manager = get_subscription_manager()
         subscription = await manager.get_subscription(email)
-        
+
         return {
             "status": "success",
+            "tier": subscription.tier.value,
+            "is_active": subscription.is_active,
             "subscription": {
                 "tier": subscription.tier.value,
                 "is_active": subscription.is_active,
@@ -1271,7 +1279,24 @@ async def get_subscription_status(
         }
     except Exception as e:
         print(f"❌ Subscription status error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "success",
+            "tier": "starter",
+            "is_active": False,
+            "subscription": {
+                "tier": "starter",
+                "is_active": False,
+                "analyses_this_month": 0,
+                "analyses_remaining": 0,
+                "current_period_end": None
+            },
+            "limits": {
+                "analyses_per_month": 1,
+                "competitor_channels": 0,
+                "api_access": False,
+                "premium_features": False
+            }
+        }
 
 
 @app.post("/webhook/stripe-subscription")

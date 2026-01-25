@@ -41,7 +41,6 @@ export function SafeThumbnail({
                 alt={alt}
                 className={className}
                 referrerPolicy="no-referrer"
-                crossOrigin="anonymous"
                 onError={() => setHasError(true)}
                 loading="lazy"
             />
