@@ -562,7 +562,8 @@ def recover_stuck_jobs():
 
     try:
         # Find reports stuck in "processing" or "pending" status
-        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,created_at,retry_count&status=in.(processing,pending)"
+        # Include tier, user_email, video_count, include_shorts, language for proper recovery
+        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,created_at,retry_count,tier,user_email,video_count,include_shorts,language&status=in.(processing,pending)"
         resp = requests.get(url, headers=headers)
 
         if resp.status_code != 200:
@@ -639,7 +640,9 @@ def recover_stuck_jobs():
                 'status': job.get('status', 'Unknown'),
                 'retry_count': retry_count,
                 'minutes_stuck': minutes_stuck,
-                'created_at': created_at
+                'created_at': created_at,
+                'user_email': job.get('user_email', 'Unknown'),
+                'tier': job.get('tier', 'Unknown')
             })
 
             if retry_count >= MAX_RETRIES:
@@ -666,15 +669,25 @@ def recover_stuck_jobs():
                     json={"status": "processing", "retry_count": retry_count + 1, "updated_at": now.isoformat()}
                 )
 
-                # Add to job queue
+                # Add to job queue - use actual user data from database if available
+                # Fall back to defaults only if data is missing (legacy records)
+                user_email = job.get('user_email') or "recovered@gapintel.online"
+                video_count = job.get('video_count') or 20
+                tier = job.get('tier') or 'pro'
+                include_shorts = job.get('include_shorts', True)
+                language = job.get('language') or 'en'
+
                 job_data = {
                     'channel_name': job.get('channel_handle') or job.get('channel_name'),
                     'access_key': access_key,
-                    'email': "recovered@gapintel.online",
-                    'video_count': 20,
-                    'tier': 'pro'
+                    'email': user_email,
+                    'video_count': video_count,
+                    'tier': tier,
+                    'include_shorts': include_shorts,
+                    'language': language
                 }
                 job_queue.enqueue(job_data)
+                print(f"      📧 Will notify: {user_email} (tier: {tier}, videos: {video_count})")
                 requeued_count += 1
 
         if stuck_count > 0:
@@ -854,6 +867,90 @@ async def queue_status():
         "queue_length": len(job_queue.queue),
         "active_jobs": job_queue.active_jobs,
         "max_concurrent": job_queue.max_concurrent
+    }
+
+
+@app.post("/api/admin/recover-stuck-jobs")
+async def trigger_recovery(authenticated: bool = Depends(verify_api_key)):
+    """
+    Manually trigger stuck job recovery.
+    Protected by API key. Use this to wake Railway and recover stuck jobs.
+    """
+    import threading
+
+    def run_recovery():
+        try:
+            recover_stuck_jobs()
+        except Exception as e:
+            print(f"⚠️ Manual recovery failed: {e}")
+
+    # Run in background thread to not block the response
+    threading.Thread(target=run_recovery, daemon=True).start()
+
+    return {
+        "status": "recovery_triggered",
+        "message": "Stuck job recovery started in background. Check logs for details.",
+        "queue_length": len(job_queue.queue),
+        "active_jobs": job_queue.active_jobs
+    }
+
+
+@app.post("/api/admin/requeue-job/{access_key}")
+async def requeue_specific_job(access_key: str, authenticated: bool = Depends(verify_api_key)):
+    """
+    Manually re-queue a specific job by access key.
+    Protected by API key. Use this to retry a specific stuck job.
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # Fetch the job
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}&select=*"
+    resp = requests.get(url, headers=headers)
+
+    if resp.status_code != 200 or not resp.json():
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = resp.json()[0]
+
+    # Update status to processing
+    update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
+    requests.patch(
+        update_url,
+        headers={**headers, "Prefer": "return=minimal"},
+        json={
+            "status": "processing",
+            "retry_count": (job.get('retry_count') or 0) + 1,
+            "updated_at": datetime.utcnow().isoformat(),
+            "current_phase": "Manually re-queued"
+        }
+    )
+
+    # Add to job queue with actual user data
+    job_data = {
+        'channel_name': job.get('channel_handle') or job.get('channel_name'),
+        'access_key': access_key,
+        'email': job.get('user_email') or "recovered@gapintel.online",
+        'video_count': job.get('video_count') or 20,
+        'tier': job.get('tier') or 'pro',
+        'include_shorts': job.get('include_shorts', True),
+        'language': job.get('language') or 'en'
+    }
+    job_queue.enqueue(job_data)
+
+    return {
+        "status": "requeued",
+        "access_key": access_key,
+        "channel": job_data['channel_name'],
+        "email": job_data['email'],
+        "tier": job_data['tier'],
+        "queue_position": len(job_queue.queue)
     }
 
 

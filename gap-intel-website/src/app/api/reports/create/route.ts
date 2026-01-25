@@ -102,17 +102,26 @@ export async function POST(req: NextRequest) {
         const accessKey = `GAP-${nanoid(12)}`;
         const tierFeatures = TIER_FEATURES[tier] || TIER_FEATURES.starter;
 
-        // Create report record
+        // Create report record - include tier, email, and video_count for recovery purposes
+        // These extra columns allow stuck job recovery to re-queue with correct user data
+        const reportData: Record<string, unknown> = {
+            user_id: user.id,
+            access_key: accessKey,
+            channel_name: channelName,
+            channel_handle: channelHandle || channelName,
+            channel_thumbnail: channelThumbnail || null,
+            status: "pending",
+            // Recovery metadata fields (added Jan 2026)
+            tier: tier,
+            user_email: user.email,
+            video_count: tierFeatures.videoCount,
+            include_shorts: includeShorts !== false,
+            language: language,
+        };
+
         const { error: reportError } = await supabase
             .from("user_reports")
-            .insert({
-                user_id: user.id,
-                access_key: accessKey,
-                channel_name: channelName,
-                channel_handle: channelHandle || channelName,
-                channel_thumbnail: channelThumbnail || null,
-                status: "pending",
-            });
+            .insert(reportData);
 
         if (reportError) {
             console.error("Error creating report:", reportError);
@@ -198,9 +207,24 @@ export async function POST(req: NextRequest) {
         };
 
         if (railwayUrl) {
-            // Fire and don't wait - let the response return immediately
-            // The retry logic runs in the background
-            triggerRailway().catch(err => {
+            // Fire and don't wait - but handle failure properly
+            // If Railway trigger fails after all retries, mark as "awaiting_retry"
+            // so the recovery system knows to pick it up
+            triggerRailway().then(async (success) => {
+                if (!success) {
+                    console.error("Railway trigger failed after all retries - marking for recovery");
+                    // Update status to indicate Railway needs to pick this up
+                    // Keep as "pending" but add retry_count=0 and updated_at so recovery finds it
+                    await supabase
+                        .from("user_reports")
+                        .update({
+                            retry_count: 0,
+                            updated_at: new Date().toISOString(),
+                            current_phase: "Waiting for processing server"
+                        })
+                        .eq("access_key", accessKey);
+                }
+            }).catch(err => {
                 console.error("Background Railway trigger failed:", err);
             });
         }
