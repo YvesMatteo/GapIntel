@@ -1027,35 +1027,53 @@ def run_premium_analysis(
     
     # Tier limits
     TIER_LIMITS = {
-        'starter': {
+        'free': {
             'video_count': 3,
-            'hook_video_count': 3,
-            'competitors': 1, 
-            'advanced_thumbnail': False, 
-            'views_forecast': False, 
-            'clustering': False, 
-            'publish_time': True,
+            'hook_video_count': 2,
+            'competitors': 0,
+            'advanced_thumbnail': False,
+            'views_forecast': False,
+            'clustering': False,
+            'publish_time': False,
             'ml_predictor': False,
+            'max_gaps': 3,  # Top 3 gaps only for free tier
+            'max_comments': 100,  # Limited comment analysis
         },
-        'pro': {
+        'starter': {
             'video_count': 10,
             'hook_video_count': 5,
-            'competitors': 5, 
-            'advanced_thumbnail': True, 
-            'views_forecast': True, 
-            'clustering': True, 
+            'competitors': 3,  # Fixed: was 1, should be 3 per pricing plan
+            'advanced_thumbnail': False,
+            'views_forecast': False,
+            'clustering': False,
+            'publish_time': True,
+            'ml_predictor': False,
+            'max_gaps': None,  # Unlimited
+            'max_comments': None,  # Unlimited
+        },
+        'pro': {
+            'video_count': 25,
+            'hook_video_count': 10,
+            'competitors': 10,  # Fixed: was 5, should be 10 per pricing plan
+            'advanced_thumbnail': True,
+            'views_forecast': True,
+            'clustering': True,
             'publish_time': True,
             'ml_predictor': True,
+            'max_gaps': None,
+            'max_comments': None,
         },
         'enterprise': {
-            'video_count': 50,
+            'video_count': 100,
             'hook_video_count': 25,
-            'competitors': 100, 
-            'advanced_thumbnail': True, 
-            'views_forecast': True, 
-            'clustering': True, 
+            'competitors': 100,
+            'advanced_thumbnail': True,
+            'views_forecast': True,
+            'clustering': True,
             'publish_time': True,
             'ml_predictor': True,
+            'max_gaps': None,
+            'max_comments': None,
         }
     }
     limits = TIER_LIMITS.get(tier, TIER_LIMITS['starter'])
@@ -1176,6 +1194,7 @@ def run_premium_analysis(
                 forecasts.append({
                     'video_title': vi.get('title', ''),
                     'video_id': vi.get('video_id', ''),
+                    'thumbnail_url': vi.get('thumbnail_url', ''),
                     'upload_date': p_date.strftime('%Y-%m-%d'),
                     'days_since_upload': days,
                     'current_views': vc,
@@ -1826,6 +1845,12 @@ Examples:
         
         # Merge premium data into analysis
         analysis['premium'] = premium_data
+        
+        # Enforce Free Tier Limits (Top 3 Gaps only)
+        if args.tier == 'free':
+            print("   🔒 Free Tier: Limiting to top 3 gaps")
+            if 'verified_gaps' in analysis:
+                analysis['verified_gaps'] = analysis['verified_gaps'][:3]
         
         # Calculate real engagement scores for verified gaps
         # Get all engagement values to scale relatively

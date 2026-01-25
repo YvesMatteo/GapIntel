@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limit';
-import { checkoutInputSchema, validateInput, sanitizeString } from '@/lib/validation';
 
-// Tier pricing configuration
-const TIER_CONFIG = {
-    basic: {
-        price: 4900, // in cents
-        priceId: 'price_1SlZpw31NKbNsvqrHaQ785Ty',
-        name: 'GapIntel Basic Analysis',
-        description: '15 videos • 3 video ideas • Basic gap analysis'
+// Subscription tier pricing configuration
+// Price IDs should be set in environment variables after creating products in Stripe
+const TIER_CONFIG: Record<string, {
+    monthlyPriceId: string;
+    annualPriceId: string;
+    name: string;
+    description: string;
+}> = {
+    starter: {
+        monthlyPriceId: process.env.STRIPE_STARTER_MONTHLY_PRICE_ID || '',
+        annualPriceId: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID || '',
+        name: 'GAP Intel Starter',
+        description: '1 analysis/month • Full Gap Analysis • 3 competitor channels'
     },
-    premium: {
-        price: 7900, // in cents
-        priceId: 'price_1SlwZT31NKbNsvqrQtuIb277',
-        name: 'GapIntel Premium Analysis',
-        description: '50 videos • ML thumbnail analysis • Trend insights • 5 packages'
+    pro: {
+        monthlyPriceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || '',
+        annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID || '',
+        name: 'GAP Intel Pro',
+        description: '5 analyses/month • CTR Prediction • Advanced Thumbnail AI • 10 competitors'
+    },
+    enterprise: {
+        monthlyPriceId: process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID || '',
+        annualPriceId: process.env.STRIPE_ENTERPRISE_ANNUAL_PRICE_ID || '',
+        name: 'GAP Intel Enterprise',
+        description: '25 analyses/month • Team collaboration • API Access • 100 competitors'
     }
 };
 
@@ -53,7 +64,7 @@ export async function POST(req: NextRequest) {
         }
 
         // ============================================
-        // SECURITY: Input Validation
+        // Input Validation
         // ============================================
         let body;
         try {
@@ -65,21 +76,35 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const validation = validateInput(checkoutInputSchema, body);
-        if (!validation.success) {
-            console.warn(`Invalid checkout input: ${validation.error}`);
+        const { tier, isAnnual, email, channelName } = body;
+
+        // Validate tier
+        if (!tier || !TIER_CONFIG[tier]) {
             return NextResponse.json(
-                { error: validation.error },
+                { error: 'Invalid subscription tier' },
                 { status: 400 }
             );
         }
 
-        // Sanitize and extract validated data
-        const { channelName: rawChannelName, email: rawEmail, tier } = validation.data;
-        const channelName = sanitizeString(rawChannelName);
-        const email = sanitizeString(rawEmail);
-        const selectedTier = tier;
-        const tierConfig = TIER_CONFIG[selectedTier];
+        // Validate email
+        if (!email || typeof email !== 'string' || !email.includes('@')) {
+            return NextResponse.json(
+                { error: 'Valid email is required' },
+                { status: 400 }
+            );
+        }
+
+        const tierConfig = TIER_CONFIG[tier];
+        const priceId = isAnnual ? tierConfig.annualPriceId : tierConfig.monthlyPriceId;
+
+        // Check if price ID is configured
+        if (!priceId) {
+            console.error(`Price ID not configured for tier: ${tier}, isAnnual: ${isAnnual}`);
+            return NextResponse.json(
+                { error: 'Subscription pricing not configured. Please contact support.' },
+                { status: 500 }
+            );
+        }
 
         // ============================================
         // Stripe Configuration Check
@@ -104,30 +129,33 @@ export async function POST(req: NextRequest) {
         }
 
         // ============================================
-        // Create Stripe Checkout Session
+        // Create Stripe Checkout Session (Subscription Mode)
         // ============================================
-        const lineItem = {
-            price: tierConfig.priceId,
-            quantity: 1,
-        };
-
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
-            line_items: [lineItem],
-            mode: 'payment',
-            success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/?canceled=true`,
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: 1,
+                },
+            ],
+            mode: 'subscription', // Changed from 'payment' to 'subscription'
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscription=success&tier=${tier}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
             customer_email: email,
             metadata: {
-                channelName: channelName.replace('@', ''),
+                channelName: channelName ? String(channelName).replace('@', '') : '',
                 email: email,
-                tier: selectedTier,
+                tier: tier,
+                isAnnual: String(isAnnual),
             },
-            payment_method_options: {
-                card: {
-                    setup_future_usage: undefined,
+            subscription_data: {
+                metadata: {
+                    tier: tier,
+                    email: email,
                 },
             },
+            allow_promotion_codes: true, // Enable promo codes
         });
 
         // Add rate limit headers to successful response

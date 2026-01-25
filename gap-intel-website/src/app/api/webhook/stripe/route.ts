@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
     }
 
-    // Handle subscription updates (renewal, plan change)
+    // Handle subscription updates (renewal, plan change, upgrade/downgrade)
     if (event.type === 'customer.subscription.updated') {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
@@ -111,24 +111,81 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        const status = (subscription as any).status === 'active' ? 'active' :
-            (subscription as any).status === 'trialing' ? 'trialing' :
-                (subscription as any).status === 'past_due' ? 'past_due' : 'cancelled';
+        const subData = subscription as Stripe.Subscription & { current_period_end: number };
+        const status = subData.status === 'active' ? 'active' :
+            subData.status === 'trialing' ? 'trialing' :
+                subData.status === 'past_due' ? 'past_due' : 'cancelled';
 
-        const periodEnd = new Date((subscription as any).current_period_end * 1000).toISOString();
+        const periodEnd = new Date(subData.current_period_end * 1000).toISOString();
+
+        // Get tier from subscription metadata or price lookup
+        let tier = subscription.metadata?.tier;
+
+        // If no tier in metadata, try to determine from price
+        if (!tier && subscription.items?.data?.[0]?.price) {
+            const priceId = subscription.items.data[0].price.id;
+            // Map price IDs to tiers (check against env vars)
+            if (priceId === process.env.STRIPE_STARTER_MONTHLY_PRICE_ID ||
+                priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE_ID) {
+                tier = 'starter';
+            } else if (priceId === process.env.STRIPE_PRO_MONTHLY_PRICE_ID ||
+                       priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID) {
+                tier = 'pro';
+            } else if (priceId === process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID ||
+                       priceId === process.env.STRIPE_ENTERPRISE_ANNUAL_PRICE_ID) {
+                tier = 'enterprise';
+            }
+        }
+
+        // Build update object
+        const updateData: Record<string, string | number> = {
+            status: status,
+            current_period_end: periodEnd,
+        };
+
+        // Only update tier if we determined one (for upgrades/downgrades)
+        if (tier) {
+            updateData.tier = tier;
+            // Reset usage on tier change (giving them fresh start on new tier)
+            updateData.analyses_this_month = 0;
+        }
 
         const { error } = await supabase
             .from('user_subscriptions')
-            .update({
-                status: status,
-                current_period_end: periodEnd,
-            })
+            .update(updateData)
             .eq('stripe_subscription_id', subscription.id);
 
         if (error) {
             console.error('Database update error:', error);
         } else {
-            console.log(`✅ Subscription updated for ${email}: ${status}`);
+            console.log(`✅ Subscription updated for ${email}: ${status}${tier ? `, tier: ${tier}` : ''}`);
+        }
+
+        return NextResponse.json({ received: true });
+    }
+
+    // Handle invoice payment succeeded (monthly renewal - reset usage)
+    if (event.type === 'invoice.payment_succeeded') {
+        const invoice = event.data.object as Stripe.Invoice & { subscription?: string; billing_reason?: string };
+
+        // Only process subscription invoices (not one-time payments)
+        if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
+            const subscriptionId = invoice.subscription;
+
+            // Reset monthly usage on successful renewal
+            const { error } = await supabase
+                .from('user_subscriptions')
+                .update({
+                    analyses_this_month: 0,
+                    analyses_reset_at: new Date().toISOString(),
+                })
+                .eq('stripe_subscription_id', subscriptionId);
+
+            if (error) {
+                console.error('Failed to reset monthly usage:', error);
+            } else {
+                console.log(`✅ Monthly usage reset for subscription: ${subscriptionId}`);
+            }
         }
 
         return NextResponse.json({ received: true });

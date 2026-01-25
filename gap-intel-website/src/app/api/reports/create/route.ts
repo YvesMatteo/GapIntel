@@ -4,18 +4,43 @@ import { nanoid } from "nanoid";
 
 // Tier limits for analyses per month
 const TIER_LIMITS: Record<string, number> = {
-    free: 0,
-    starter: 5,
-    pro: 999999, // Unlimited
-    enterprise: 999999, // Unlimited
+    free: 1,      // 1 free analysis per month
+    starter: 1,
+    pro: 5,
+    enterprise: 25,
 };
 
-// Tier features
-const TIER_FEATURES: Record<string, { videoCount: number; premium: boolean }> = {
-    free: { videoCount: 1, premium: false },
-    starter: { videoCount: 5, premium: false },
-    pro: { videoCount: 20, premium: true },
-    enterprise: { videoCount: 50, premium: true },
+// Tier features - aligned with PRICING_PLAN.md
+const TIER_FEATURES: Record<string, {
+    videoCount: number;
+    premium: boolean;
+    maxGaps: number | null;      // null = unlimited
+    maxComments: number | null;  // null = unlimited
+}> = {
+    free: {
+        videoCount: 3,
+        premium: false,
+        maxGaps: 3,        // Top 3 gaps only per PRICING_PLAN.md
+        maxComments: 100,  // Limited comment analysis per PRICING_PLAN.md
+    },
+    starter: {
+        videoCount: 10,
+        premium: false,
+        maxGaps: null,     // Unlimited gaps
+        maxComments: null, // Unlimited comments
+    },
+    pro: {
+        videoCount: 25,
+        premium: true,
+        maxGaps: null,
+        maxComments: null,
+    },
+    enterprise: {
+        videoCount: 100,
+        premium: true,
+        maxGaps: null,
+        maxComments: null,
+    },
 };
 
 export async function POST(req: NextRequest) {
@@ -50,13 +75,6 @@ export async function POST(req: NextRequest) {
         const language = subscription?.preferred_language || "en";
 
         // Check if user has reached their limit
-        if (tier === "free") {
-            return NextResponse.json(
-                { error: "Please subscribe to create reports", requiresSubscription: true },
-                { status: 403 }
-            );
-        }
-
         if (analysesThisMonth >= limit) {
             return NextResponse.json(
                 { error: `You've reached your monthly limit of ${limit} reports`, limitReached: true },
@@ -105,12 +123,22 @@ export async function POST(req: NextRequest) {
             }, { status: 500 });
         }
 
-        // Increment usage counter
+        // Increment usage counter (or create subscription record for free tier)
         if (subscription) {
             await supabase
                 .from("user_subscriptions")
                 .update({ analyses_this_month: analysesThisMonth + 1 })
                 .eq("user_email", user.email);
+        } else {
+            // Create a free tier subscription record for tracking
+            await supabase
+                .from("user_subscriptions")
+                .insert({
+                    user_email: user.email,
+                    tier: "free",
+                    analyses_this_month: 1,
+                    status: "active",
+                });
         }
 
         // Trigger Railway API with retry logic for cold starts
@@ -140,6 +168,8 @@ export async function POST(req: NextRequest) {
                             tier: tier,
                             include_shorts: includeShorts,
                             language: language,
+                            max_gaps: tierFeatures.maxGaps,
+                            max_comments: tierFeatures.maxComments,
                         }),
                         signal: controller.signal,
                     });
