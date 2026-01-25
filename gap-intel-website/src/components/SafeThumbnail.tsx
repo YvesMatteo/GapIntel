@@ -11,6 +11,38 @@ interface SafeThumbnailProps {
     containerClassName?: string;
 }
 
+// Extract video ID from any YouTube URL format
+function extractVideoId(input: string | undefined): string | null {
+    if (!input) return null;
+
+    // Already a video ID (11 chars)
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+        return input;
+    }
+
+    // YouTube thumbnail URL: img.youtube.com/vi/VIDEO_ID/...
+    const imgMatch = input.match(/img\.youtube\.com\/vi\/([a-zA-Z0-9_-]{11})/);
+    if (imgMatch) return imgMatch[1];
+
+    // YouTube thumbnail URL: i.ytimg.com/vi/VIDEO_ID/...
+    const ytimgMatch = input.match(/i\.ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/);
+    if (ytimgMatch) return ytimgMatch[1];
+
+    // youtube.com/watch?v=VIDEO_ID
+    const watchMatch = input.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (watchMatch) return watchMatch[1];
+
+    // youtu.be/VIDEO_ID
+    const shortMatch = input.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (shortMatch) return shortMatch[1];
+
+    // youtube.com/embed/VIDEO_ID
+    const embedMatch = input.match(/embed\/([a-zA-Z0-9_-]{11})/);
+    if (embedMatch) return embedMatch[1];
+
+    return null;
+}
+
 export function SafeThumbnail({
     videoId,
     thumbnailUrl,
@@ -20,20 +52,18 @@ export function SafeThumbnail({
 }: SafeThumbnailProps) {
     const [hasError, setHasError] = useState(false);
 
-    // Build the thumbnail URL
-    let src = thumbnailUrl;
+    // Try to get video ID from either prop
+    const extractedId = videoId || extractVideoId(thumbnailUrl);
 
-    // If no thumbnail URL but we have videoId, use YouTube's thumbnail
-    if (!src && videoId) {
-        src = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-    }
+    // Build the final thumbnail URL
+    let src: string | null = null;
 
-    // Extract video ID from YouTube thumbnail URL if needed
-    if (!src && thumbnailUrl) {
-        const match = thumbnailUrl.match(/\/vi\/([a-zA-Z0-9_-]{11})/);
-        if (match) {
-            src = `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg`;
-        }
+    if (extractedId) {
+        // Use YouTube's high quality thumbnail
+        src = `https://i.ytimg.com/vi/${extractedId}/hqdefault.jpg`;
+    } else if (thumbnailUrl) {
+        // Use the provided URL directly as fallback
+        src = thumbnailUrl;
     }
 
     if (!src || hasError) {
