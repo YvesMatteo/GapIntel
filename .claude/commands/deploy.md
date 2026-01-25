@@ -26,7 +26,7 @@ sleep 10
 
 5. **Verify deployment health**
 ```bash
-curl -s https://resourceful-passion-production.up.railway.app/health
+curl -s https://thriving-presence-production-ca4a.up.railway.app/health
 ```
 
 ## Notes

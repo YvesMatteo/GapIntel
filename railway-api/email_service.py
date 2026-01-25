@@ -706,6 +706,225 @@ GAP Intel
     return send_email(user_email, subject, html_content, text_content)
 
 
+# Monitoring and Support Notifications
+SUPPORT_EMAIL = "support@gapintel.online"
+
+
+def send_stuck_analysis_alert(stuck_jobs: list, total_stuck: int, requeued: int, failed: int):
+    """
+    Sends an alert to support when analyses are stuck for too long.
+    Called by the stuck job recovery system.
+    """
+    subject = f"🚨 Alert: {total_stuck} Stuck Analysis{'es' if total_stuck > 1 else ''} Detected"
+
+    # Build job list HTML
+    job_rows = ""
+    for job in stuck_jobs[:10]:  # Limit to first 10
+        job_rows += f"""
+        <tr style="border-bottom: 1px solid #334155;">
+            <td style="padding: 12px; color: #e2e8f0;">{job.get('channel_name', 'Unknown')}</td>
+            <td style="padding: 12px; color: #94a3b8; font-family: monospace; font-size: 12px;">{job.get('access_key', 'Unknown')}</td>
+            <td style="padding: 12px; color: #fbbf24;">{job.get('minutes_stuck', 0):.0f} min</td>
+            <td style="padding: 12px; color: #94a3b8;">{job.get('status', 'Unknown')}</td>
+            <td style="padding: 12px; color: #94a3b8;">{job.get('retry_count', 0)}</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: #0f172a;
+                color: #e2e8f0;
+                margin: 0;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 700px;
+                margin: 0 auto;
+                background: #1e293b;
+                border-radius: 12px;
+                overflow: hidden;
+                border: 1px solid #334155;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+                padding: 24px;
+                text-align: center;
+            }}
+            .header h1 {{ color: white; margin: 0; font-size: 20px; }}
+            .content {{ padding: 24px; }}
+            .stats-grid {{
+                display: flex;
+                gap: 16px;
+                margin-bottom: 24px;
+            }}
+            .stat-box {{
+                flex: 1;
+                background: #0f172a;
+                border-radius: 8px;
+                padding: 16px;
+                text-align: center;
+                border: 1px solid #334155;
+            }}
+            .stat-value {{ font-size: 28px; font-weight: 700; }}
+            .stat-value.red {{ color: #ef4444; }}
+            .stat-value.yellow {{ color: #fbbf24; }}
+            .stat-value.green {{ color: #22c55e; }}
+            .stat-label {{ font-size: 12px; color: #64748b; text-transform: uppercase; margin-top: 4px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+            th {{
+                text-align: left;
+                padding: 12px;
+                background: #0f172a;
+                color: #64748b;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }}
+            .footer {{
+                padding: 16px 24px;
+                background: #0f172a;
+                border-top: 1px solid #334155;
+                font-size: 12px;
+                color: #64748b;
+            }}
+            .action-btn {{
+                display: inline-block;
+                background: #3b82f6;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
+                margin-top: 16px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>⚠️ Stuck Analysis Alert</h1>
+            </div>
+
+            <div class="content">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value red">{total_stuck}</div>
+                        <div class="stat-label">Total Stuck</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value yellow">{requeued}</div>
+                        <div class="stat-label">Re-queued</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value green">{failed}</div>
+                        <div class="stat-label">Marked Failed</div>
+                    </div>
+                </div>
+
+                <p style="color: #94a3b8; margin-bottom: 16px;">
+                    The system detected analyses that have been pending/processing for longer than expected.
+                    Automatic recovery has been attempted.
+                </p>
+
+                <h3 style="color: #e2e8f0; margin-bottom: 8px;">Affected Reports</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Access Key</th>
+                            <th>Time Stuck</th>
+                            <th>Status</th>
+                            <th>Retries</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {job_rows}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 24px; padding: 16px; background: #0f172a; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <p style="margin: 0; color: #94a3b8; font-size: 14px;">
+                        <strong style="color: #e2e8f0;">Recommended Actions:</strong><br>
+                        1. Check Railway logs for errors<br>
+                        2. Verify YouTube API quota<br>
+                        3. Review user's channel accessibility
+                    </p>
+                </div>
+
+                <a href="https://railway.app" class="action-btn">View Railway Dashboard →</a>
+            </div>
+
+            <div class="footer">
+                GAP Intel Monitoring System • {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    text_content = f"""🚨 STUCK ANALYSIS ALERT
+
+{total_stuck} stuck analysis(es) detected.
+- Re-queued: {requeued}
+- Marked Failed: {failed}
+
+Affected Reports:
+{chr(10).join([f"- {j.get('channel_name', 'Unknown')} ({j.get('access_key', 'N/A')}) - {j.get('minutes_stuck', 0):.0f}min stuck" for j in stuck_jobs[:10]])}
+
+Please check Railway logs and investigate.
+
+GAP Intel Monitoring System
+"""
+
+    return send_email(SUPPORT_EMAIL, subject, html_content, text_content)
+
+
+def send_long_pending_alert(job: dict, hours_pending: float):
+    """
+    Sends an individual alert when a single job has been pending for an unusually long time.
+    Threshold: > 1 hour pending without any processing.
+    """
+    subject = f"⏰ Analysis Pending {hours_pending:.1f}h: {job.get('channel_name', 'Unknown')}"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: monospace; background: #1e1e1e; color: #e0e0e0; padding: 20px; }}
+            .alert {{ background: #2d2d2d; border-radius: 8px; padding: 20px; border-left: 4px solid #fbbf24; }}
+            .field {{ margin: 8px 0; }}
+            .label {{ color: #888; }}
+            .value {{ color: #fff; }}
+        </style>
+    </head>
+    <body>
+        <div class="alert">
+            <h2 style="color: #fbbf24; margin-top: 0;">⏰ Long Pending Analysis</h2>
+            <div class="field"><span class="label">Channel:</span> <span class="value">{job.get('channel_name', 'Unknown')}</span></div>
+            <div class="field"><span class="label">Handle:</span> <span class="value">@{job.get('channel_handle', 'Unknown')}</span></div>
+            <div class="field"><span class="label">Access Key:</span> <span class="value">{job.get('access_key', 'N/A')}</span></div>
+            <div class="field"><span class="label">Status:</span> <span class="value">{job.get('status', 'Unknown')}</span></div>
+            <div class="field"><span class="label">Time Pending:</span> <span class="value" style="color: #ef4444;">{hours_pending:.1f} hours</span></div>
+            <div class="field"><span class="label">Retry Count:</span> <span class="value">{job.get('retry_count', 0)}</span></div>
+            <div class="field"><span class="label">Created At:</span> <span class="value">{job.get('created_at', 'Unknown')}</span></div>
+            <hr style="border-color: #444; margin: 16px 0;">
+            <p style="color: #888; font-size: 12px;">This analysis has not started processing. The Railway service may be sleeping or the job queue may be blocked.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    return send_email(SUPPORT_EMAIL, subject, html_content)
+
+
 # Legacy function aliases for backward compatibility
 def send_access_key_email(user_email: str, access_key: str, channel_name: str):
     """Legacy alias - redirects to send_report_complete_email"""

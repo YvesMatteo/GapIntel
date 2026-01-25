@@ -1,37 +1,38 @@
 'use client';
 
 import React from 'react';
-import { TrendingUp, Calendar, Layers, Users, Video, CheckCircle, Circle, Zap } from 'lucide-react';
+import { TrendingUp, Calendar, Layers, Users, Video, CheckCircle, Circle, Info } from 'lucide-react';
 
 interface GrowthDriversData {
     uploadConsistency: {
         current: string;
         recommendation: string;
-        impact: string;
+        impact: string | null;
         implemented: boolean;
+        realScore?: number | null;
     };
     seriesContent: {
         seriesCount: number;
-        topSeries: string;
-        impact: string;
+        topSeries: string | null;
+        boost?: number | null;
         implemented: boolean;
     };
     communityEngagement: {
-        responseRate: number;
-        impact: string;
+        totalComments?: number;
+        responseRate: number | null;
         implemented: boolean;
     };
     multiFormat: {
-        hasShorts: boolean;
+        formatCount?: number | null;
         hasLongForm: boolean;
-        impact: string;
         implemented: boolean;
     };
     consistency: {
-        daysBetweenUploads: number;
-        impact: string;
+        daysBetweenUploads: number | null;
+        consistencyIndex?: number | null;
         implemented: boolean;
     };
+    hasRealGrowthData?: boolean;
 }
 
 interface GrowthDriversSectionProps {
@@ -42,49 +43,61 @@ export function GrowthDriversSection({ data }: GrowthDriversSectionProps) {
     const drivers = [
         {
             title: 'Upload Consistency',
-            description: data.uploadConsistency.current,
+            description: data.consistency.daysBetweenUploads !== null
+                ? `Uploading every ~${data.consistency.daysBetweenUploads} days`
+                : data.uploadConsistency.current,
             recommendation: data.uploadConsistency.recommendation,
-            impact: '+156% growth',
-            impactColor: 'text-green-600',
+            metric: data.consistency.consistencyIndex !== null
+                ? `${data.consistency.consistencyIndex}% consistency`
+                : null,
             implemented: data.uploadConsistency.implemented,
             icon: <Calendar className="w-5 h-5" />,
             bgColor: 'bg-blue-50',
             borderColor: 'border-blue-100',
+            metricColor: 'text-blue-600',
         },
         {
             title: 'Content Series',
             description: data.seriesContent.seriesCount > 0
-                ? `${data.seriesContent.seriesCount} series detected (top: ${data.seriesContent.topSeries})`
-                : 'No content series detected',
-            recommendation: 'Create related video series to boost binge-watching',
-            impact: '+89% watch time',
-            impactColor: 'text-purple-600',
+                ? `${data.seriesContent.seriesCount} series detected${data.seriesContent.topSeries ? ` (top: ${data.seriesContent.topSeries})` : ''}`
+                : 'No content series detected yet',
+            recommendation: 'Create related video series to encourage binge-watching',
+            metric: data.seriesContent.boost !== null
+                ? `+${data.seriesContent.boost}% vs standalone`
+                : null,
             implemented: data.seriesContent.implemented,
             icon: <Layers className="w-5 h-5" />,
             bgColor: 'bg-purple-50',
             borderColor: 'border-purple-100',
+            metricColor: 'text-purple-600',
         },
         {
             title: 'Community Engagement',
-            description: `${data.communityEngagement.responseRate}% comment response rate`,
-            recommendation: 'Reply to comments in first hour for algorithm boost',
-            impact: '+134% growth',
-            impactColor: 'text-orange-600',
+            description: data.communityEngagement.totalComments
+                ? `${data.communityEngagement.totalComments.toLocaleString()} comments received`
+                : 'Building community through comments',
+            recommendation: 'Reply to comments within the first hour for better engagement',
+            metric: null, // Response rate not tracked
             implemented: data.communityEngagement.implemented,
             icon: <Users className="w-5 h-5" />,
             bgColor: 'bg-orange-50',
             borderColor: 'border-orange-100',
+            metricColor: 'text-orange-600',
         },
         {
-            title: 'Multi-Format Strategy',
-            description: `${data.multiFormat.hasShorts ? 'Shorts ✓' : 'No Shorts'} • ${data.multiFormat.hasLongForm ? 'Long-form ✓' : 'No Long-form'}`,
-            recommendation: 'Combine Shorts + long-form for maximum reach',
-            impact: '+156% reach',
-            impactColor: 'text-pink-600',
+            title: 'Content Diversity',
+            description: data.multiFormat.formatCount !== null
+                ? `${data.multiFormat.formatCount} different formats used`
+                : data.multiFormat.hasLongForm
+                    ? 'Long-form content present'
+                    : 'Limited format diversity',
+            recommendation: 'Experiment with different content formats',
+            metric: null,
             implemented: data.multiFormat.implemented,
             icon: <Video className="w-5 h-5" />,
             bgColor: 'bg-pink-50',
             borderColor: 'border-pink-100',
+            metricColor: 'text-pink-600',
         },
     ];
 
@@ -94,8 +107,8 @@ export function GrowthDriversSection({ data }: GrowthDriversSectionProps) {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-serif font-medium text-slate-900">Growth Accelerators</h2>
-                    <p className="text-slate-500 mt-1">Research-backed tactics that drive channel growth</p>
+                    <h2 className="text-2xl font-serif font-medium text-slate-900">Growth Drivers</h2>
+                    <p className="text-slate-500 mt-1">Key factors influencing channel performance</p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full">
                     <CheckCircle className="w-4 h-4 text-green-600" />
@@ -136,12 +149,14 @@ export function GrowthDriversSection({ data }: GrowthDriversSectionProps) {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-white/50">
-                            <div className="flex items-center justify-between">
-                                <span className={`text-sm font-bold ${driver.impactColor}`}>
-                                    <TrendingUp className="w-4 h-4 inline mr-1" />
-                                    {driver.impact}
-                                </span>
-                            </div>
+                            {driver.metric ? (
+                                <div className="flex items-center">
+                                    <span className={`text-sm font-bold ${driver.metricColor}`}>
+                                        <TrendingUp className="w-4 h-4 inline mr-1" />
+                                        {driver.metric}
+                                    </span>
+                                </div>
+                            ) : null}
                             {!driver.implemented && (
                                 <p className="text-xs text-slate-500 mt-2">
                                     💡 {driver.recommendation}
@@ -152,17 +167,18 @@ export function GrowthDriversSection({ data }: GrowthDriversSectionProps) {
                 ))}
             </div>
 
-            {/* Research Citation */}
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-slate-400 mt-0.5" />
-                    <div className="text-sm text-slate-600">
-                        <strong>Research-Backed:</strong> These growth drivers are based on analysis of thousands of
-                        successful YouTube channels and validated research from 2024-2025. Impact percentages
-                        represent average improvements when implementing these strategies consistently.
+            {/* Info Note */}
+            {!data.hasRealGrowthData && (
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <div className="flex items-start gap-3">
+                        <Info className="w-5 h-5 text-slate-400 mt-0.5" />
+                        <div className="text-sm text-slate-600">
+                            <strong>Note:</strong> Detailed growth metrics require analyzing upload patterns over time.
+                            As more data becomes available, you&apos;ll see specific performance metrics for each driver.
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

@@ -338,71 +338,91 @@ function detectContentCategory(videos: Array<{ title: string }>): string {
     return sorted[0][1] > 0 ? sorted[0][0] : 'educational';
 }
 
-function calculateEngagementMetrics(result: AnalysisResult, totalViews: number = 100000) {
+function calculateEngagementMetrics(result: AnalysisResult) {
     try {
         const rawComments = result.pipeline_stats?.raw_comments || result.pipeline?.rawComments || 0;
-        const painPoints = result.pipeline_stats?.pain_points_found || 0;
         const highSignal = result.pipeline_stats?.high_signal_comments || 0;
 
         const videos = result.videos_analyzed || [];
         const category = detectContentCategory(videos);
         const benchmark = CVR_BENCHMARKS[category] || CVR_BENCHMARKS.educational;
 
-        const estimatedViews = totalViews > 0 ? totalViews : Math.max(rawComments * 100, 10000);
-        const cvr = (rawComments / estimatedViews) * 100;
+        // Get real sentiment data from pipeline_stats if available
+        const pipelineStats = result.pipeline_stats as Record<string, unknown> | undefined;
+        const hasRealSentiment = pipelineStats?.sentiment_positive !== undefined;
 
-        const benchmarkMid = (benchmark.low + benchmark.high) / 2;
-        const cvrVsBenchmark = benchmarkMid > 0 ? ((cvr - benchmarkMid) / benchmarkMid) * 100 : 0;
+        // Question density - only use if real question_count exists
+        const questionCount = pipelineStats?.question_count as number | undefined;
+        const hasRealQuestionData = questionCount !== undefined;
+        const questionDensity = hasRealQuestionData && rawComments > 0
+            ? (questionCount / rawComments) * 100
+            : null;
 
-        const questionCount = (result.pipeline_stats as any)?.question_count;
-        let questionDensity = 0;
+        // Depth score - based on high signal ratio (this IS a real calculation)
+        const depthScore = rawComments > 0
+            ? Math.min(1, (highSignal / rawComments) * 2)
+            : null;
 
-        if (questionCount !== undefined) {
-            questionDensity = rawComments > 0 ? (questionCount / rawComments) * 100 : 0;
+        // Sentiments - only use real data
+        let sentiments: { positive: number | null; neutral: number | null; negative: number | null; questions: number | null };
+
+        if (hasRealSentiment) {
+            const positive = pipelineStats?.sentiment_positive as number || 0;
+            const inquiry = pipelineStats?.sentiment_inquiry as number || 0;
+            const confusion = pipelineStats?.sentiment_confusion as number || 0;
+            const success = pipelineStats?.sentiment_success as number || 0;
+            const total = positive + inquiry + confusion + success || 1;
+
+            sentiments = {
+                positive: Math.round((positive / total) * 100),
+                neutral: Math.round((success / total) * 100),
+                negative: Math.round((confusion / total) * 100),
+                questions: Math.round((inquiry / total) * 100),
+            };
         } else {
-            questionDensity = rawComments > 0 ? (painPoints / rawComments) * 100 * 3 : 25;
+            // No real sentiment data available
+            sentiments = {
+                positive: null,
+                neutral: null,
+                negative: null,
+                questions: null,
+            };
         }
 
-        const depthScore = Math.min(1, (highSignal / Math.max(rawComments, 1)) * 2);
-        const repeatScore = Math.min(30, 10 + (rawComments / 100));
-
-        const trueGaps = result.pipeline_stats?.true_gaps || 0;
-        const saturated = result.pipeline_stats?.saturated || 0;
-        const total = trueGaps + saturated + (result.pipeline_stats?.under_explained || 0);
-        const positiveRatio = total > 0 ? Math.max(50, 85 - trueGaps * 3) : 70;
-
         return {
-            cvr: Math.min(5, cvr),
+            // CVR cannot be calculated without view data - mark as unavailable
+            cvr: null as number | null,
             cvrBenchmark: category,
             cvrBenchmarkLabel: benchmark.label,
             cvrBenchmarkRange: `${benchmark.low}-${benchmark.high}%`,
-            cvrVsBenchmark: Math.round(cvrVsBenchmark),
-            cvrStatus: cvr >= benchmark.high ? 'above' : cvr >= benchmark.low ? 'at' : 'below' as 'above' | 'at' | 'below',
-            questionDensity: Math.min(50, questionDensity),
-            depthScore: Math.min(1, Math.max(0.1, depthScore)),
-            repeatScore: Math.min(35, repeatScore),
+            cvrVsBenchmark: null as number | null,
+            cvrStatus: null as 'above' | 'at' | 'below' | null,
+            questionDensity,
+            depthScore,
+            // Repeat score requires tracking repeat commenters - not available
+            repeatScore: null as number | null,
             totalComments: rawComments,
-            sentiments: {
-                positive: Math.round(positiveRatio),
-                neutral: Math.round(100 - positiveRatio - 10),
-                negative: 5,
-                questions: Math.min(35, Math.round(questionDensity)),
-            }
+            sentiments,
+            // Flags for UI to know what data is real
+            hasRealSentiment,
+            hasRealQuestionData,
         };
     } catch (e) {
         console.error("Error calculating engagement metrics:", e);
         return {
-            cvr: 0,
+            cvr: null,
             cvrBenchmark: 'educational',
             cvrBenchmarkLabel: 'Educational',
             cvrBenchmarkRange: '1-2%',
-            cvrVsBenchmark: 0,
-            cvrStatus: 'at' as const,
-            questionDensity: 0,
-            depthScore: 0,
-            repeatScore: 0,
+            cvrVsBenchmark: null,
+            cvrStatus: null,
+            questionDensity: null,
+            depthScore: null,
+            repeatScore: null,
             totalComments: 0,
-            sentiments: { positive: 80, neutral: 15, negative: 5, questions: 0 }
+            sentiments: { positive: null, neutral: null, negative: null, questions: null },
+            hasRealSentiment: false,
+            hasRealQuestionData: false,
         };
     }
 }
@@ -412,6 +432,7 @@ function calculateContentLandscape(result: AnalysisResult) {
         const videos = result.videos_analyzed || [];
         const gaps = result.verified_gaps || [];
 
+        // Extract topics from video titles - this IS real data
         const topicCounts: Record<string, number> = {};
         videos.forEach(v => {
             if (!v) return;
@@ -439,6 +460,7 @@ function calculateContentLandscape(result: AnalysisResult) {
                     count / avgPerTopic < 0.5 ? 'under' as const : 'balanced' as const,
             }));
 
+        // Add identified gaps as gap topics
         gaps.filter(g => g && g.status === 'TRUE_GAP').slice(0, 3).forEach(gap => {
             topics.push({
                 name: gap.topic.slice(0, 30),
@@ -448,10 +470,11 @@ function calculateContentLandscape(result: AnalysisResult) {
             });
         });
 
-        let formats: Array<{ name: string; count: number; icon: string }> = [];
+        // Formats - only use real data from content_clusters
+        let formats: Array<{ name: string; count: number; icon: string }> | null = null;
 
         if (result.premium?.content_clusters?.format_diversity?.breakdown) {
-            formats = result.premium.content_clusters.format_diversity.breakdown.map((f: any) => {
+            formats = result.premium.content_clusters.format_diversity.breakdown.map((f: { name: string; count: number }) => {
                 const icons: Record<string, string> = {
                     'tutorial': '📚', 'listicle': '📋', 'review': '⭐', 'reaction': '😲',
                     'vlog': '📹', 'news': '📰', 'comparison': '⚖️', 'challenge': '🏆',
@@ -464,19 +487,11 @@ function calculateContentLandscape(result: AnalysisResult) {
                     icon: icons[f.name] || '📁'
                 };
             });
-        } else {
-            formats = [
-                { name: 'Long-form', count: Math.max(1, Math.floor(videos.length * 0.7)), icon: '📹' },
-                { name: 'Tutorial', count: Math.max(1, Math.floor(videos.length * 0.4)), icon: '📚' },
-                { name: 'Discussion', count: Math.max(1, Math.floor(videos.length * 0.2)), icon: '💬' },
-            ];
         }
+        // Don't guess formats - leave as null if not available
 
-        let uploadConsistency = {
-            score: 65,
-            avgDaysBetween: 7,
-            pattern: 'weekly',
-        };
+        // Upload consistency - only use real data from growth_patterns
+        let uploadConsistency: { score: number; avgDaysBetween: number; pattern: string } | null = null;
 
         if (result.premium?.growth_patterns) {
             uploadConsistency = {
@@ -484,31 +499,38 @@ function calculateContentLandscape(result: AnalysisResult) {
                 avgDaysBetween: result.premium.growth_patterns.avg_days_between_uploads,
                 pattern: result.premium.growth_patterns.optimal_frequency || 'weekly'
             };
-        } else {
-            uploadConsistency = {
-                score: 75,
-                avgDaysBetween: 7,
-                pattern: 'weekly',
-            };
         }
+        // Don't guess consistency - leave as null if not available
+
+        // Topic coverage - only show if we have real saturation data
+        const clusters = result.premium?.content_clusters?.clusters;
+        const hasRealTopicData = clusters && clusters.length > 0;
+        const topicCoverage = hasRealTopicData
+            ? clusters.reduce((sum, c) => sum + (c.saturation_score || 0), 0) / clusters.length
+            : null;
 
         return {
-            topicCoverage: Math.min(85, 40 + topics.length * 5),
+            topicCoverage,
             totalTopics: topics.length,
             topics,
             formats,
             uploadConsistency,
-            freshness: 60,
+            // Freshness requires upload date analysis - not currently available
+            freshness: null as number | null,
+            hasRealFormatData: formats !== null,
+            hasRealConsistencyData: uploadConsistency !== null,
         };
     } catch (e) {
         console.error("Error calculating content landscape:", e);
         return {
-            topicCoverage: 50,
+            topicCoverage: null,
             totalTopics: 0,
             topics: [],
-            formats: [],
-            uploadConsistency: { score: 50, avgDaysBetween: 7, pattern: 'weekly' },
-            freshness: 50
+            formats: null,
+            uploadConsistency: null,
+            freshness: null,
+            hasRealFormatData: false,
+            hasRealConsistencyData: false,
         };
     }
 }
@@ -572,6 +594,21 @@ function calculateSeoMetrics(result: AnalysisResult) {
             });
         }
 
+        // Generate recommendations based on actual data
+        const recommendations: string[] = [];
+        if ((hookUsage / videoCount) < 0.5) {
+            recommendations.push('Add number-based hooks to titles ("7 Ways...", "5 Secrets...")');
+        }
+        if ((keywordFirst30 / videoCount) < 0.5) {
+            recommendations.push('Keep primary keyword in first 30 characters');
+        }
+        if (totalLength / videoCount > 60) {
+            recommendations.push('Consider shortening titles for better mobile visibility');
+        }
+        if (recommendations.length === 0) {
+            recommendations.push('Your titles are well-optimized! Keep experimenting with hooks.');
+        }
+
         return {
             seoStrength: Math.round(totalTitleScore / videoCount),
             titleAnalysis: {
@@ -580,19 +617,15 @@ function calculateSeoMetrics(result: AnalysisResult) {
                 keywordPlacement: Math.round((keywordFirst30 / videoCount) * 100),
                 hookUsage: Math.round((hookUsage / videoCount) * 100),
             },
-            descriptionAnalysis: {
-                avgScore: 65,
-                frontLoadScore: 60,
-                hasTimestamps: 40,
-                hasLinks: 70,
-            },
+            // Description analysis requires fetching description data - not available
+            descriptionAnalysis: null as {
+                avgScore: number;
+                frontLoadScore: number;
+                hasTimestamps: number;
+                hasLinks: number;
+            } | null,
             issues,
-            recommendations: [
-                'Add number-based hooks to titles ("7 Ways...", "5 Secrets...")',
-                'Keep primary keyword in first 30 characters',
-                'Add timestamps to descriptions for +20% engagement',
-                'Use curiosity gaps in titles to improve CTR',
-            ],
+            recommendations,
         };
     } catch (e) {
         console.error("Error calculating SEO metrics:", e);
@@ -611,47 +644,63 @@ function calculateGrowthDrivers(result: AnalysisResult, premium: AnalysisResult[
         const videos = result.videos_analyzed || [];
         const rawComments = result.pipeline_stats?.raw_comments || 0;
 
-        const hasShorts = premium?.hook_analysis?.videos_analyzed ?
-            premium.hook_analysis.videos_analyzed > 0 : videos.length > 5;
+        // Get real growth patterns data if available
+        const growthPatterns = premium?.growth_patterns;
+        const hasRealGrowthData = growthPatterns !== undefined;
+
+        // Series detection - only use real data
+        const realSeriesCount = growthPatterns?.series_detected?.length || 0;
+        const realSeriesBoost = growthPatterns?.series_performance_boost;
+
+        // Upload consistency from real data
+        const realConsistencyIndex = growthPatterns?.consistency_index;
+        const realDaysBetween = growthPatterns?.avg_days_between_uploads;
 
         return {
             uploadConsistency: {
                 current: videos.length > 10 ? 'Regular uploads detected' : 'Limited upload history',
                 recommendation: 'Aim for consistent weekly uploads',
-                impact: '+156% growth',
+                // Only show impact if we have real data
+                impact: null as string | null,
                 implemented: videos.length > 8,
+                realScore: realConsistencyIndex ?? null,
             },
             seriesContent: {
-                seriesCount: Math.floor(videos.length / 5),
-                topSeries: videos[0]?.title?.split(':')[0] || 'Main Content',
-                impact: '+89% watch time',
-                implemented: videos.length > 6,
+                // Use real series count, not guessed
+                seriesCount: realSeriesCount,
+                topSeries: growthPatterns?.series_detected?.[0]?.name || null,
+                // Only show boost if calculated
+                boost: realSeriesBoost ?? null,
+                implemented: realSeriesCount > 0,
             },
             communityEngagement: {
-                responseRate: Math.min(80, 30 + Math.floor(rawComments / 100)),
-                impact: '+134% growth',
+                // Comment count is real, but response rate isn't tracked
+                totalComments: rawComments,
+                responseRate: null as number | null, // Can't calculate without reply data
                 implemented: rawComments > 200,
             },
             multiFormat: {
-                hasShorts,
+                // Check real format diversity if available
+                formatCount: premium?.content_clusters?.format_diversity?.unique_formats ?? null,
                 hasLongForm: videos.length > 0,
-                impact: '+156% reach',
-                implemented: hasShorts && videos.length > 0,
+                implemented: videos.length > 0,
             },
             consistency: {
-                daysBetweenUploads: 7,
-                impact: '+156% growth',
-                implemented: videos.length > 10,
+                daysBetweenUploads: realDaysBetween ?? null,
+                consistencyIndex: realConsistencyIndex ?? null,
+                implemented: realConsistencyIndex !== undefined && realConsistencyIndex > 60,
             },
+            hasRealGrowthData,
         };
     } catch (e) {
         console.error("Error calculating growth drivers:", e);
         return {
-            uploadConsistency: { current: 'N/A', recommendation: 'N/A', impact: 'N/A', implemented: false },
-            seriesContent: { seriesCount: 0, topSeries: 'N/A', impact: 'N/A', implemented: false },
-            communityEngagement: { responseRate: 0, impact: 'N/A', implemented: false },
-            multiFormat: { hasShorts: false, hasLongForm: false, impact: 'N/A', implemented: false },
-            consistency: { daysBetweenUploads: 0, impact: 'N/A', implemented: false }
+            uploadConsistency: { current: 'N/A', recommendation: 'N/A', impact: null, implemented: false, realScore: null },
+            seriesContent: { seriesCount: 0, topSeries: null, boost: null, implemented: false },
+            communityEngagement: { totalComments: 0, responseRate: null, implemented: false },
+            multiFormat: { formatCount: null, hasLongForm: false, implemented: false },
+            consistency: { daysBetweenUploads: null, consistencyIndex: null, implemented: false },
+            hasRealGrowthData: false,
         };
     }
 }
@@ -662,16 +711,36 @@ function calculateHealthScore(
     growth: ReturnType<typeof calculateGrowthDrivers>
 ) {
     try {
-        const engagementScore = Math.min(100,
-            (engagement.cvr * 20) +
-            (engagement.questionDensity * 1.5) +
-            (engagement.repeatScore * 1.5) +
-            (engagement.sentiments.positive * 0.3)
-        );
+        // Use available data, skip unavailable metrics
+        const availableScores: number[] = [];
+        const weights: number[] = [];
 
-        const satisfactionScore = engagement.sentiments.positive;
+        // Engagement score based on what's available
+        let engagementScore = 0;
+        let engagementParts = 0;
+
+        if (engagement.depthScore !== null) {
+            engagementScore += engagement.depthScore * 50;
+            engagementParts++;
+        }
+        if (engagement.totalComments > 0) {
+            // Use comment volume as a rough engagement indicator
+            engagementScore += Math.min(50, Math.log10(engagement.totalComments) * 15);
+            engagementParts++;
+        }
+
+        if (engagementParts > 0) {
+            engagementScore = engagementScore / engagementParts * 2;
+            availableScores.push(Math.min(100, engagementScore));
+            weights.push(0.25);
+        }
+
+        // SEO score
         const seoScore = seo.seoStrength;
+        availableScores.push(seoScore);
+        weights.push(0.25);
 
+        // Growth drivers score
         const growthDrivers = [
             growth.uploadConsistency.implemented,
             growth.seriesContent.implemented,
@@ -679,24 +748,25 @@ function calculateHealthScore(
             growth.multiFormat.implemented,
         ];
         const growthScore = (growthDrivers.filter(Boolean).length / growthDrivers.length) * 100;
+        availableScores.push(growthScore);
+        weights.push(0.25);
 
+        // Title potential score
         const titlePotentialScore = Math.min(100, (seo.titleAnalysis?.hookUsage || 0) + 30);
+        availableScores.push(titlePotentialScore);
+        weights.push(0.25);
 
-        const overall = (
-            engagementScore * 0.25 +
-            satisfactionScore * 0.25 +
-            seoScore * 0.20 +
-            growthScore * 0.15 +
-            titlePotentialScore * 0.15
-        );
+        // Calculate weighted average
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        const overall = availableScores.reduce((sum, score, i) => sum + score * weights[i], 0) / totalWeight;
 
         let topInsight = '';
         if (seoScore < 60) {
-            topInsight = 'Focus on title optimization with number hooks to boost CTR by 35%';
+            topInsight = 'Focus on title optimization with number hooks to boost CTR';
         } else if (engagementScore < 60) {
             topInsight = 'Increase engagement by responding to comments within first hour';
         } else if (growthScore < 60) {
-            topInsight = 'Create content series to boost watch time by 89%';
+            topInsight = 'Create content series to boost watch time';
         } else {
             topInsight = 'Strong foundation! Focus on addressing identified content gaps';
         }
@@ -704,7 +774,7 @@ function calculateHealthScore(
         return {
             overall: Math.round(overall),
             engagement: Math.round(engagementScore),
-            satisfaction: Math.round(satisfactionScore),
+            satisfaction: null as number | null, // Not available without real sentiment data
             seo: Math.round(seoScore),
             growth: Math.round(growthScore),
             titlePotential: Math.round(titlePotentialScore),
@@ -715,7 +785,7 @@ function calculateHealthScore(
         return {
             overall: 50,
             engagement: 50,
-            satisfaction: 50,
+            satisfaction: null,
             seo: 50,
             growth: 50,
             titlePotential: 50,
@@ -1011,7 +1081,9 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                             </div>
 
                             {/* Thumbnail Analysis */}
-                            {analysis.report_data.premium.thumbnail_analysis && (
+                            {analysis.report_data.premium.thumbnail_analysis &&
+                             analysis.report_data.premium.thumbnail_analysis.videos_analyzed &&
+                             analysis.report_data.premium.thumbnail_analysis.videos_analyzed.length > 0 && (
                                 <section className="mb-8">
                                     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                                         <div className="p-6 border-b border-slate-100">
@@ -1026,7 +1098,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                             </div>
                                         </div>
                                         <div className="divide-y divide-slate-100">
-                                            {analysis.report_data.premium.thumbnail_analysis.videos_analyzed?.filter(v => v).slice(0, 4).map((video, i) => (
+                                            {analysis.report_data.premium.thumbnail_analysis.videos_analyzed.filter(v => v).slice(0, 4).map((video, i) => (
                                                 <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors">
                                                     <div className="flex gap-5">
                                                         <SafeThumbnailLarge
@@ -1036,10 +1108,16 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                                         />
                                                         <div className="flex-1 min-w-0">
                                                             <h4 className="font-medium text-slate-900 text-sm line-clamp-2 mb-2">{video.video_title}</h4>
-                                                            <div className="flex items-baseline gap-2 mb-3">
-                                                                <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
-                                                                <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
-                                                            </div>
+                                                            {video.predicted_ctr !== undefined && video.predicted_ctr !== null ? (
+                                                                <div className="flex items-baseline gap-2 mb-3">
+                                                                    <span className="text-2xl font-bold text-purple-600">{video.predicted_ctr}%</span>
+                                                                    <span className="text-xs text-slate-400 font-medium">predicted CTR</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-baseline gap-2 mb-3">
+                                                                    <span className="text-sm text-slate-400">CTR analysis pending</span>
+                                                                </div>
+                                                            )}
                                                             {video.issues && video.issues.length > 0 ? (
                                                                 <div className="space-y-2">
                                                                     {video.issues.slice(0, 2).map((issue, j) => (
@@ -1131,8 +1209,9 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                 </section>
                             )}
 
-                            {/* Hook Analysis */}
-                            {analysis.report_data.premium.hook_analysis && (
+                            {/* Hook Analysis - only show if we have actual data */}
+                            {analysis.report_data.premium.hook_analysis &&
+                             analysis.report_data.premium.hook_analysis.videos_analyzed > 0 && (
                                 <section className="mb-8">
                                     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                                         <div className="p-6 border-b border-slate-100">
@@ -1148,10 +1227,13 @@ export default async function DashboardPage({ params }: { params: Promise<{ key:
                                         </div>
                                         <div className="p-6">
                                             <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                                                <div className="bg-amber-50/50 rounded-xl p-4">
-                                                    <div className="text-3xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
-                                                    <div className="text-sm text-slate-500">Average Hook Score</div>
-                                                </div>
+                                                {analysis.report_data.premium.hook_analysis.avg_hook_score !== undefined &&
+                                                 analysis.report_data.premium.hook_analysis.avg_hook_score > 0 && (
+                                                    <div className="bg-amber-50/50 rounded-xl p-4">
+                                                        <div className="text-3xl font-bold text-amber-600 mb-1">{analysis.report_data.premium.hook_analysis.avg_hook_score}</div>
+                                                        <div className="text-sm text-slate-500">Average Hook Score</div>
+                                                    </div>
+                                                )}
                                                 <div className="bg-slate-50 rounded-xl p-4">
                                                     <div className="text-3xl font-bold text-slate-900 mb-1">{analysis.report_data.premium.hook_analysis.videos_analyzed}</div>
                                                     <div className="text-sm text-slate-500">Videos Analyzed</div>

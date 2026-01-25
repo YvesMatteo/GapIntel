@@ -11,36 +11,54 @@ interface SafeThumbnailProps {
     containerClassName?: string;
 }
 
-// Extract video ID from any YouTube URL format
+// Extract video ID from any YouTube URL format or string
 function extractVideoId(input: string | undefined): string | null {
     if (!input) return null;
 
-    // Already a video ID (11 chars)
-    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
-        return input;
+    // Clean the input
+    const cleaned = input.trim();
+
+    // Already a video ID (11 chars, alphanumeric with - and _)
+    if (/^[a-zA-Z0-9_-]{11}$/.test(cleaned)) {
+        return cleaned;
     }
 
-    // YouTube thumbnail URL: img.youtube.com/vi/VIDEO_ID/...
-    const imgMatch = input.match(/img\.youtube\.com\/vi\/([a-zA-Z0-9_-]{11})/);
-    if (imgMatch) return imgMatch[1];
+    // Try multiple patterns in order of likelihood
+    const patterns = [
+        // YouTube thumbnail URLs
+        /img\.youtube\.com\/vi\/([a-zA-Z0-9_-]{11})/,
+        /i\.ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/,
+        /i[0-9]?\.ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/,
+        // Standard watch URLs
+        /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+        /[?&]v=([a-zA-Z0-9_-]{11})/,
+        // Short URLs
+        /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+        // Embed URLs
+        /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+        // Any URL containing /vi/ (common in YouTube APIs)
+        /\/vi\/([a-zA-Z0-9_-]{11})/,
+        // Last resort: any 11-char sequence that looks like a video ID
+        /([a-zA-Z0-9_-]{11})/,
+    ];
 
-    // YouTube thumbnail URL: i.ytimg.com/vi/VIDEO_ID/...
-    const ytimgMatch = input.match(/i\.ytimg\.com\/vi\/([a-zA-Z0-9_-]{11})/);
-    if (ytimgMatch) return ytimgMatch[1];
-
-    // youtube.com/watch?v=VIDEO_ID
-    const watchMatch = input.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-    if (watchMatch) return watchMatch[1];
-
-    // youtu.be/VIDEO_ID
-    const shortMatch = input.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-    if (shortMatch) return shortMatch[1];
-
-    // youtube.com/embed/VIDEO_ID
-    const embedMatch = input.match(/embed\/([a-zA-Z0-9_-]{11})/);
-    if (embedMatch) return embedMatch[1];
+    for (const pattern of patterns) {
+        const match = cleaned.match(pattern);
+        if (match) return match[1];
+    }
 
     return null;
+}
+
+// Build thumbnail URL options for a video ID (in order of quality/reliability)
+function getThumbnailUrls(videoId: string): string[] {
+    return [
+        `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+        `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+        `https://i.ytimg.com/vi/${videoId}/default.jpg`,
+    ];
 }
 
 export function SafeThumbnail({
@@ -50,23 +68,37 @@ export function SafeThumbnail({
     className = "w-full h-full object-cover",
     containerClassName = "relative w-24 aspect-video rounded-lg overflow-hidden bg-slate-100 shrink-0"
 }: SafeThumbnailProps) {
-    const [hasError, setHasError] = useState(false);
+    const [urlIndex, setUrlIndex] = useState(0);
+    const [allFailed, setAllFailed] = useState(false);
 
     // Try to get video ID from either prop
     const extractedId = videoId || extractVideoId(thumbnailUrl);
 
-    // Build the final thumbnail URL
-    let src: string | null = null;
+    // Build list of URLs to try
+    const urlsToTry: string[] = [];
 
     if (extractedId) {
-        // Use YouTube's high quality thumbnail
-        src = `https://i.ytimg.com/vi/${extractedId}/hqdefault.jpg`;
-    } else if (thumbnailUrl) {
-        // Use the provided URL directly as fallback
-        src = thumbnailUrl;
+        urlsToTry.push(...getThumbnailUrls(extractedId));
     }
 
-    if (!src || hasError) {
+    // Add the original URL as final fallback
+    if (thumbnailUrl && !urlsToTry.includes(thumbnailUrl)) {
+        urlsToTry.push(thumbnailUrl);
+    }
+
+    const currentSrc = urlsToTry[urlIndex];
+
+    const handleError = () => {
+        if (urlIndex < urlsToTry.length - 1) {
+            // Try next URL
+            setUrlIndex(urlIndex + 1);
+        } else {
+            // All URLs failed
+            setAllFailed(true);
+        }
+    };
+
+    if (!currentSrc || allFailed) {
         return (
             <div className={`${containerClassName} flex items-center justify-center`}>
                 <ImageOff className="w-5 h-5 text-slate-300" />
@@ -77,10 +109,10 @@ export function SafeThumbnail({
     return (
         <div className={containerClassName}>
             <img
-                src={src}
+                src={currentSrc}
                 alt={alt}
                 className={className}
-                onError={() => setHasError(true)}
+                onError={handleError}
                 loading="lazy"
                 referrerPolicy="no-referrer"
             />

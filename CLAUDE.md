@@ -102,14 +102,39 @@ Where:
 
 ## Railway URLs
 
-- **Health Check:** https://resourceful-passion-production.up.railway.app/health
-- **Debug:** https://resourceful-passion-production.up.railway.app/debug
+- **Base URL:** https://thriving-presence-production-ca4a.up.railway.app
+- **Health Check:** https://thriving-presence-production-ca4a.up.railway.app/health
+- **Queue Status:** https://thriving-presence-production-ca4a.up.railway.app/queue-status
+- **Debug Config:** https://thriving-presence-production-ca4a.up.railway.app/api/debug/config
+
+---
+
+## Monitoring & Alerting
+
+The system includes automatic monitoring for stuck analyses:
+
+- **Stuck Threshold:** 30 minutes - Jobs pending/processing longer than this are considered stuck
+- **Alert Threshold:** 60 minutes - Individual alerts sent for jobs stuck > 1 hour
+- **Support Email:** support@gapintel.online receives alerts
+- **Recovery System:** Runs every 15 minutes and on server startup
+
+### Alert Types
+1. **Batch Alert** - Sent when stuck jobs are found during recovery (lists all stuck jobs)
+2. **Long-Pending Alert** - Sent for individual jobs stuck > 1 hour
+
+### Important Note on Railway Sleep
+Railway has `sleepApplication: true` in `railway.json`. This means:
+- The app goes to sleep after inactivity
+- Background job processing stops when sleeping
+- Jobs created during sleep won't process until wake-up
+- Consider disabling sleep for production if stuck jobs are frequent
 
 ---
 
 ## Troubleshooting Cheatsheet
 
-- **Stuck Analysis?** Run `python3 railway-api/debug_stuck_reports.py`
+- **Stuck Analysis?** Run `python3 railway-api/debug_stuck_reports.py` or check queue-status endpoint
+- **Wake Up Railway?** Hit the health endpoint: `curl https://thriving-presence-production-ca4a.up.railway.app/health`
 - **Database Error?** Check the RLS policies in Supabase
 - **Deployment Failed?** Check Build Logs in Railway
 - **Force Railway Rebuild?** Push an empty commit: `git commit --allow-empty -m "Trigger redeploy"`
@@ -136,15 +161,50 @@ For complex, multi-step features, use the persistent file approach:
 ## Available Slash Commands
 
 Run these with `/command-name`:
+
+### Development
+- `/frontend-dev` - Start Next.js development server
+- `/backend-dev` - Start FastAPI development server
+- `/full-stack` - Run both frontend and backend together
+- `/build` - Build frontend for production
+
+### Deployment & Monitoring
 - `/deploy` - Smart deploy to Railway
 - `/health` - Check Railway API health
+- `/logs` - View Railway logs
+- `/queue-status` - Check analysis queue status
+- `/env-check` - Verify environment configuration
+
+### Debugging & Maintenance
 - `/troubleshoot` - Diagnose backend issues
-- `/database` - Manage Supabase database
-- `/sql` - Execute SQL queries directly
+- `/stuck-jobs` - Find and fix stuck analysis jobs
+- `/reset-analysis` - Reset a stuck/failed analysis
 - `/test-analysis` - Trigger a test analysis
 - `/test-email` - Test email sending
+
+### Database
+- `/database` - Manage Supabase database
+- `/sql` - Execute SQL queries directly
+
+### Planning & Architecture
 - `/architect` - Generate PROMPT.md and IMPLEMENTATION_PLAN.md for a feature
 - `/init-ralph` - Initialize Ralph Loop files
+- `/pricing` - Implement pricing tiers from PRICING_PLAN.md
+
+### Analysis Skills (7-Skill Architecture)
+- `/gap-intel-overview` - Overview of the GAP Intel system
+- `/engagement-analysis` - Skill 1: Engagement Quality Analysis
+- `/content-landscape` - Skill 2: Content Landscape Mapping
+- `/demand-signals` - Skill 3: Demand Signal Extraction
+- `/satisfaction-seo-growth` - Skills 4, 5, 6: Satisfaction, SEO & Growth
+- `/ctr-proxy-analysis` - Skill 7: CTR Proxy Analysis
+- `/gap-report-generation` - Generate gap reports
+- `/vision-analysis` - Vision AI thumbnail analysis
+
+### Research
+- `/youtube-research` - YouTube research foundation
+- `/youtube-data-pipeline` - YouTube data pipeline management
+- `/market-intelligence` - Market intelligence gathering
 
 ---
 

@@ -39,12 +39,14 @@ if not hasattr(importlib.metadata, 'packages_distributions'):
     importlib.metadata.packages_distributions = packages_distributions
 
 from email_service import (
-    send_report_complete_email, 
-    send_analysis_started_email, 
+    send_report_complete_email,
+    send_analysis_started_email,
     send_analysis_failed_email,
     send_admin_failure_notification,
     send_admin_timeout_notification,
-    send_user_timeout_email
+    send_user_timeout_email,
+    send_stuck_analysis_alert,
+    send_long_pending_alert
 )
 
 
@@ -540,80 +542,106 @@ def recover_stuck_jobs():
     """
     Check database for stuck jobs (processing for too long) and handle them.
     Called at startup to recover from crashes or sleep.
+    Sends email alerts to support@gapintel.online when stuck jobs are found.
     """
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("⚠️ Cannot recover stuck jobs: Supabase credentials missing")
         return
-    
-    # Max time a job can be "processing" before considered stuck (30 minutes)
-    STUCK_THRESHOLD_MINUTES = 30
+
+    # Thresholds
+    STUCK_THRESHOLD_MINUTES = 30  # Time before a job is considered stuck
+    ALERT_THRESHOLD_MINUTES = 60  # Time before an individual alert is sent (1 hour)
     MAX_RETRIES = 3
-    
+
     headers = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json",
         "Prefer": "return=representation"
     }
-    
+
     try:
         # Find reports stuck in "processing" or "pending" status
-        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,retry_count&status=in.(processing,pending)"
+        url = f"{SUPABASE_URL}/rest/v1/user_reports?select=id,access_key,channel_name,channel_handle,status,user_id,updated_at,created_at,retry_count&status=in.(processing,pending)"
         resp = requests.get(url, headers=headers)
-        
+
         if resp.status_code != 200:
             print(f"⚠️ Failed to fetch stuck jobs: {resp.text}")
             return
-        
+
         processing_jobs = resp.json()
         if not processing_jobs:
             print("✅ No processing jobs found in DB")
             return
-        
+
         from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)
         stuck_threshold = timedelta(minutes=STUCK_THRESHOLD_MINUTES)
-        
+        alert_threshold = timedelta(minutes=ALERT_THRESHOLD_MINUTES)
+
         stuck_count = 0
         requeued_count = 0
         failed_count = 0
-        
+        stuck_jobs_for_alert = []  # Track stuck jobs for batch alert
+
         print(f"🔍 Checking {len(processing_jobs)} processing jobs for staleness...")
-        
+
         for job in processing_jobs:
             access_key = job.get('access_key', 'Unknown')
-            # Check how long it's been processing
             updated_at = job.get('updated_at')
+            created_at = job.get('created_at')
             is_stuck = True
-            
+            minutes_stuck = 0
+
             if updated_at:
                 try:
                     # Parse ISO format with Z or +00:00
                     if updated_at.endswith('Z'):
                         updated_at = updated_at.replace('Z', '+00:00')
-                    
+
                     job_time = datetime.fromisoformat(updated_at)
-                    # Ensure job_time is aware
                     if job_time.tzinfo is None:
                         job_time = job_time.replace(tzinfo=timezone.utc)
-                    
+
                     time_stuck = now - job_time
                     minutes_stuck = time_stuck.total_seconds() / 60
-                    
+
                     if time_stuck < stuck_threshold:
                         print(f"   • {access_key}: Still fresh ({minutes_stuck:.1f}m old)")
                         is_stuck = False
                     else:
                         print(f"   • {access_key}: STUCK ({minutes_stuck:.1f}m old)")
+
+                        # Send individual alert for jobs stuck > 1 hour
+                        if time_stuck >= alert_threshold:
+                            hours_pending = minutes_stuck / 60
+                            print(f"   📧 Sending long-pending alert for {access_key} ({hours_pending:.1f}h)")
+                            try:
+                                send_long_pending_alert(job, hours_pending)
+                            except Exception as email_err:
+                                print(f"   ⚠️ Failed to send alert email: {email_err}")
+
                 except Exception as e:
                     print(f"   • {access_key}: Failed to parse time '{updated_at}', assuming stuck. Error: {e}")
-            
+                    minutes_stuck = 999  # Default high value for unknown time
+
             if not is_stuck:
                 continue
-                
+
             stuck_count += 1
             retry_count = job.get('retry_count', 0) or 0
-            
+
+            # Add to alert list with details
+            stuck_jobs_for_alert.append({
+                'channel_name': job.get('channel_name', 'Unknown'),
+                'channel_handle': job.get('channel_handle', 'Unknown'),
+                'access_key': access_key,
+                'status': job.get('status', 'Unknown'),
+                'retry_count': retry_count,
+                'minutes_stuck': minutes_stuck,
+                'created_at': created_at
+            })
+
             if retry_count >= MAX_RETRIES:
                 # Too many retries - mark as permanently failed
                 print(f"   ❌ Marking {access_key} as failed (max retries reached: {retry_count}/{MAX_RETRIES})")
@@ -630,33 +658,38 @@ def recover_stuck_jobs():
             else:
                 # Re-queue with incremented retry count
                 print(f"   🔄 Re-queuing {access_key} (retry #{retry_count + 1})")
-                
-                # Update retry count AND status back to pending/queued so it can be picked up
-                # Note: 'pending' in the UI maps to 'queued' or 'processing' but we use 'processing' for the worker
-                # but to re-trigger the queue we should set it back to something the queue picks up
+
                 update_url = f"{SUPABASE_URL}/rest/v1/user_reports?access_key=eq.{access_key}"
                 requests.patch(
                     update_url,
                     headers=headers,
                     json={"status": "processing", "retry_count": retry_count + 1, "updated_at": now.isoformat()}
                 )
-                
+
                 # Add to job queue
                 job_data = {
                     'channel_name': job.get('channel_handle') or job.get('channel_name'),
                     'access_key': access_key,
-                    'email': "recovered@gapintel.online", # Use a generic email for recovered jobs
-                    'video_count': 20, # Default for recovery
-                    'tier': 'pro' # Default for recovery
+                    'email': "recovered@gapintel.online",
+                    'video_count': 20,
+                    'tier': 'pro'
                 }
                 job_queue.enqueue(job_data)
                 requeued_count += 1
-        
+
         if stuck_count > 0:
             print(f"✅ Recovery finished: {stuck_count} stuck, {requeued_count} re-queued, {failed_count} failed")
+
+            # Send batch alert to support
+            print("📧 Sending stuck analysis alert to support...")
+            try:
+                send_stuck_analysis_alert(stuck_jobs_for_alert, stuck_count, requeued_count, failed_count)
+                print("✅ Support alert sent successfully")
+            except Exception as email_err:
+                print(f"⚠️ Failed to send support alert: {email_err}")
         else:
             print("✅ All processing jobs are within limits")
-        
+
     except Exception as e:
         print(f"⚠️ Error recovering stuck jobs: {e}")
         import traceback

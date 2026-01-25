@@ -7,13 +7,13 @@ Diagnose and fix common backend issues in the GAP Intel Railway environment.
 1. **Check System Health**
 Verify the API is responsive.
 ```bash
-curl -s https://resourceful-passion-production.up.railway.app/health
+curl -s https://thriving-presence-production-ca4a.up.railway.app/health
 ```
 
 2. **Check Debug Info**
 Inspect environment variables and internal state.
 ```bash
-curl -s https://gapintel-api-production.up.railway.app/debug | python3 -m json.tool
+curl -s https://thriving-presence-production-ca4a.up.railway.app/debug | python3 -m json.tool
 ```
 
 3. **Debug Stuck Reports**

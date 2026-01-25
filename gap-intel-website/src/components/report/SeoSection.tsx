@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, Type, FileText, Tag, CheckCircle, AlertTriangle, Lightbulb, ArrowRight } from 'lucide-react';
+import { Search, Type, FileText, AlertTriangle, Lightbulb, ArrowRight, Info } from 'lucide-react';
 
 interface SeoData {
     seoStrength: number;
@@ -16,7 +16,7 @@ interface SeoData {
         frontLoadScore: number;
         hasTimestamps: number;
         hasLinks: number;
-    };
+    } | null;
     issues: Array<{
         type: string;
         count: number;
@@ -59,8 +59,8 @@ export function SeoSection({ data }: SeoSectionProps) {
                             <Search className="w-6 h-6 text-emerald-600" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-slate-900">SEO Strength Index</h3>
-                            <p className="text-sm text-slate-500">Combination of title, description, and tag optimization</p>
+                            <h3 className="text-lg font-semibold text-slate-900">Title SEO Score</h3>
+                            <p className="text-sm text-slate-500">Based on title length, hooks, and keyword placement</p>
                         </div>
                     </div>
                     <div className="text-right">
@@ -120,43 +120,56 @@ export function SeoSection({ data }: SeoSectionProps) {
                     </div>
                 </div>
 
-                {/* Description Analysis */}
-                <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FileText className="w-5 h-5 text-purple-600" />
-                        <h3 className="text-lg font-semibold text-slate-900">Description Quality</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-slate-600">Average Score</span>
-                            <span className={`font-bold ${getScoreColor(data.descriptionAnalysis.avgScore)}`}>
-                                {data.descriptionAnalysis.avgScore.toFixed(0)}/100
-                            </span>
+                {/* Description Analysis - only show if available */}
+                {data.descriptionAnalysis ? (
+                    <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                            <FileText className="w-5 h-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-slate-900">Description Quality</h3>
                         </div>
 
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Front-loaded value</span>
-                                <span className={data.descriptionAnalysis.frontLoadScore >= 70 ? 'text-green-600' : 'text-orange-600'}>
-                                    {data.descriptionAnalysis.frontLoadScore}%
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600">Average Score</span>
+                                <span className={`font-bold ${getScoreColor(data.descriptionAnalysis.avgScore)}`}>
+                                    {data.descriptionAnalysis.avgScore.toFixed(0)}/100
                                 </span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Has timestamps</span>
-                                <span className={data.descriptionAnalysis.hasTimestamps >= 50 ? 'text-green-600' : 'text-orange-600'}>
-                                    {data.descriptionAnalysis.hasTimestamps}% of videos
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Has links/CTAs</span>
-                                <span className={data.descriptionAnalysis.hasLinks >= 50 ? 'text-green-600' : 'text-orange-600'}>
-                                    {data.descriptionAnalysis.hasLinks}% of videos
-                                </span>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Front-loaded value</span>
+                                    <span className={data.descriptionAnalysis.frontLoadScore >= 70 ? 'text-green-600' : 'text-orange-600'}>
+                                        {data.descriptionAnalysis.frontLoadScore}%
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Has timestamps</span>
+                                    <span className={data.descriptionAnalysis.hasTimestamps >= 50 ? 'text-green-600' : 'text-orange-600'}>
+                                        {data.descriptionAnalysis.hasTimestamps}% of videos
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Has links/CTAs</span>
+                                    <span className={data.descriptionAnalysis.hasLinks >= 50 ? 'text-green-600' : 'text-orange-600'}>
+                                        {data.descriptionAnalysis.hasLinks}% of videos
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-slate-50 rounded-[24px] p-6 border border-slate-200">
+                        <div className="flex items-center gap-2 mb-4">
+                            <FileText className="w-5 h-5 text-slate-400" />
+                            <h3 className="text-lg font-semibold text-slate-700">Description Quality</h3>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-500">
+                            <Info className="w-5 h-5" />
+                            <p className="text-sm">Description analysis requires additional data collection.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Issues & Fixes */}
@@ -176,7 +189,7 @@ export function SeoSection({ data }: SeoSectionProps) {
                                     </div>
                                     <div className="flex-1">
                                         <h4 className="font-medium text-slate-900">{issue.type}</h4>
-                                        <p className="text-sm text-slate-500 mt-1">Example: "{issue.example}"</p>
+                                        <p className="text-sm text-slate-500 mt-1">Example: &quot;{issue.example}&quot;</p>
                                         <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
                                             <Lightbulb className="w-4 h-4" />
                                             <span>{issue.fix}</span>
@@ -190,20 +203,22 @@ export function SeoSection({ data }: SeoSectionProps) {
             )}
 
             {/* Recommendations */}
-            <div className="bg-blue-50 rounded-[24px] p-6 border border-blue-100">
-                <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-blue-800">Quick Wins</h3>
+            {data.recommendations.length > 0 && (
+                <div className="bg-blue-50 rounded-[24px] p-6 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Lightbulb className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-lg font-semibold text-blue-800">Recommendations</h3>
+                    </div>
+                    <ul className="space-y-2">
+                        {data.recommendations.slice(0, 4).map((rec, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-blue-700">
+                                <ArrowRight className="w-4 h-4 mt-0.5 shrink-0" />
+                                <span>{rec}</span>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-                <ul className="space-y-2">
-                    {data.recommendations.slice(0, 4).map((rec, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-blue-700">
-                            <ArrowRight className="w-4 h-4 mt-0.5 shrink-0" />
-                            <span>{rec}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+            )}
         </div>
     );
 }
