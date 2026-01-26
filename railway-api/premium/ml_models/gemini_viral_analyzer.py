@@ -229,7 +229,7 @@ class GeminiViralAnalyzer:
     """
 
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash-001')
 
     async def analyze(
         self,

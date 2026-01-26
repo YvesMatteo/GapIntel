@@ -115,8 +115,8 @@ export default function ViralPredictorPage() {
 
 function LoadingState() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
-      <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
@@ -208,17 +208,17 @@ function ViralPredictorContent() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0a0f] pt-24 pb-20">
+    <main className="min-h-screen bg-[#FAFAFA] pt-24 pb-20">
       <div className="max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 text-purple-400 text-sm font-medium mb-4 border border-purple-500/20">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-4 border border-blue-200">
             <Brain className="w-4 h-4" /> Gemini 2.5 Flash Powered
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 font-serif tracking-tight">
             Viral Title Predictor
           </h1>
-          <p className="text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
             AI-powered analysis using psychological triggers, CTR patterns, and the YouTube algorithm.
             Upload a thumbnail for 25% more accurate predictions.
           </p>
@@ -227,7 +227,7 @@ function ViralPredictorContent() {
         <div className="grid lg:grid-cols-5 gap-8 items-start">
           {/* Input Panel */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 sticky top-24">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 sticky top-24">
               <div className="space-y-5">
                 {/* Thumbnail Upload */}
                 <ThumbnailUpload
@@ -238,18 +238,18 @@ function ViralPredictorContent() {
                 {/* Title Input */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-white/90">
+                    <label className="text-sm font-medium text-slate-900">
                       Video Title
                     </label>
                     <span className={`text-xs font-medium ${title.length >= 50 && title.length <= 70
-                      ? "text-green-400"
+                      ? "text-green-600"
                       : title.length > 70
-                        ? "text-red-400"
-                        : "text-white/40"
+                        ? "text-red-500"
+                        : "text-slate-400"
                       }`}>
                       {title.length}/70 chars
                       {title.length >= 50 && title.length <= 70 && (
-                        <Check className="w-3 h-3 text-green-400 ml-1 inline" />
+                        <Check className="w-3 h-3 text-green-600 ml-1 inline" />
                       )}
                     </span>
                   </div>
@@ -258,23 +258,23 @@ function ViralPredictorContent() {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     disabled={isAnalyzing}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition disabled:opacity-50"
+                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition disabled:opacity-50 disabled:bg-slate-50"
                     placeholder="Enter your video title..."
                   />
                 </div>
 
                 {/* Opening Hook */}
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
+                  <label className="block text-sm font-medium text-slate-900 mb-2">
                     Opening Hook (First Sentence)
-                    <span className="text-white/50 ml-2 font-normal">(Optional)</span>
+                    <span className="text-slate-500 ml-2 font-normal">(Optional)</span>
                   </label>
                   <textarea
                     rows={3}
                     value={hook}
                     onChange={(e) => setHook(e.target.value)}
                     disabled={isAnalyzing}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition resize-none disabled:opacity-50"
+                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition resize-none disabled:opacity-50 disabled:bg-slate-50"
                     placeholder="What's the first line of your video?"
                   />
                 </div>
@@ -282,17 +282,17 @@ function ViralPredictorContent() {
                 {/* Channel Size & Niche */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
+                    <label className="block text-sm font-medium text-slate-900 mb-2">
                       Channel Size
                     </label>
                     <select
                       value={channelSize}
                       onChange={(e) => setChannelSize(e.target.value)}
                       disabled={isAnalyzing}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition appearance-none disabled:opacity-50"
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none disabled:opacity-50 disabled:bg-slate-50"
                     >
                       {CHANNEL_SIZES.map((size) => (
-                        <option key={size.value} value={size.value} className="bg-[#1a1a2e]">
+                        <option key={size.value} value={size.value}>
                           {size.label}
                         </option>
                       ))}
@@ -300,17 +300,17 @@ function ViralPredictorContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
+                    <label className="block text-sm font-medium text-slate-900 mb-2">
                       Niche
                     </label>
                     <select
                       value={niche}
                       onChange={(e) => setNiche(e.target.value)}
                       disabled={isAnalyzing}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition appearance-none disabled:opacity-50"
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none disabled:opacity-50 disabled:bg-slate-50"
                     >
                       {NICHES.map((n) => (
-                        <option key={n.value} value={n.value} className="bg-[#1a1a2e]">
+                        <option key={n.value} value={n.value}>
                           {n.label}
                         </option>
                       ))}
@@ -322,7 +322,7 @@ function ViralPredictorContent() {
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || !title || title.length < 3}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold text-lg hover:from-purple-500 hover:to-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-lg hover:from-blue-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
                 >
                   {isAnalyzing ? (
                     <>
@@ -339,18 +339,18 @@ function ViralPredictorContent() {
 
                 {/* Error */}
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm flex items-start gap-2">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm flex items-start gap-2">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     {error}
                   </div>
                 )}
 
                 {/* Pro Tips */}
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                   <div className="flex items-start gap-2">
-                    <Lightbulb className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                    <p className="text-xs text-white/60">
-                      <strong className="text-white/80">Pro Tip:</strong> Upload a thumbnail for
+                    <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-slate-600">
+                      <strong className="text-slate-900">Pro Tip:</strong> Upload a thumbnail for
                       multi-modal AI analysis. Thumbnails account for 25-30% of view prediction accuracy.
                     </p>
                   </div>
@@ -363,12 +363,12 @@ function ViralPredictorContent() {
           <div className="lg:col-span-3 space-y-6">
             {/* Empty State */}
             {!result && !isAnalyzing && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center text-white/30 mb-6">
+              <div className="bg-white border border-slate-200 shadow-xl shadow-slate-200/50 rounded-3xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+                <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center text-slate-300 mb-6">
                   <Brain className="w-10 h-10" />
                 </div>
-                <h3 className="text-xl font-medium text-white mb-2">Ready to Analyze</h3>
-                <p className="text-white/50 max-w-sm">
+                <h3 className="text-xl font-medium text-slate-900 mb-2">Ready to Analyze</h3>
+                <p className="text-slate-500 max-w-sm">
                   Enter your video title and click "Analyze" for AI-powered viral potential prediction.
                 </p>
               </div>
@@ -376,15 +376,15 @@ function ViralPredictorContent() {
 
             {/* Loading State */}
             {isAnalyzing && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mb-6">
-                  <Brain className="w-10 h-10 text-purple-400 animate-pulse" />
+              <div className="bg-white border border-slate-200 shadow-xl shadow-slate-200/50 rounded-3xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                  <Brain className="w-10 h-10 text-blue-500 animate-pulse" />
                 </div>
-                <h3 className="text-xl font-medium text-white mb-2">Gemini is Analyzing...</h3>
-                <p className="text-white/50 max-w-sm mb-4">
+                <h3 className="text-xl font-medium text-slate-900 mb-2">Gemini is Analyzing...</h3>
+                <p className="text-slate-500 max-w-sm mb-4">
                   Evaluating psychological triggers, CTR patterns, and content alignment.
                 </p>
-                <div className="flex items-center gap-2 text-sm text-white/40">
+                <div className="flex items-center gap-2 text-sm text-slate-400">
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   This takes 2-5 seconds
                 </div>
@@ -395,49 +395,49 @@ function ViralPredictorContent() {
             {result && !isAnalyzing && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {/* Viral Score Hero */}
-                <div className="bg-gradient-to-br from-[#1a1a2e] to-[#0f0f1a] rounded-2xl p-8 text-white relative overflow-hidden border border-white/10">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 blur-3xl rounded-full -mr-32 -mt-32" />
+                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -mr-32 -mt-32" />
 
                   <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
                     <div className="text-center md:text-left">
-                      <p className="text-white/60 text-sm font-medium uppercase tracking-wider mb-2">
+                      <p className="text-blue-100 text-sm font-medium uppercase tracking-wider mb-2">
                         Overall Viral Score
                       </p>
                       <div className="flex items-baseline gap-2 justify-center md:justify-start">
-                        <span className="text-7xl font-bold">{result.overall_viral_score}</span>
-                        <span className="text-3xl text-white/40">/100</span>
+                        <span className="text-7xl font-bold tracking-tighter">{result.overall_viral_score}</span>
+                        <span className="text-3xl text-blue-200/60">/100</span>
                       </div>
-                      <p className="text-xl font-medium mt-2 text-purple-400">
+                      <p className="text-xl font-medium mt-2 text-blue-100">
                         {getViralScoreLabel(result.overall_viral_score)}
                       </p>
-                      <p className="text-sm text-white/50 mt-2">
+                      <p className="text-sm text-blue-200/80 mt-2">
                         Confidence: {result.confidence_interval}
                       </p>
                     </div>
 
                     <div className="space-y-4">
                       {/* View Prediction */}
-                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
+                      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <Eye className="w-5 h-5 text-green-400" />
+                          <Eye className="w-5 h-5 text-emerald-300" />
                           <span className="font-medium text-white/90">Predicted Views</span>
                         </div>
-                        <div className="text-3xl font-bold text-green-400">
+                        <div className="text-3xl font-bold text-white">
                           {formatViews(result.view_range_low)} - {formatViews(result.view_range_high)}
                         </div>
-                        <p className="text-sm text-white/50 mt-1">
+                        <p className="text-sm text-blue-100/70 mt-1">
                           Expected: {formatViews(result.predicted_views)}
                         </p>
                       </div>
 
                       {/* Key Metrics */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                          <p className="text-xs text-white/50 mb-1">Predicted CTR</p>
+                        <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+                          <p className="text-xs text-blue-100/70 mb-1">Predicted CTR</p>
                           <p className="text-xl font-bold text-white">{result.predicted_ctr}</p>
                         </div>
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                          <p className="text-xs text-white/50 mb-1">Predicted AVD</p>
+                        <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+                          <p className="text-xs text-blue-100/70 mb-1">Predicted AVD</p>
                           <p className="text-xl font-bold text-white">{result.predicted_avd}</p>
                         </div>
                       </div>
