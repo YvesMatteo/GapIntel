@@ -2496,6 +2496,93 @@ async def predict_video(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================
+# Viral Predictor V2 - Gemini-Powered
+# ============================================
+
+from fastapi import Form, File, UploadFile
+from typing import Optional
+import base64
+
+@app.post("/api/v2/predict-viral")
+async def predict_viral_v2(
+    title: str = Form(...),
+    hook: str = Form(""),
+    niche: str = Form(...),
+    channel_size: str = Form(...),
+    thumbnail: Optional[UploadFile] = File(None)
+):
+    """
+    V2 Viral Predictor - Gemini 2.5 Flash powered analysis.
+
+    Uses RAG-based methodology for scientific view prediction.
+    Supports multi-modal analysis with thumbnail upload.
+
+    Args:
+        title: Video title (50-70 chars optimal)
+        hook: Opening hook/first sentence
+        niche: One of: gaming, education, entertainment, tech, review, finance, vlog
+        channel_size: One of: nano, micro, small, large, mega
+        thumbnail: Optional thumbnail image (JPEG/PNG/WebP, max 5MB)
+
+    Returns:
+        Comprehensive viral analysis with view prediction, recommendations, and alternative titles.
+    """
+    try:
+        from premium.ml_models.gemini_viral_analyzer import GeminiViralAnalyzer, result_to_dict
+
+        # Validate inputs
+        if not title or len(title.strip()) < 3:
+            raise HTTPException(status_code=400, detail="Title must be at least 3 characters")
+
+        valid_niches = ["gaming", "education", "entertainment", "tech", "review", "finance", "vlog"]
+        niche_lower = niche.lower().strip()
+        if niche_lower not in valid_niches:
+            raise HTTPException(status_code=400, detail=f"Invalid niche. Must be one of: {', '.join(valid_niches)}")
+
+        valid_sizes = ["nano", "micro", "small", "large", "mega"]
+        size_lower = channel_size.lower().strip()
+        if size_lower not in valid_sizes:
+            raise HTTPException(status_code=400, detail=f"Invalid channel size. Must be one of: {', '.join(valid_sizes)}")
+
+        # Process thumbnail if provided
+        thumbnail_base64 = None
+        if thumbnail:
+            # Validate file type
+            content_type = thumbnail.content_type or ""
+            if not content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="Thumbnail must be an image (JPEG, PNG, or WebP)")
+
+            # Read and validate size (max 5MB)
+            content = await thumbnail.read()
+            if len(content) > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="Thumbnail must be less than 5MB")
+
+            # Convert to base64
+            thumbnail_base64 = base64.b64encode(content).decode("utf-8")
+
+        # Run Gemini analysis
+        analyzer = GeminiViralAnalyzer()
+        result = await analyzer.analyze(
+            title=title.strip(),
+            hook=hook.strip() if hook else "",
+            niche=niche_lower,
+            channel_size=size_lower,
+            thumbnail_base64=thumbnail_base64
+        )
+
+        # Convert result to dict for JSON response
+        return result_to_dict(result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"V2 Prediction failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
 @app.post("/premium/train-models")
 async def train_ml_models(
     authenticated: bool = Depends(verify_api_key)
